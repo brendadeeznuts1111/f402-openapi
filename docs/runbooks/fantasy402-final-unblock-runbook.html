@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fantasy402 — Final Unblock Runbook (v72f3d9da)</title>
+<style>
+  :root {
+    --bg-primary: #0a0e14;
+    --bg-secondary: #111820;
+    --bg-tertiary: #1a2332;
+    --bg-hover: #1e2a3a;
+    --border: #2a3a4f;
+    --text-primary: #e6edf5;
+    --text-secondary: #8b9bb4;
+    --text-muted: #5d6d7e;
+    --accent: #ff6b35;
+    --accent-dim: #ff6b3540;
+    --accent-glow: #ff6b3520;
+    --success: #1f7a4d;
+    --success-glow: #1f7a4d30;
+    --warning: #b8860b;
+    --warning-glow: #b8860b30;
+    --danger: #9f3a38;
+    --danger-glow: #9f3a3830;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    font-size: 13px;
+  }
+
+  header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .brand h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  .brand .subtitle {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .version-badge {
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .state-banner {
+    padding: 16px 28px;
+    background: var(--danger-glow);
+    border-bottom: 1px solid var(--danger);
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .state-banner .icon {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .state-banner h2 {
+    font-size: 14px;
+    color: var(--danger);
+    margin-bottom: 4px;
+  }
+  .state-banner p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .state-banner code {
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .metrics-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .metric-tile {
+    background: var(--bg-secondary);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .metric-tile .value {
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric-tile .value.ok { color: #4ade80; }
+  .metric-tile .value.warn { color: #fbbf24; }
+  .metric-tile .value.danger { color: #f87171; }
+  .metric-tile .label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 24px 28px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+  }
+  .panel-body { padding: 16px; }
+
+  /* Auth State */
+  .auth-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .auth-row:last-child { border-bottom: none; }
+  .auth-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+  .auth-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .auth-value.ok { color: #4ade80; }
+  .auth-value.danger { color: #f87171; }
+  .auth-value.warn { color: #fbbf24; }
+
+  /* Runbook Steps */
+  .step {
+    position: relative;
+    padding-left: 36px;
+    margin-bottom: 20px;
+  }
+  .step-number {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step.done .step-number {
+    background: var(--success-glow);
+    border-color: var(--success);
+    color: #4ade80;
+    content: "✓";
+  }
+  .step h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .step p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .step code {
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+  }
+  .step .cmd-block {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 8px 0;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    padding: 4px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Validation Checklist */
+  .checklist {
+    list-style: none;
+  }
+  .checklist li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li .check {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .checklist li.done .check {
+    background: var(--success-glow);
+    border-color: var(--success);
+    color: #4ade80;
+  }
+  .checklist li.pending .check {
+    background: var(--warning-glow);
+    border-color: var(--warning);
+    color: #fbbf24;
+  }
+
+  /* Post-Refresh State */
+  .post-refresh {
+    display: none;
+  }
+  .post-refresh.active {
+    display: block;
+  }
+
+  footer {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div>
+      <h1>📋 FANTASY402 FINAL UNBLOCK RUNBOOK</h1>
+      <div class="subtitle">Worker v72f3d9da · PR #2 b972854 · codex/fantasy402-p1-p2-contract-docs</div>
+    </div>
+  </div>
+  <div class="version-badge">v72f3d9da-97bc</div>
+</header>
+
+<div class="state-banner">
+  <span class="icon">🚫</span>
+  <div>
+    <h2>Current State: BLOCKED — Missing App Session Cookie</h2>
+    <p>
+      The Worker correctly fails fast at the auth boundary. Before patch: 7 endpoints burned with 403s.
+      After patch: <code>endpoints_failed = 0</code>, failure bounded to <code>Fantasy402 authenticateCustomer failed with HTTP 403</code>.
+      The upstream requires a pre-existing browser <code>ASP.NET_SessionId</code> — credentials-only login is rejected.
+    </p>
+  </div>
+</div>
+
+<div class="metrics-bar">
+  <div class="metric-tile">
+    <div class="value ok">3/3</div>
+    <div class="label">Cloudflare Auth</div>
+  </div>
+  <div class="metric-tile">
+    <div class="value ok">1/1</div>
+    <div class="label">Bearer Token</div>
+  </div>
+  <div class="metric-tile">
+    <div class="value danger">0/1</div>
+    <div class="label">App Session</div>
+  </div>
+  <div class="metric-tile">
+    <div class="value warn">0</div>
+    <div class="label">Endpoints Burned</div>
+  </div>
+  <div class="metric-tile">
+    <div class="value ok">✓</div>
+    <div class="label">Fail-Fast Active</div>
+  </div>
+</div>
+
+<div class="main-grid">
+
+  <!-- LEFT: Current Auth State -->
+  <div class="panel">
+    <div class="panel-header">🔐 Live Auth State (Expected)</div>
+    <div class="panel-body">
+      <div class="auth-row">
+        <span class="auth-label">hasAuthorization</span>
+        <span class="auth-value ok">✓ true</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">hasCfClearance</span>
+        <span class="auth-value ok">✓ true</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">hasCfBm</span>
+        <span class="auth-value ok">✓ true</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">hasSessionCookie</span>
+        <span class="auth-value danger">✗ false ← BLOCKER</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">ingestionReadiness.status</span>
+        <span class="auth-value danger">blocked</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">blocker</span>
+        <span class="auth-value danger">missing non-Cloudflare app session cookie</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">authenticateCustomer fallback</span>
+        <span class="auth-value warn">403 rejected</span>
+      </div>
+      <div class="auth-row">
+        <span class="auth-label">endpoints_failed</span>
+        <span class="auth-value ok">0 (fail-fast)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Unblock Steps -->
+  <div class="panel">
+    <div class="panel-header">🛠️ Unblock Procedure</div>
+    <div class="panel-body">
+
+      <div class="step done">
+        <div class="step-number">✓</div>
+        <h3>Verify Worker is healthy</h3>
+        <p>Run smoke test to confirm intentional failure on missing session:</p>
+        <div class="cmd-block">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+cd /Users/nolarose/Projects/f402-openapi && npm run --prefix workers/fantasy402-ingestion smoke:remote
+        </div>
+        <p>Expected: fails with <code>hasSessionCookie: false</code> — this is correct.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Open fantasy402.com in Chrome</h3>
+        <p>Navigate to <code>https://fantasy402.com</code> and log into the admin panel with your agent credentials. You must complete the full browser login flow — the upstream rejects headless/automated login attempts.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Capture authenticated API request</h3>
+        <p>With DevTools open (F12), perform any action that triggers a <code>/cloud/api/</code> call. Right-click the request → <strong>Copy → Copy as cURL (bash)</strong>. The cURL must contain a non-Cloudflare application session cookie such as <code>ASP.NET_SessionId=...</code> or the current equivalent in the Cookie header.</p>
+        <div class="cmd-block">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+# Parse and validate the copied cURL before pushing it to the Worker
+cd /Users/nolarose/Projects/f402-openapi && pbpaste | npm run --prefix workers/fantasy402-ingestion auth:import-curl -- - && npm run --prefix workers/fantasy402-ingestion auth:check
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Push session to Worker</h3>
+        <p>Pipe the captured cURL to the ingestion pipeline. This extracts auth, POSTs to <code>/refresh-auth</code>, and triggers a test ingestion:</p>
+        <div class="cmd-block">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+cd /Users/nolarose/Projects/f402-openapi && pbpaste | INGESTION_TRIGGER_TOKEN="$(cat workers/fantasy402-ingestion/.archive-auth-token)" npm run --prefix workers/fantasy402-ingestion ingest:curl -- -
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Verify unblocked state</h3>
+        <p>Confirm the Worker now reports ready:</p>
+        <div class="cmd-block">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+cd /Users/nolarose/Projects/f402-openapi && curl -s -H "Authorization: Bearer $(cat workers/fantasy402-ingestion/.archive-auth-token)"   https://fantasy402-ingestion.utahj4754.workers.dev/diagnostics |   jq '.upstreamAuthShape | {hasSessionCookie, ingestionReadiness}'
+        </div>
+        <p>Expected output:</p>
+        <div class="cmd-block">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+{
+  "hasSessionCookie": true,
+  "ingestionReadiness": {
+    "status": "ready",
+    "blocker": null
+  }
+}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- POST-REFRESH VALIDATION -->
+<div class="main-grid post-refresh" id="postRefresh">
+  <div class="panel" style="grid-column: 1 / -1;">
+    <div class="panel-header">✅ Post-Refresh Validation Checklist</div>
+    <div class="panel-body">
+      <ul class="checklist">
+        <li class="done"><span class="check">✓</span> <code>npm run smoke:remote</code> passes</li>
+        <li class="done"><span class="check">✓</span> <code>/diagnostics</code> shows <code>ingestionReadiness.status: "ready"</code></li>
+        <li class="done"><span class="check">✓</span> <code>hasSessionCookie: true</code></li>
+        <li class="done"><span class="check">✓</span> <code>endpoints_failed: 0</code> on manual <code>/trigger</code></li>
+        <li class="done"><span class="check">✓</span> <code>npm run verify</code> passes</li>
+        <li class="done"><span class="check">✓</span> <code>npm run test</code> passes</li>
+        <li class="pending"><span class="check">!</span> GitHub Actions billing resolved (if applicable)</li>
+        <li class="pending"><span class="check">!</span> Scheduled cron runs show green in logs</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Fantasy402 Final Unblock Runbook · Worker v72f3d9da · PR #2 b972854 · Expected unblock: manual browser cURL capture
+</footer>
+
+<script>
+function copy(btn) {
+  const code = btn.parentElement.textContent.replace('Copy', '').trim();
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// Simulate post-refresh state if URL has ?unblocked=true
+if (window.location.search.includes('unblocked=true')) {
+  document.getElementById('postRefresh').classList.add('active');
+  document.querySelector('.state-banner').style.background = 'var(--success-glow)';
+  document.querySelector('.state-banner').style.borderColor = 'var(--success)';
+  document.querySelector('.state-banner h2').textContent = '✅ STATE: UNBLOCKED — Ingestion Operational';
+  document.querySelector('.state-banner h2').style.color = '#4ade80';
+  document.querySelector('.state-banner .icon').textContent = '✅';
+}
+</script>
+
+</body>
+</html>

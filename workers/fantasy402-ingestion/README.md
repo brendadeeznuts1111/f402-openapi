@@ -62,9 +62,8 @@ The Worker also serves a lightweight operator viewer at `/archive/viewer`. The v
 Create Cloudflare resources, replace the placeholder binding IDs in `wrangler.toml`, set secrets, apply migrations, then deploy:
 
 ```bash
-wrangler kv:namespace create SESSION_KV
-wrangler d1 create fantasy402-analytics
-wrangler r2 bucket create fantasy402-raw
+npm run bootstrap:cloudflare
+npm run bootstrap:cloudflare:apply
 wrangler secret put FANTASY402_USERNAME
 wrangler secret put FANTASY402_PASSWORD
 wrangler secret put FANTASY402_AGENT_ID

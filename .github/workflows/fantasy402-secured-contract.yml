@@ -1,0 +1,53 @@
+name: Fantasy402 Secured Contract
+
+on:
+  pull_request:
+    paths:
+      - ".o11y/fantasy402-redacted-deep/api-spec/openapi.json"
+      - "tools/**"
+      - ".github/workflows/fantasy402-secured-contract.yml"
+  schedule:
+    # Nightly offline contract build plus optional staging probe.
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  validate-secured-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build and lint secured OpenAPI contract
+        run: node tools/build-fantasy402-secured-contract.cjs
+
+      - name: Contract-test examples spec
+        run: node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json
+
+      - name: Optional staging contract probe
+        env:
+          FANTASY402_STAGING_BASE_URL: ${{ secrets.FANTASY402_STAGING_BASE_URL }}
+          FANTASY402_STAGING_AUTHORIZATION: ${{ secrets.FANTASY402_STAGING_AUTHORIZATION }}
+          FANTASY402_STAGING_COOKIE: ${{ secrets.FANTASY402_STAGING_COOKIE }}
+        run: node tools/test-fantasy402-staging-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json
+
+      - name: Upload secured OpenAPI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fantasy402-secured-openapi
+          path: |
+            .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.slim.json
+            .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.slim.yaml
+            .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json
+            .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.yaml
+            .o11y/fantasy402-redacted-deep/api-spec-secured/security-enhancement-report.md
+            .o11y/fantasy402-redacted-deep/api-spec-secured/remediation-closeout.md
+            .o11y/fantasy402-redacted-deep/api-spec-secured/CHANGELOG.md
+            .o11y/fantasy402-redacted-deep/api-spec-secured/README.md
+            .o11y/fantasy402-redacted-deep/api-spec-secured/developer-portal-manifest.json
+            .o11y/fantasy402-redacted-deep/api-spec-secured/site/**

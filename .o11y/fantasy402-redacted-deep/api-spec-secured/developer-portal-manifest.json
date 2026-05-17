@@ -1,0 +1,34 @@
+{
+  "name": "fantasy402-secured-api",
+  "title": "Fantasy402 Secured API",
+  "version": "2.0.0-secured-observed",
+  "visibility": "internal",
+  "recommendedSpec": "openapi.secured.examples.yaml",
+  "codegenSpec": "openapi.secured.slim.yaml",
+  "fullReferenceSpec": "openapi.secured.yaml",
+  "staticDocs": "site/index.html",
+  "securityReport": "security-enhancement-report.md",
+  "remediationCloseout": "remediation-closeout.md",
+  "changelog": "CHANGELOG.md",
+  "description": "Security-hardened OpenAPI contract generated from observed Fantasy402 traffic. The examples spec is the safe developer-portal reference for client teams.",
+  "owners": [
+    "security",
+    "platform",
+    "api"
+  ],
+  "tags": [
+    "openapi",
+    "secured-contract",
+    "fantasy402",
+    "internal-api"
+  ],
+  "securityInvariants": [
+    "No credential fields in schemas or examples",
+    "First-party operations require sessionCookie or agentToken",
+    "First-party operations carry x-required-roles and x-rate-limit metadata",
+    "High-risk financial endpoints include synthetic examples and contract tests",
+    "Manager/getWebLog remains deprecated until replacement audit-log endpoint exists",
+    "Report/getTicketDetailPrint remains manual-review until valid backend method is observed"
+  ],
+  "publishNotes": "Publish openapi.secured.examples.yaml to the developer portal. Use openapi.secured.slim.yaml for SDK generation and CI linting."
+}

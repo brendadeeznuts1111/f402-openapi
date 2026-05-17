@@ -1,0 +1,57 @@
+name: Fantasy402 Secured Docs Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy generated docs to GitHub Pages"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: fantasy402-secured-docs
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build secured contract and static docs
+        run: node tools/build-fantasy402-secured-contract.cjs
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fantasy402-secured-docs-site
+          path: .o11y/fantasy402-redacted-deep/api-spec-secured/site/**
+
+      - name: Configure GitHub Pages
+        if: ${{ inputs.deploy == 'true' }}
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: ${{ inputs.deploy == 'true' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .o11y/fantasy402-redacted-deep/api-spec-secured/site
+
+      - name: Deploy to GitHub Pages
+        if: ${{ inputs.deploy == 'true' }}
+        uses: actions/deploy-pages@v4

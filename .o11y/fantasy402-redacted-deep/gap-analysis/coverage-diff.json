@@ -1,0 +1,76 @@
+{
+  "compared": {
+    "maxSpec": ".o11y/fantasy402-max/api-spec/openapi.json",
+    "latestSpec": ".o11y/fantasy402-redacted-deep/api-spec/openapi.json"
+  },
+  "counts": {
+    "maxEndpoints": 84,
+    "latestEndpoints": 90,
+    "addedSinceMax": 7,
+    "missingFromLatest": 1,
+    "missingReadShaped": 0,
+    "missingMutationShaped": 0,
+    "badReportCalls": 2,
+    "allBadCalls": 4
+  },
+  "addedSinceMax": [
+    {
+      "key": "POST /cloud/api/Customer/getHeriarchy",
+      "method": "POST",
+      "path": "/cloud/api/Customer/getHeriarchy",
+      "operation": "getHeriarchy",
+      "firstPartyApi": true,
+      "readShaped": true
+    },
+    {
+      "key": "POST /cloud/api/Provider/getAppsCashierURL",
+      "method": "POST",
+      "path": "/cloud/api/Provider/getAppsCashierURL",
+      "operation": "getAppsCashierURL",
+      "firstPartyApi": true,
+      "readShaped": true
+    },
+    {
+      "key": "POST /cloud/api/Provider/getCryptoWalletURL",
+      "method": "POST",
+      "path": "/cloud/api/Provider/getCryptoWalletURL",
+      "operation": "getCryptoWalletURL",
+      "firstPartyApi": true,
+      "readShaped": true
+    },
+    {
+      "key": "POST /cloud/api/Manager/getHeriarchy",
+      "method": "POST",
+      "path": "/cloud/api/Manager/getHeriarchy",
+      "operation": "getHeriarchy",
+      "firstPartyApi": true,
+      "readShaped": true
+    },
+    {
+      "key": "POST /cloud/api/Manager/getAddedInfo",
+      "method": "POST",
+      "path": "/cloud/api/Manager/getAddedInfo",
+      "operation": "getAddedInfo",
+      "firstPartyApi": true,
+      "readShaped": true
+    },
+    {
+      "key": "POST /cloud/api/Customer/getCommunicationMessages",
+      "method": "POST",
+      "path": "/cloud/api/Customer/getCommunicationMessages",
+      "operation": "getCommunicationMessages",
+      "firstPartyApi": true,
+      "readShaped": true
+    },
+    {
+      "key": "POST /cloud/api/Manager/getLineTypes",
+      "method": "POST",
+      "path": "/cloud/api/Manager/getLineTypes",
+      "operation": "getLineTypes",
+      "firstPartyApi": true,
+      "readShaped": true
+    }
+  ],
+  "missingReadShaped": [],
+  "missingMutationShaped": []
+}

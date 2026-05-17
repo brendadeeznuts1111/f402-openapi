@@ -1,0 +1,95 @@
+[
+  {
+    "requestId": "synthetic-read-24",
+    "method": "POST",
+    "url": "https://fantasy402.com/cloud/api/Report/getTicketDetailPrint",
+    "path": "/cloud/api/Report/getTicketDetailPrint",
+    "operation": "getTicketDetailPrint",
+    "status": 400,
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "getTicketDetailPrint",
+      "ticketNumber": ""
+    },
+    "response": {
+      "status": "Failed",
+      "msg": "Invalid Method: Model:Report,Func:getTicketDetailPrint"
+    }
+  },
+  {
+    "requestId": "synthetic-read-28",
+    "method": "POST",
+    "url": "https://fantasy402.com/cloud/api/Report/Pending",
+    "path": "/cloud/api/Report/Pending",
+    "operation": "Pending",
+    "status": 400,
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "Pending"
+    },
+    "response": {
+      "status": "Failed",
+      "msg": "Invalid CustomerID"
+    }
+  },
+  {
+    "requestId": "synthetic-read-32",
+    "method": "POST",
+    "url": "https://fantasy402.com/cloud/api/Provider/getAppsCashierURL",
+    "path": "/cloud/api/Provider/getAppsCashierURL",
+    "operation": "getAppsCashierURL",
+    "status": 401,
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "getAppsCashierURL"
+    },
+    "response": {
+      "URL": ""
+    }
+  },
+  {
+    "requestId": "synthetic-read-33",
+    "method": "POST",
+    "url": "https://fantasy402.com/cloud/api/Provider/getCryptoWalletURL",
+    "path": "/cloud/api/Provider/getCryptoWalletURL",
+    "operation": "getCryptoWalletURL",
+    "status": 401,
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "getCryptoWalletURL",
+      "office": "__REDACTED__",
+      "domain": "fantasy402.com"
+    },
+    "response": {
+      "URL": ""
+    }
+  }
+]

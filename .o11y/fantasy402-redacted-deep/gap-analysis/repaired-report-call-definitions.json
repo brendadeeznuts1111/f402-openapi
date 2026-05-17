@@ -1,0 +1,53 @@
+[
+  {
+    "name": "getTicketDetailPrint",
+    "endpoint": "/cloud/api/Report/getTicketDetailPrint",
+    "method": "POST",
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "getTicketDetailPrint",
+      "ticketNumber": ""
+    },
+    "repairStatus": "manual-review",
+    "replacementCandidates": [
+      {
+        "operation": "getPendingByTicket",
+        "endpoint": "/cloud/api/Report/getPendingByTicket"
+      },
+      {
+        "operation": "getWagerDetailTransaction",
+        "endpoint": "/cloud/api/Report/getWagerDetailTransaction"
+      },
+      {
+        "operation": "getWagaerDetailShort",
+        "endpoint": "/cloud/api/Manager/getWagaerDetailShort"
+      }
+    ],
+    "repairNote": "Report/getTicketDetailPrint returned Invalid Method. Replace print-specific data reads with an observed ticket/wager detail helper, or leave for backend/manual review."
+  },
+  {
+    "name": "Pending",
+    "endpoint": "/cloud/api/Report/Pending",
+    "method": "POST",
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "<player-customer-id-from-searchCustomerAdmin-or-getPlayers>",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "Pending"
+    },
+    "repairStatus": "repairable",
+    "repairNote": "Use a player CustomerID discovered from Manager/searchCustomerAdmin or Manager/getPlayers, not the agent/account CustomerID."
+  }
+]

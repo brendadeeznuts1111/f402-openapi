@@ -1,0 +1,35 @@
+[
+  {
+    "name": "getTicketDetailPrint",
+    "endpoint": "/cloud/api/Report/getTicketDetailPrint",
+    "method": "POST",
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "getTicketDetailPrint",
+      "ticketNumber": ""
+    }
+  },
+  {
+    "name": "Pending",
+    "endpoint": "/cloud/api/Report/Pending",
+    "method": "POST",
+    "params": {
+      "RRO": "1",
+      "agentID": "__REDACTED__",
+      "agentOwner": "__REDACTED__",
+      "customerID": "__REDACTED__",
+      "startDate": "2026-05-17",
+      "endDate": "2026-05-17",
+      "start": "2026-05-17",
+      "end": "2026-05-17",
+      "operation": "Pending"
+    }
+  }
+]

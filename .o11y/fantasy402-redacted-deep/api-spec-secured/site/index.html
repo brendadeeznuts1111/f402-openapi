@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fantasy402 API (Secured Observed Contract) - Slim + Minimal Examples</title>
+  <style>
+    :root { color-scheme: light; --ink:#17202a; --muted:#5d6d7e; --line:#d7dde5; --bg:#f7f9fb; --panel:#fff; --accent:#0b5cad; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+    header { padding: 32px 40px 24px; background: #0f1720; color: white; }
+    header p { max-width: 980px; color: #d7dde5; line-height: 1.5; }
+    main { padding: 28px 40px 48px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; max-width: 1100px; margin-bottom: 28px; }
+    .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+    .stat strong { display: block; font-size: 28px; }
+    .stat span { color: var(--muted); font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 13px; }
+    th { background: #edf2f7; font-size: 12px; text-transform: uppercase; color: #405163; }
+    tr:last-child td { border-bottom: 0; }
+    code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; }
+    .method { display: inline-block; min-width: 48px; padding: 2px 6px; border-radius: 4px; color: white; text-align: center; font-weight: 700; font-size: 11px; }
+    .post { background: #1f7a4d; }
+    .get { background: #0b5cad; }
+    .tag { display: inline-block; padding: 2px 6px; margin: 1px 2px 1px 0; border-radius: 999px; background: #e7eef7; color: #243b53; font-size: 12px; }
+    .deprecated { color: #9f3a38; font-weight: 700; }
+    .section { margin-top: 32px; }
+    @media (max-width: 760px) { header, main { padding-left: 18px; padding-right: 18px; } .stats { grid-template-columns: 1fr 1fr; } table { display: block; overflow-x: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fantasy402 API (Secured Observed Contract) - Slim + Minimal Examples</h1>
+    <p>Security-hardened OpenAPI contract derived from the observed browser-to-api capture. Passwords and credential fields are intentionally removed from schemas and examples. Role requirements, hierarchy validation, rate-limit expectations, and sensitive-data annotations are encoded as contract metadata. Bulky observed examples and sample-derived large enums are removed for CI, linting, code generation, and mock-server use. Includes a small set of synthetic, non-sensitive examples for docs and mock servers.</p>
+  </header>
+  <main>
+    <section class="stats">
+      <div class="stat"><strong>90</strong><span>Operations</span></div>
+      <div class="stat"><strong>62</strong><span>Schemas</span></div>
+      <div class="stat"><strong>30</strong><span>Sensitive Schemas</span></div>
+      <div class="stat"><strong>2</strong><span>Deprecated</span></div>
+    </section>
+
+    <section>
+      <h2>Operations</h2>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Roles</th><th>Responses</th><th>Rate Limit</th><th>Examples</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/app/language/ui.json</code><br>GET /app/language/ui.json</td>
+            <td></td>
+            <td><span class="tag">200</span></td>
+            <td></td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Customer/getCommunicationMessages</code><br>POST /cloud/api/Customer/getCommunicationMessages</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Customer/getHeriarchy</code><br>POST /cloud/api/Customer/getHeriarchy</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/League/Get_SportsLeagues</code><br>POST /cloud/api/League/Get_SportsLeagues</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/checkValidAgent</code><br>POST /cloud/api/Manager/checkValidAgent</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/crashGetLimits</code><br>POST /cloud/api/Manager/crashGetLimits</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAccountInfoOwner</code><br>POST /cloud/api/Manager/getAccountInfoOwner</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAddedInfo</code><br>POST /cloud/api/Manager/getAddedInfo</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailed</code><br>POST /cloud/api/Manager/getAgentAccountingDetailed</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailedPlayerCount</code><br>POST /cloud/api/Manager/getAgentAccountingDetailedPlayerCount</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailedRules</code><br>POST /cloud/api/Manager/getAgentAccountingDetailedRules</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailedTransactions</code><br>POST /cloud/api/Manager/getAgentAccountingDetailedTransactions</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentBilling</code><br>POST /cloud/api/Manager/getAgentBilling</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>10/60s</td>
+            <td>2</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentManagement</code><br>POST /cloud/api/Manager/getAgentManagement</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPerformance</code><br>POST /cloud/api/Manager/getAgentPerformance</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPermissionSetting</code><br>POST /cloud/api/Manager/getAgentPermissionSetting</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPositionData</code><br>POST /cloud/api/Manager/getAgentPositionData</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPositionList</code><br>POST /cloud/api/Manager/getAgentPositionList</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPrefix</code><br>POST /cloud/api/Manager/getAgentPrefix</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAuthorizations</code><br>POST /cloud/api/Manager/getAuthorizations</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getBetTicker</code><br>POST /cloud/api/Manager/getBetTicker</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getBetTickerConfig</code><br>POST /cloud/api/Manager/getBetTickerConfig</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getCircleLimits</code><br>POST /cloud/api/Manager/getCircleLimits</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getColorsSelections</code><br>POST /cloud/api/Manager/getColorsSelections</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getConfigWebReports</code><br>POST /cloud/api/Manager/getConfigWebReports</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getConfigWebReportsCustomerAdmin</code><br>POST /cloud/api/Manager/getConfigWebReportsCustomerAdmin</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getConfigWebReportsPending</code><br>POST /cloud/api/Manager/getConfigWebReportsPending</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getCryptoAvailable</code><br>POST /cloud/api/Manager/getCryptoAvailable</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getDynamicLive</code><br>POST /cloud/api/Manager/getDynamicLive</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getDynamicLiveLeagues</code><br>POST /cloud/api/Manager/getDynamicLiveLeagues</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getEnterTransactions</code><br>POST /cloud/api/Manager/getEnterTransactions</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>15/60s</td>
+            <td>2</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getExtendedProps</code><br>POST /cloud/api/Manager/getExtendedProps</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGames</code><br>POST /cloud/api/Manager/getGames</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGamesCustom</code><br>POST /cloud/api/Manager/getGamesCustom</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGamesPosition</code><br>POST /cloud/api/Manager/getGamesPosition</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGameVolume</code><br>POST /cloud/api/Manager/getGameVolume</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGetSubAgentByMaster</code><br>POST /cloud/api/Manager/getGetSubAgentByMaster</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGraded</code><br>POST /cloud/api/Manager/getGraded</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getHeriarchy</code><br>POST /cloud/api/Manager/getHeriarchy</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getHeriarchyRates</code><br>POST /cloud/api/Manager/getHeriarchyRates</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getLastIDPlayer</code><br>POST /cloud/api/Manager/getLastIDPlayer</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getLinesProps</code><br>POST /cloud/api/Manager/getLinesProps</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getLineTypes</code><br>POST /cloud/api/Manager/getLineTypes</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getListAgenstByAgent</code><br>POST /cloud/api/Manager/getListAgenstByAgent</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getListVip</code><br>POST /cloud/api/Manager/getListVip</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getMasterSheet</code><br>POST /cloud/api/Manager/getMasterSheet</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getMessage</code><br>POST /cloud/api/Manager/getMessage</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getMessagesByParent</code><br>POST /cloud/api/Manager/getMessagesByParent</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getNewEmailsCount</code><br>POST /cloud/api/Manager/getNewEmailsCount</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPending</code><br>POST /cloud/api/Manager/getPending</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPeriodsBySport</code><br>POST /cloud/api/Manager/getPeriodsBySport</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPlayerCount</code><br>POST /cloud/api/Manager/getPlayerCount</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPlayers</code><br>POST /cloud/api/Manager/getPlayers</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>2</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getProps</code><br>POST /cloud/api/Manager/getProps</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPropWagers</code><br>POST /cloud/api/Manager/getPropWagers</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getReportDeletedTransactions</code><br>POST /cloud/api/Manager/getReportDeletedTransactions</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getReportPlayerAnalysis</code><br>POST /cloud/api/Manager/getReportPlayerAnalysis</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSettleBalance</code><br>POST /cloud/api/Manager/getSettleBalance</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSportsType</code><br>POST /cloud/api/Manager/getSportsType</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSportsTypesLive</code><br>POST /cloud/api/Manager/getSportsTypesLive</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getStores</code><br>POST /cloud/api/Manager/getStores</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSubSportByReport</code><br>POST /cloud/api/Manager/getSubSportByReport</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTotalActiveCustomer</code><br>POST /cloud/api/Manager/getTotalActiveCustomer</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTransactionDetail</code><br>POST /cloud/api/Manager/getTransactionDetail</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTransactionHistory</code><br>POST /cloud/api/Manager/getTransactionHistory</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTransactionList</code><br>POST /cloud/api/Manager/getTransactionList</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWagaerDetailShort</code><br>POST /cloud/api/Manager/getWagaerDetailShort</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWebLog</code><br>POST /cloud/api/Manager/getWebLog</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">410</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td><span class="deprecated">Deprecated</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWeeklyFigureByAgent</code><br>POST /cloud/api/Manager/getWeeklyFigureByAgent</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWeeklyFigureByAgentLite</code><br>POST /cloud/api/Manager/getWeeklyFigureByAgentLite</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/liveCasinoGetLimits</code><br>POST /cloud/api/Manager/liveCasinoGetLimits</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/nextLogin</code><br>POST /cloud/api/Manager/nextLogin</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/primaryAgents</code><br>POST /cloud/api/Manager/primaryAgents</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/primaryAgentsGetAgents</code><br>POST /cloud/api/Manager/primaryAgentsGetAgents</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/primaryAgentsGetTransactions</code><br>POST /cloud/api/Manager/primaryAgentsGetTransactions</td>
+            <td><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/searchCustomerAdmin</code><br>POST /cloud/api/Manager/searchCustomerAdmin</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Provider/getAppsCashierURL</code><br>POST /cloud/api/Provider/getAppsCashierURL</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">401</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Provider/getCryptoWalletURL</code><br>POST /cloud/api/Provider/getCryptoWalletURL</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">401</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getDailyFiguresByCustomer</code><br>POST /cloud/api/Report/getDailyFiguresByCustomer</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getGradedWagerByCustomer</code><br>POST /cloud/api/Report/getGradedWagerByCustomer</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getGrading</code><br>POST /cloud/api/Report/getGrading</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getLeaderBoard</code><br>POST /cloud/api/Report/getLeaderBoard</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getPendingByTicket</code><br>POST /cloud/api/Report/getPendingByTicket</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getScoresLiveDynamic</code><br>POST /cloud/api/Report/getScoresLiveDynamic</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getTicketDetailPrint</code><br>POST /cloud/api/Report/getTicketDetailPrint</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">400</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td><span class="deprecated">Deprecated</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getTransactions</code><br>POST /cloud/api/Report/getTransactions</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getWagerDetailTransaction</code><br>POST /cloud/api/Report/getWagerDetailTransaction</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getWagersByFigureDate</code><br>POST /cloud/api/Report/getWagersByFigureDate</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/Pending</code><br>Retrieve pending wagers for a customer</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span></td>
+            <td><span class="tag">200</span><span class="tag">400</span><span class="tag">403</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>5</td>
+            <td>Active</td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/System/authenticateCustomer</code><br>POST /cloud/api/System/authenticateCustomer</td>
+            <td><span class="tag">ROLE_AGENT</span><span class="tag">ROLE_MASTER</span><span class="tag">ROLE_SUB_AGENT</span></td>
+            <td><span class="tag">200</span><span class="tag">429</span></td>
+            <td>20/60s</td>
+            <td>0</td>
+            <td>Active</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Security Schemes</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Location/Scheme</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>sessionCookie</code></td>
+            <td>apiKey</td>
+            <td>cookie</td>
+            <td>Session cookie issued after login. Required for browser-compatible clients.</td>
+          </tr>
+<tr>
+            <td><code>agentToken</code></td>
+            <td>http</td>
+            <td>bearer</td>
+            <td>Recommended replacement token format carrying agent identity and hierarchy claims.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

@@ -40,6 +40,8 @@ The GitHub Actions workflow uploads `openapi.secured.examples.yaml`, `developer-
 
 The `Fantasy402 Secured Docs Pages` workflow can build the same static docs and optionally deploy them to GitHub Pages when manually run with `deploy=true`.
 
+The `Fantasy402 Cloudflare Pages` workflow can build the same static docs and optionally deploy them to Cloudflare Pages when manually run with `deploy=true`. The default Cloudflare Pages project is `fantasy402-docs`; it requires the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
+
 ## Nightly Staging Probe
 
 The workflow runs nightly. It always runs offline validation and examples contract tests.

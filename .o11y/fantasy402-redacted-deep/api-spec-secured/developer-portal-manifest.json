@@ -7,6 +7,11 @@
   "codegenSpec": "openapi.secured.slim.yaml",
   "fullReferenceSpec": "openapi.secured.yaml",
   "staticDocs": "site/index.html",
+  "cloudflarePages": {
+    "projectName": "fantasy402-docs",
+    "artifactDirectory": "site",
+    "workflow": ".github/workflows/fantasy402-cloudflare-pages.yml"
+  },
   "securityReport": "security-enhancement-report.md",
   "remediationCloseout": "remediation-closeout.md",
   "changelog": "CHANGELOG.md",
@@ -30,5 +35,5 @@
     "Manager/getWebLog remains deprecated until replacement audit-log endpoint exists",
     "Report/getTicketDetailPrint remains manual-review until valid backend method is observed"
   ],
-  "publishNotes": "Publish openapi.secured.examples.yaml to the developer portal. Use openapi.secured.slim.yaml for SDK generation and CI linting."
+  "publishNotes": "Publish openapi.secured.examples.yaml to the developer portal. Use openapi.secured.slim.yaml for SDK generation and CI linting. The static docs can be published to Cloudflare Pages from the site directory."
 }

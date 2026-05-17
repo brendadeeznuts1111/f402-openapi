@@ -30,3 +30,5 @@ The build validates:
 ## Publication
 
 Publish `openapi.secured.examples.yaml` and `site/**` to the internal developer portal. Use `openapi.secured.slim.yaml` for generated clients.
+
+Cloudflare Pages deployment is documented in `docs/cloudflare-pages.md`. The repository workflow builds the static portal from the examples spec and can deploy it to the `fantasy402-docs` Pages project when the Cloudflare secrets are configured.

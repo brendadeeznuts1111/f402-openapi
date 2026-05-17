@@ -1,0 +1,58 @@
+name: Fantasy402 Cloudflare Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy generated docs to Cloudflare Pages"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      projectName:
+        description: "Cloudflare Pages project name"
+        required: true
+        default: "fantasy402-docs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fantasy402-cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-optionally-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build secured contract and static docs
+        run: node tools/build-fantasy402-secured-contract.cjs
+
+      - name: Contract-test examples spec
+        run: node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json
+
+      - name: Upload Cloudflare Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fantasy402-cloudflare-pages-site
+          path: .o11y/fantasy402-redacted-deep/api-spec-secured/site/**
+
+      - name: Deploy to Cloudflare Pages
+        if: ${{ inputs.deploy == 'true' }}
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ inputs.projectName }}
+          directory: .o11y/fantasy402-redacted-deep/api-spec-secured/site
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

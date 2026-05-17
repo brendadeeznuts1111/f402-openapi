@@ -7,13 +7,24 @@ const required = [
   "FANTASY402_USERNAME",
   "FANTASY402_PASSWORD",
   "FANTASY402_AGENT_ID",
-  "INGESTION_TRIGGER_TOKEN",
   "CLOUDFLARE_API_TOKEN",
 ];
-const optional = ["FANTASY402_CUSTOMER_ID", "ALERT_WEBHOOK_URL"];
+const hasAuthToken = Boolean(process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TOKEN);
+const optional = [
+  "FANTASY402_CUSTOMER_ID",
+  "FANTASY402_SESSION_COOKIE",
+  "FANTASY402_CF_CLEARANCE",
+  "FANTASY402_CF_BM",
+  "FANTASY402_AUTHORIZATION",
+  "FANTASY402_USER_AGENT",
+  "FANTASY402_REFERER",
+  "FANTASY402_BROWSER_HEADERS_JSON",
+  "ALERT_WEBHOOK_URL",
+];
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
 const missing = required.filter((key) => !process.env[key]);
+if (!hasAuthToken) missing.push("INGESTION_TRIGGER_TOKEN or ARCHIVE_AUTH_TOKEN");
 
 if (missing.length > 0) {
   console.error(JSON.stringify({ status: "failed", missing }, null, 2));
@@ -24,6 +35,8 @@ const payload = {};
 for (const key of [...required, ...optional]) {
   if (process.env[key]) payload[key] = process.env[key];
 }
+if (process.env.INGESTION_TRIGGER_TOKEN) payload.INGESTION_TRIGGER_TOKEN = process.env.INGESTION_TRIGGER_TOKEN;
+if (process.env.ARCHIVE_AUTH_TOKEN) payload.ARCHIVE_AUTH_TOKEN = process.env.ARCHIVE_AUTH_TOKEN;
 
 if (!apply) {
   console.log(
@@ -46,7 +59,7 @@ const tempFile = path.join(tempDir, "secrets.json");
 
 try {
   fs.writeFileSync(tempFile, JSON.stringify(payload));
-  const output = execFileSync("npx", ["wrangler@4.59.2", "secret", "bulk", tempFile], {
+  const output = execFileSync("wrangler", ["secret", "bulk", tempFile], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });

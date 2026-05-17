@@ -3,6 +3,15 @@ info:
   title: 'Fantasy402 API (Secured Observed Contract) - Slim + Minimal Examples'
   version: 2.0.0-secured-observed
   description: 'Security-hardened OpenAPI contract derived from the observed browser-to-api capture. Passwords and credential fields are intentionally removed from schemas and examples. Role requirements, hierarchy validation, rate-limit expectations, and sensitive-data annotations are encoded as contract metadata. Bulky observed examples and sample-derived large enums are removed for CI, linting, code generation, and mock-server use. Includes a small set of synthetic, non-sensitive examples for docs and mock servers.'
+  contact:
+    name: Fantasy402 Contract Maintainers
+  x-api-state: observed-secured
+  x-last-captured: 2026-05-08
+  x-next-review: 2026-06-08
+  x-ai-discovery:
+    llmsTxt: ./llms.txt
+    stableJson: ./openapi.json
+    stableYaml: ./openapi.yaml
 servers:
   - url: 'https://fantasy402.com'
     description: Production. Requires authenticated session cookie or agent bearer token.
@@ -41,10 +50,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -55,11 +75,16 @@ paths:
         confidence: low
       x-sample-count: 1
       x-observed-auth:
-        - authorization
+        - 'authorization: Bearer undefined'
+        - cf_clearance
+        - __cf_bm
+        - browser headers
       x-origin: 'https://fantasy402.com'
       security:
-        - sessionCookie: []
-        - agentToken: []
+        - cloudflareClearance: []
+          cloudflareBotManagement: []
+          browserUserAgent: []
+          browserAjaxHeader: []
       x-required-roles:
         - ROLE_AGENT
         - ROLE_MASTER
@@ -76,7 +101,10 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              '$ref': '#/components/schemas/CommonAgentRequest'
+              '$ref': '#/components/schemas/AuthenticateCustomerRequest'
+            examples:
+              redacted:
+                '$ref': '#/components/examples/AuthenticateCustomerRequestRedacted'
   /cloud/api/Manager/getAgentPerformance:
     post:
       summary: POST /cloud/api/Manager/getAgentPerformance
@@ -115,10 +143,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -184,10 +223,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -251,10 +301,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -320,10 +381,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -382,10 +454,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -444,10 +527,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -506,10 +600,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -566,10 +671,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -626,10 +742,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -686,10 +813,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -753,10 +891,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -825,6 +974,11 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
@@ -832,6 +986,12 @@ paths:
               examples:
                 tooManyRequests:
                   '$ref': '#/components/examples/RateLimitError'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -901,10 +1061,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -963,10 +1134,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1024,10 +1206,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1080,12 +1273,46 @@ paths:
                 required:
                   - INFO
                   - LIST
+          headers:
+            Deprecation:
+              schema:
+                type: string
+              description: HTTP deprecation signal. Value is true while this observed endpoint remains deprecated.
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+              description: Planned sunset timestamp for this deprecated observed endpoint.
+            Link:
+              schema:
+                type: string
+              description: 'Migration guidance link with rel="deprecation".'
         '410':
           description: Gone - use a narrowed audit-log endpoint after migration.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                problem:
+                  '$ref': '#/components/examples/GenericProblem'
+          headers:
+            Deprecation:
+              schema:
+                type: string
+              description: HTTP deprecation signal. Value is true while this observed endpoint remains deprecated.
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+              description: Planned sunset timestamp for this deprecated observed endpoint.
+            Link:
+              schema:
+                type: string
+              description: 'Migration guidance link with rel="deprecation".'
         '429':
           description: Too Many Requests
           headers:
@@ -1101,10 +1328,34 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
+            Deprecation:
+              schema:
+                type: string
+              description: HTTP deprecation signal. Value is true while this observed endpoint remains deprecated.
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+              description: Planned sunset timestamp for this deprecated observed endpoint.
+            Link:
+              schema:
+                type: string
+              description: 'Migration guidance link with rel="deprecation".'
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1140,6 +1391,11 @@ paths:
       description: 'Deprecated pending audit. Exposes login activity, IP addresses, and free-form operational messages. Use a narrowed audit-log endpoint when available.'
       x-security-review-required: true
       x-privacy-classification: 'PII:AuditLog'
+      x-sunset: '2026-06-30T00:00:00Z'
+      x-migration-target: narrowed-audit-log-endpoint
+      externalDocs:
+        description: Deprecation and migration guidance.
+        url: ./remediation-closeout.md
   /cloud/api/Manager/getMessagesByParent:
     post:
       summary: POST /cloud/api/Manager/getMessagesByParent
@@ -1166,10 +1422,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1248,10 +1515,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 2
         statusCodes:
@@ -1309,10 +1587,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1370,10 +1659,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1436,10 +1736,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1518,10 +1829,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1579,10 +1901,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1625,6 +1958,26 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/GetTicketDetailPrint'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                problem:
+                  '$ref': '#/components/examples/GenericProblem'
+          headers:
+            Deprecation:
+              schema:
+                type: string
+              description: HTTP deprecation signal. Value is true while this observed endpoint remains deprecated.
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+              description: Planned sunset timestamp for this deprecated observed endpoint.
+            Link:
+              schema:
+                type: string
+              description: 'Migration guidance link with rel="deprecation".'
         '429':
           description: Too Many Requests
           headers:
@@ -1640,10 +1993,34 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
+            Deprecation:
+              schema:
+                type: string
+              description: HTTP deprecation signal. Value is true while this observed endpoint remains deprecated.
+            Sunset:
+              schema:
+                type: string
+                format: date-time
+              description: Planned sunset timestamp for this deprecated observed endpoint.
+            Link:
+              schema:
+                type: string
+              description: 'Migration guidance link with rel="deprecation".'
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1682,6 +2059,11 @@ paths:
         - /cloud/api/Report/getPendingByTicket
         - /cloud/api/Report/getWagerDetailTransaction
         - /cloud/api/Manager/getWagaerDetailShort
+      x-sunset: '2026-06-30T00:00:00Z'
+      x-migration-target: /cloud/api/Report/getPendingByTicket
+      externalDocs:
+        description: Deprecation and migration guidance.
+        url: ./remediation-closeout.md
   /cloud/api/Report/getTransactions:
     post:
       summary: POST /cloud/api/Report/getTransactions
@@ -1708,10 +2090,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1769,10 +2162,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1849,10 +2253,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -1910,6 +2325,12 @@ paths:
               examples:
                 invalidCustomer:
                   '$ref': '#/components/examples/InvalidCustomerError'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                problem:
+                  '$ref': '#/components/examples/GenericProblem'
         '403':
           description: Forbidden - customer does not belong to the authenticated agent hierarchy.
           content:
@@ -1919,6 +2340,12 @@ paths:
               examples:
                 forbidden:
                   '$ref': '#/components/examples/ForbiddenError'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                problem:
+                  '$ref': '#/components/examples/GenericProblem'
         '429':
           description: Too Many Requests
           headers:
@@ -1934,6 +2361,11 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
@@ -1941,6 +2373,12 @@ paths:
               examples:
                 tooManyRequests:
                   '$ref': '#/components/examples/RateLimitError'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 2
         statusCodes:
@@ -2003,10 +2441,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2063,10 +2512,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2123,10 +2583,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2168,6 +2639,12 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/GetAppsCashierURL'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                problem:
+                  '$ref': '#/components/examples/GenericProblem'
         '429':
           description: Too Many Requests
           headers:
@@ -2183,10 +2660,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2230,6 +2718,12 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/GetAppsCashierURL'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                problem:
+                  '$ref': '#/components/examples/GenericProblem'
         '429':
           description: Too Many Requests
           headers:
@@ -2245,10 +2739,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2312,10 +2817,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2374,10 +2890,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2436,10 +2963,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2489,8 +3027,12 @@ paths:
                     properties:
                       CustomerIDPrefix:
                         type: string
+                        x-sensitive: true
+                        x-privacy-classification: 'PII:AccountIdentifier'
                       CustomerIDSufix:
                         type: string
+                        x-sensitive: true
+                        x-privacy-classification: 'PII:AccountIdentifier'
                     required:
                       - CustomerIDPrefix
                       - CustomerIDSufix
@@ -2511,10 +3053,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2573,10 +3126,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2647,10 +3211,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2719,6 +3294,11 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
@@ -2726,6 +3306,12 @@ paths:
               examples:
                 tooManyRequests:
                   '$ref': '#/components/examples/RateLimitError'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2797,10 +3383,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2863,10 +3460,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2923,10 +3531,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -2990,10 +3609,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3062,10 +3692,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3136,10 +3777,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3213,10 +3865,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3277,10 +3940,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3340,10 +4014,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3403,10 +4088,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3466,10 +4162,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3529,10 +4236,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3592,10 +4310,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3655,10 +4384,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3723,10 +4463,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3795,10 +4546,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3858,10 +4620,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3920,10 +4693,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -3998,10 +4782,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4075,10 +4870,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4152,10 +4958,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4229,10 +5046,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4296,10 +5124,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4365,10 +5204,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4427,10 +5277,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4489,10 +5350,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4560,10 +5432,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4628,10 +5511,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4697,10 +5591,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4764,10 +5669,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4846,10 +5762,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4926,10 +5853,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -4981,6 +5919,9 @@ paths:
               required:
                 - agentOwner
                 - operation
+            examples:
+              valid:
+                '$ref': '#/components/examples/GetAccountInfoOwnerRequestValid'
       responses:
         '200':
           description: Success
@@ -5003,10 +5944,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5018,10 +5970,17 @@ paths:
       x-sample-count: 1
       x-observed-auth:
         - authorization
+        - cf_clearance
+        - __cf_bm
+        - browser headers
       x-origin: 'https://fantasy402.com'
       security:
         - sessionCookie: []
-        - agentToken: []
+          agentToken: []
+          cloudflareClearance: []
+          cloudflareBotManagement: []
+          browserUserAgent: []
+          browserAjaxHeader: []
       x-required-roles:
         - ROLE_AGENT
         - ROLE_MASTER
@@ -5091,10 +6050,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5106,10 +6076,17 @@ paths:
       x-sample-count: 1
       x-observed-auth:
         - authorization
+        - cf_clearance
+        - __cf_bm
+        - browser headers
       x-origin: 'https://fantasy402.com'
       security:
         - sessionCookie: []
-        - agentToken: []
+          agentToken: []
+          cloudflareClearance: []
+          cloudflareBotManagement: []
+          browserUserAgent: []
+          browserAjaxHeader: []
       x-required-roles:
         - ROLE_AGENT
         - ROLE_MASTER
@@ -5126,7 +6103,10 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              '$ref': '#/components/schemas/CommonAgentRequest'
+              '$ref': '#/components/schemas/GetConfigWebReportsRequest'
+            examples:
+              valid:
+                '$ref': '#/components/examples/GetConfigWebReportsRequestValid'
   /cloud/api/Manager/getConfigWebReportsPending:
     post:
       summary: POST /cloud/api/Manager/getConfigWebReportsPending
@@ -5158,10 +6138,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 2
         statusCodes:
@@ -5234,10 +6225,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5304,10 +6306,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5385,10 +6398,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 2
         statusCodes:
@@ -5465,10 +6489,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 2
         statusCodes:
@@ -5552,10 +6587,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 2
         statusCodes:
@@ -5627,10 +6673,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5685,10 +6742,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5753,10 +6821,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5813,10 +6892,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5887,10 +6977,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -5955,10 +7056,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -6027,6 +7139,11 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
@@ -6034,6 +7151,12 @@ paths:
               examples:
                 tooManyRequests:
                   '$ref': '#/components/examples/RateLimitError'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -6106,10 +7229,21 @@ paths:
               schema:
                 type: integer
               description: Unix timestamp when the current window resets.
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 0
+              description: Seconds to wait before retrying the request.
           content:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+            'application/problem+json':
+              schema:
+                '$ref': '#/components/schemas/ProblemDetails'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitProblem'
       x-confidence:
         samples: 1
         statusCodes:
@@ -6574,6 +7708,8 @@ components:
           type: string
         CustomerIDPrefix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         CasinoHeadCountRate:
           type: integer
         IncludeFpLossesFlag:
@@ -6674,6 +7810,8 @@ components:
           type: integer
         CustomerIDSufix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         NotifyNewMessages:
           type: []
         ValueNotifyNewMessages:
@@ -6682,8 +7820,12 @@ components:
           type: string
         OfficeReceiveEmail:
           type: []
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         EmailOffice:
           type: []
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         HideMasterSheet:
           type: string
         ChargeCorePlusInet:
@@ -6759,13 +7901,15 @@ components:
         NameLast:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         NameFirst:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         NameMI:
           type: []
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         Address:
           type: []
         City:
@@ -6779,7 +7923,7 @@ components:
         EMail:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:EmailAddress'
         HomePhone:
           type: []
         BusinessPhone:
@@ -7807,11 +8951,13 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Agent:
           type: string
           enum:
             - __REDACTED__
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
       required:
         - Agent
         - Login
@@ -7836,7 +8982,7 @@ components:
             NameFirst:
               type: string
               x-sensitive: true
-              x-privacy-classification: 'PII:AccountIdentifier'
+              x-privacy-classification: 'PII:Name'
           required:
             - NameFirst
       required:
@@ -7971,6 +9117,8 @@ components:
           x-privacy-classification: 'PII:AccountIdentifier'
         CustomerIDPrefix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         AgentLevel:
           type: integer
         AgentType:
@@ -7980,6 +9128,8 @@ components:
             - M
         CustomerIDSufix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
       required:
         - AgentID
         - AgentLevel
@@ -7991,6 +9141,8 @@ components:
       properties:
         MasterAgent:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         CustomerID:
           type: string
           enum:
@@ -8018,7 +9170,7 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         CurrentBalance:
           type:
             - number
@@ -9122,7 +10274,7 @@ components:
         email:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:EmailAddress'
         CreditLimit:
           type: integer
         CurrentBalance:
@@ -9379,6 +10531,8 @@ components:
           type: string
         PlayerName:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         OpenDateTime:
           type: string
           format: date-time
@@ -9386,6 +10540,9 @@ components:
           type: integer
         PasswordFix:
           type: string
+          description: Observed account configuration flag. Not a password value.
+          x-security-review-required: true
+          x-sensitive: false
         AllowPropBuilder:
           type: string
         AllowSuperSlots:
@@ -9401,11 +10558,11 @@ components:
         NameFirst:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         NameLast:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Phone:
           type: string
         FreePlayPendingBalance:
@@ -14121,6 +15278,9 @@ components:
           type: string
         showPassword:
           type: string
+          description: Observed report/UI visibility flag. Not a password value.
+          x-security-review-required: true
+          x-sensitive: false
         showBalance:
           type: string
         showDepositWithdraw:
@@ -14131,6 +15291,8 @@ components:
           type: string
         showName:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         showSettleFigure:
           type: string
         showActiveOnly:
@@ -14187,8 +15349,12 @@ components:
           x-privacy-classification: 'PII:AccountIdentifier'
         CustomerIDF:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         NameF:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         TimeAcceptedF:
           type: string
         TimeScheduledF:
@@ -14203,6 +15369,8 @@ components:
           type: string
         AgentF:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
       required:
         - AgentF
         - AgentID
@@ -14321,6 +15489,8 @@ components:
           type: string
         CustomerIDPrefix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         CasinoHeadCountRate:
           type: integer
         IncludeFpLossesFlag:
@@ -14421,6 +15591,8 @@ components:
           type: integer
         CustomerIDSufix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         NotifyNewMessages:
           type: string
         ValueNotifyNewMessages:
@@ -14429,8 +15601,12 @@ components:
           type: string
         OfficeReceiveEmail:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         EmailOffice:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         HideMasterSheet:
           type: string
         ChargeCorePlusInet:
@@ -14795,7 +15971,7 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         TicketNumber:
           type: integer
         PlayNumber:
@@ -15113,7 +16289,7 @@ components:
         Name:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Pending:
           type: string
         Balance:
@@ -15186,6 +16362,8 @@ components:
           x-privacy-classification: 'PII:AccountIdentifier'
         CustomerIDFix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         MasterAgentID:
           type: string
           enum:
@@ -15197,7 +16375,7 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Login:
           type: string
           enum:
@@ -15274,7 +16452,7 @@ components:
         Name:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Login:
           type: string
           x-sensitive: true
@@ -15712,17 +16890,197 @@ components:
           type: string
         msg:
           type: string
+    AuthenticateCustomerRequest:
+      type: object
+      additionalProperties: false
+      description: Observed customer authentication form payload. Password is write-only and must never appear in responses or examples.
+      required:
+        - customerID
+        - password
+        - operation
+        - RRO
+      properties:
+        customerID:
+          '$ref': '#/components/schemas/CustomerId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+        state:
+          type: boolean
+          description: 'Static authentication flow flag observed as true. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 256
+          description: Plaintext credential submitted only for authentication. Never returned by the API and intentionally redacted from examples.
+          x-sensitive: true
+          x-privacy-classification: Credential
+          x-security-review-required: true
+        multiaccount:
+          type: integer
+          enum:
+            - 0
+            - 1
+          default: 1
+          description: 'Static authentication flow flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        response_type:
+          type: string
+          enum:
+            - code
+          description: 'Static authentication flow value observed as code. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        client_id:
+          '$ref': '#/components/schemas/AgentId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+        domain:
+          type: string
+          enum:
+            - fantasy402.com
+          description: 'Static authentication flow domain. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        redirect_uri:
+          type: string
+          description: 'Static authentication flow redirect URI. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        operation:
+          type: string
+          const: authenticateCustomer
+          description: 'Static authentication operation discriminator. Non-sensitive; safe to hardcode.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        RRO:
+          '$ref': '#/components/schemas/RROFlag'
+          description: 'Static request flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+    GetConfigWebReportsRequest:
+      type: object
+      additionalProperties: false
+      description: Observed getConfigWebReports form payload from browser traffic.
+      required:
+        - agentID
+        - operation
+        - RRO
+        - agentOwner
+      properties:
+        agentID:
+          '$ref': '#/components/schemas/AgentId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+        operation:
+          type: string
+          const: getConfigWebReports
+        RRO:
+          '$ref': '#/components/schemas/RROFlag'
+        agentOwner:
+          '$ref': '#/components/schemas/AgentId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+    ProblemDetails:
+      type: object
+      additionalProperties: true
+      description: RFC 9457 problem detail object for machine-readable API errors.
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: 'Stable problem type URI. Use about:blank only for generic errors.'
+        title:
+          type: string
+          description: 'Short, human-readable error summary.'
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+          description: HTTP status code generated by the origin server.
+        detail:
+          type: string
+          description: Human-readable detail specific to this occurrence.
+        instance:
+          type: string
+          format: uri-reference
+          description: Request path or trace URI for this occurrence.
+        retryAfter:
+          type: integer
+          minimum: 0
+          description: Retry delay in seconds when the error is recoverable.
+        rateLimit:
+          type: object
+          additionalProperties: false
+          properties:
+            limit:
+              type: integer
+              minimum: 0
+            remaining:
+              type: integer
+              minimum: 0
+            reset:
+              type: integer
+              minimum: 0
+              description: Unix timestamp when the current rate-limit window resets.
+      required:
+        - type
+        - title
+        - status
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: ASP.NET_SessionId
-      description: Session cookie issued after login. Required for browser-compatible clients.
+      description: 'Application session cookie observed on authenticated /cloud/api/* browser calls. Required for browser-compatible clients and must belong to the authenticated agent session.'
     agentToken:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Recommended replacement token format carrying agent identity and hierarchy claims.
+      description: Observed browser Authorization bearer token carrying agent identity and hierarchy claims. The ingestion Worker stores this as FANTASY402_AUTHORIZATION.
+    cloudflareClearance:
+      type: apiKey
+      in: cookie
+      name: cf_clearance
+      description: 'Cloudflare challenge-clearance cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_CLEARANCE.'
+    cloudflareBotManagement:
+      type: apiKey
+      in: cookie
+      name: __cf_bm
+      description: 'Cloudflare Bot Management cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_BM.'
+    browserUserAgent:
+      type: apiKey
+      in: header
+      name: User-Agent
+      description: 'Browser User-Agent header observed during API discovery. Used as part of the browser-compatible request context, not as an application credential.'
+    browserAjaxHeader:
+      type: apiKey
+      in: header
+      name: X-Requested-With
+      description: Observed XMLHttpRequest marker for same-origin API calls. Additional browser metadata headers are documented in x-observed-browser-headers.
+      x-observed-browser-headers:
+        - Accept
+        - Accept-Language
+        - Origin
+        - Referer
+        - Sec-CH-UA
+        - Sec-CH-UA-Mobile
+        - Sec-CH-UA-Platform
+        - Sec-Fetch-Dest
+        - Sec-Fetch-Mode
+        - Sec-Fetch-Site
+        - Priority
   parameters:
     AgentOwnerParam:
       name: agentOwner
@@ -15758,15 +17116,15 @@ components:
     CommonAgentRequestExample:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
         operation: getPlayers
     PendingRequestValid:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
-        customerID: DEMOCUST
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
+        customerID: __REDACTED__
         startDate: 2026-05-17
         endDate: 2026-05-17
         operation: Pending
@@ -15778,8 +17136,8 @@ components:
       summary: Invalid customerID
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        customerID: UNKNOWN
+        agentID: __REDACTED__
+        customerID: __REDACTED__
         operation: Pending
     PendingResponseValid:
       value:
@@ -15806,8 +17164,8 @@ components:
     AgentBillingRequestValid:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
         operation: getAgentBilling
     GetAgentBillingResponseValid:
       value:
@@ -15825,8 +17183,8 @@ components:
     EnterTransactionsRequestValid:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
         operation: getEnterTransactions
     GetEnterTransactionsResponseValid:
       value:
@@ -15840,9 +17198,81 @@ components:
             Name: __REDACTED__
             CurrentBalance: 0
             Login: __REDACTED__
+    AuthenticateCustomerRequestRedacted:
+      summary: Redacted customer authentication request
+      description: Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.
+      value:
+        customerID: __REDACTED__
+        state: true
+        password: __REDACTED_PASSWORD__
+        multiaccount: 1
+        response_type: code
+        client_id: __REDACTED__
+        domain: fantasy402.com
+        redirect_uri: fantasy402.com
+        operation: authenticateCustomer
+        RRO: 1
+    GetConfigWebReportsRequestValid:
+      summary: Redacted web report config request
+      value:
+        agentID: __REDACTED__
+        operation: getConfigWebReports
+        RRO: 1
+        agentOwner: __REDACTED__
+    GetAccountInfoOwnerRequestValid:
+      summary: Redacted account owner info request
+      value:
+        operation: getAccountInfoOwner
+        agentOwner: __REDACTED__
+    RateLimitProblem:
+      summary: Rate limit exceeded
+      value:
+        type: 'https://fantasy402.com/errors/rate-limit-exceeded'
+        title: Rate Limit Exceeded
+        status: 429
+        detail: Request budget for this operation was exhausted. Retry after the indicated delay.
+        instance: /cloud/api/Manager/getBetTicker
+        retryAfter: 47
+        rateLimit:
+          limit: 30
+          remaining: 0
+          reset: 1779026447
+    GenericProblem:
+      summary: Generic API error
+      value:
+        type: 'about:blank'
+        title: API Error
+        status: 400
+        detail: The request could not be processed.
+        instance: /cloud/api/Manager/getPlayers
 security:
   - sessionCookie: []
-  - agentToken: []
+    agentToken: []
+    cloudflareClearance: []
+    cloudflareBotManagement: []
+    browserUserAgent: []
+    browserAjaxHeader: []
 externalDocs:
   description: Gap-analysis and report-call repair notes.
   url: ../fantasy402-redacted-deep/gap-analysis/report-call-repair-notes.md
+x-observed-browser-headers:
+  - Accept
+  - Accept-Language
+  - Origin
+  - Referer
+  - Sec-CH-UA
+  - Sec-CH-UA-Mobile
+  - Sec-CH-UA-Platform
+  - Sec-Fetch-Dest
+  - Sec-Fetch-Mode
+  - Sec-Fetch-Site
+  - Priority
+x-auth-flow-constants:
+  - state
+  - multiaccount
+  - response_type
+  - domain
+  - redirect_uri
+  - operation
+  - RRO
+

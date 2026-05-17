@@ -16,6 +16,8 @@ const settings = {
   accountId: "7a470541a704caaf91e71efccc78fd36",
   kvBinding: "SESSION_KV",
   kvTitle: "SESSION_KV",
+  authCacheKvBinding: "AUTH_CACHE",
+  authCacheKvTitle: "AUTH_CACHE",
   d1Name: "fantasy402-analytics",
   r2Bucket: "fantasy402-raw",
   r2PreviewBucket: "fantasy402-raw-preview",
@@ -25,6 +27,8 @@ const existing = {
   accountId: readTomlValue(config, /account_id\s*=\s*"([^"]+)"/),
   kvId: readTomlValue(config, /binding\s*=\s*"SESSION_KV"[\s\S]*?id\s*=\s*"([^"]+)"/),
   kvPreviewId: readTomlValue(config, /binding\s*=\s*"SESSION_KV"[\s\S]*?preview_id\s*=\s*"([^"]+)"/),
+  authCacheKvId: readTomlValue(config, /binding\s*=\s*"AUTH_CACHE"[\s\S]*?id\s*=\s*"([^"]+)"/),
+  authCacheKvPreviewId: readTomlValue(config, /binding\s*=\s*"AUTH_CACHE"[\s\S]*?preview_id\s*=\s*"([^"]+)"/),
   d1Id: readTomlValue(config, /database_name\s*=\s*"fantasy402-analytics"[\s\S]*?database_id\s*=\s*"([^"]+)"/),
 };
 
@@ -34,27 +38,37 @@ if (existing.accountId && existing.accountId !== settings.accountId) {
 
 plan.push({
   resource: "KV namespace",
-  command: `npx wrangler@latest kv namespace create ${settings.kvTitle} --account-id ${settings.accountId}`,
+  command: `wrangler kv namespace create ${settings.kvTitle}`,
   skipped: !isPlaceholder(existing.kvId),
 });
 plan.push({
   resource: "KV preview namespace",
-  command: `npx wrangler@latest kv namespace create ${settings.kvTitle} --preview --account-id ${settings.accountId}`,
+  command: `wrangler kv namespace create ${settings.kvTitle} --preview`,
   skipped: !isPlaceholder(existing.kvPreviewId),
 });
 plan.push({
+  resource: "Auth cache KV namespace",
+  command: `wrangler kv namespace create ${settings.authCacheKvTitle}`,
+  skipped: !isPlaceholder(existing.authCacheKvId),
+});
+plan.push({
+  resource: "Auth cache KV preview namespace",
+  command: `wrangler kv namespace create ${settings.authCacheKvTitle} --preview`,
+  skipped: !isPlaceholder(existing.authCacheKvPreviewId),
+});
+plan.push({
   resource: "D1 database",
-  command: `npx wrangler@latest d1 create ${settings.d1Name}`,
+  command: `wrangler d1 create ${settings.d1Name}`,
   skipped: !isPlaceholder(existing.d1Id),
 });
 plan.push({
   resource: "R2 bucket",
-  command: `npx wrangler@latest r2 bucket create ${settings.r2Bucket}`,
+  command: `wrangler r2 bucket create ${settings.r2Bucket}`,
   skipped: false,
 });
 plan.push({
   resource: "R2 preview bucket",
-  command: `npx wrangler@latest r2 bucket create ${settings.r2PreviewBucket}`,
+  command: `wrangler r2 bucket create ${settings.r2PreviewBucket}`,
   skipped: false,
 });
 
@@ -66,15 +80,25 @@ if (!apply) {
 const replacements = {};
 
 if (isPlaceholder(existing.kvId)) {
-  replacements["<YOUR_KV_ID>"] = parseKvId(run("npx", ["wrangler@latest", "kv", "namespace", "create", settings.kvTitle, "--account-id", settings.accountId]));
+  replacements["<YOUR_KV_ID>"] = parseKvId(run("wrangler", ["kv", "namespace", "create", settings.kvTitle]));
 }
 
 if (isPlaceholder(existing.kvPreviewId)) {
-  replacements["<YOUR_KV_PREVIEW_ID>"] = parseKvId(run("npx", ["wrangler@latest", "kv", "namespace", "create", settings.kvTitle, "--preview", "--account-id", settings.accountId]));
+  replacements["<YOUR_KV_PREVIEW_ID>"] = parseKvId(run("wrangler", ["kv", "namespace", "create", settings.kvTitle, "--preview"]));
+}
+
+if (isPlaceholder(existing.authCacheKvId)) {
+  replacements["<YOUR_AUTH_CACHE_KV_ID>"] = parseKvId(run("wrangler", ["kv", "namespace", "create", settings.authCacheKvTitle]));
+}
+
+if (isPlaceholder(existing.authCacheKvPreviewId)) {
+  replacements["<YOUR_AUTH_CACHE_KV_PREVIEW_ID>"] = parseKvId(
+    run("wrangler", ["kv", "namespace", "create", settings.authCacheKvTitle, "--preview"]),
+  );
 }
 
 if (isPlaceholder(existing.d1Id)) {
-  replacements["<YOUR_D1_ID>"] = parseD1Id(run("npx", ["wrangler@latest", "d1", "create", settings.d1Name]));
+  replacements["<YOUR_D1_ID>"] = parseD1Id(run("wrangler", ["d1", "create", settings.d1Name]));
 }
 
 createR2Bucket(settings.r2Bucket);
@@ -114,7 +138,7 @@ console.log(
 
 function createR2Bucket(bucket) {
   try {
-    run("npx", ["wrangler@latest", "r2", "bucket", "create", bucket]);
+    run("wrangler", ["r2", "bucket", "create", bucket]);
   } catch (error) {
     const output = String(error.stdout ?? "") + String(error.stderr ?? "") + String(error.message ?? "");
     if (/already exists|already owned|bucket.*exists/i.test(output)) {
@@ -168,7 +192,8 @@ function parseFirst(output, patterns) {
 function runSelfTest() {
   const kvOutput = `Add the following to your configuration file:
 kv_namespaces = [
-  { binding = "SESSION_KV", id = "0123456789abcdef0123456789abcdef" }
+  { binding = "SESSION_KV", id = "0123456789abcdef0123456789abcdef" },
+  { binding = "AUTH_CACHE", id = "fedcba9876543210fedcba9876543210" }
 ]`;
   const d1Output = `[[d1_databases]]
 binding = "DB"

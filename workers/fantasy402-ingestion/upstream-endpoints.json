@@ -5,63 +5,74 @@
       "key": "getAgentPerformance",
       "method": "post",
       "path": "/cloud/api/Manager/getAgentPerformance",
-      "operationId": "post_cloud_api_Manager_getAgentPerformance"
+      "operationId": "post_cloud_api_Manager_getAgentPerformance",
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getAgentBilling",
       "method": "post",
       "path": "/cloud/api/Manager/getAgentBilling",
-      "operationId": "post_cloud_api_Manager_getAgentBilling"
+      "operationId": "post_cloud_api_Manager_getAgentBilling",
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getEnterTransactions",
       "method": "post",
       "path": "/cloud/api/Manager/getEnterTransactions",
-      "operationId": "post_cloud_api_Manager_getEnterTransactions"
+      "operationId": "post_cloud_api_Manager_getEnterTransactions",
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getPending",
       "method": "post",
       "path": "/cloud/api/Manager/getPending",
-      "operationId": "post_cloud_api_Manager_getPending"
+      "operationId": "post_cloud_api_Manager_getPending",
+      "contentType": "application/json",
+      "requiresCustomerId": true
     },
     {
       "key": "Pending",
       "method": "post",
       "path": "/cloud/api/Report/Pending",
       "operationId": "post_cloud_api_Report_Pending",
-      "requiresCustomerId": true
+      "requiresCustomerId": true,
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getPlayers",
       "method": "post",
       "path": "/cloud/api/Manager/getPlayers",
-      "operationId": "post_cloud_api_Manager_getPlayers"
+      "operationId": "post_cloud_api_Manager_getPlayers",
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getAddedInfo",
       "method": "post",
       "path": "/cloud/api/Manager/getAddedInfo",
-      "operationId": "post_cloud_api_Manager_getAddedInfo"
+      "operationId": "post_cloud_api_Manager_getAddedInfo",
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getCommunicationMessages",
       "method": "post",
       "path": "/cloud/api/Customer/getCommunicationMessages",
       "operationId": "post_cloud_api_Customer_getCommunicationMessages",
-      "requiresCustomerId": true
+      "requiresCustomerId": true,
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getLineTypes",
       "method": "post",
       "path": "/cloud/api/Manager/getLineTypes",
-      "operationId": "post_cloud_api_Manager_getLineTypes"
+      "operationId": "post_cloud_api_Manager_getLineTypes",
+      "contentType": "application/x-www-form-urlencoded"
     },
     {
       "key": "getHeriarchy",
       "method": "post",
       "path": "/cloud/api/Manager/getHeriarchy",
-      "operationId": "post_cloud_api_Manager_getHeriarchy"
+      "operationId": "post_cloud_api_Manager_getHeriarchy",
+      "contentType": "application/x-www-form-urlencoded"
     }
   ]
 }

@@ -57,7 +57,7 @@ The staging probe checks allowed status codes and verifies live JSON responses d
 
 - First-party `/cloud/api/*` operations must declare authentication.
 - First-party operations must include `x-required-roles`, `x-rate-limit`, and a `429` response.
-- Credential fields such as `Password`, `password`, `pass`, `PasswordF`, `PayoutPassword`, and `PlaceWagerPassword` are forbidden.
+- Credential fields such as `Password`, `password`, `pass`, `PasswordF`, `PayoutPassword`, and `PlaceWagerPassword` are forbidden, except for the reviewed write-only `AuthenticateCustomerRequest.password` field and its redacted synthetic example.
 - Account identifiers and network identifiers must be annotated with `x-sensitive`.
 - `Manager/getWebLog` remains deprecated until a narrowed audit-log replacement exists.
 - `Report/getTicketDetailPrint` remains manual-review until a valid backend method is observed.

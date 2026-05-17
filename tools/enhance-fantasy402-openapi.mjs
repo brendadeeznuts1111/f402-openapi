@@ -15,8 +15,8 @@ const outputExamplesYaml = path.join(outDir, 'openapi.secured.examples.yaml');
 const reportPath = path.join(outDir, 'security-enhancement-report.md');
 
 const credentialFieldRe = /^(Password|password|pass|PasswordF|PayoutPassword|PlaceWagerPassword)$/;
-const piiFieldRe = /^(IPAddress|IP|LoginID|Login|AgentLogin|MasterLogin|PlayerLogin|CustomerID|customerID|AgentID|agentID|agentOwner|MasterAgentID|Name|NameFirst|NameLast|email)$/i;
-const sensitiveExampleValueKeyRe = /^(IPAddress|IP|LoginID|Login|AgentLogin|MasterLogin|PlayerLogin|CustomerID|customerID|AgentID|agentID|agentOwner|MasterAgentID|Name|NameFirst|NameLast|email|Data|Operation)$/;
+const piiFieldRe = /^(IPAddress|IP|LoginID|Login|AgentLogin|MasterLogin|PlayerLogin|CustomerID|CustomerIDF|CustomerIDFix|CustomerIDPrefix|CustomerIDSufix|customerID|Agent|AgentF|AgentID|agentID|agentOwner|MasterAgent|MasterAgentID|Name|NameF|NameFirst|NameLast|NameMI|PlayerName|showName|email|EMail|EmailOffice|OfficeReceiveEmail)$/i;
+const sensitiveExampleValueKeyRe = /^(IPAddress|IP|LoginID|Login|AgentLogin|MasterLogin|PlayerLogin|CustomerID|CustomerIDF|CustomerIDFix|CustomerIDPrefix|CustomerIDSufix|customerID|Agent|AgentF|AgentID|agentID|agentOwner|MasterAgent|MasterAgentID|Name|NameF|NameFirst|NameLast|NameMI|PlayerName|showName|email|EMail|EmailOffice|OfficeReceiveEmail|Data|Operation)$/;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));

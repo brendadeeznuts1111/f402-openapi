@@ -3,7 +3,18 @@
   "info": {
     "title": "Fantasy402 API (Secured Observed Contract) - Slim",
     "version": "2.0.0-secured-observed",
-    "description": "Security-hardened OpenAPI contract derived from the observed browser-to-api capture. Passwords and credential fields are intentionally removed from schemas and examples. Role requirements, hierarchy validation, rate-limit expectations, and sensitive-data annotations are encoded as contract metadata. Bulky observed examples and sample-derived large enums are removed for CI, linting, code generation, and mock-server use."
+    "description": "Security-hardened OpenAPI contract derived from the observed browser-to-api capture. Passwords and credential fields are intentionally removed from schemas and examples. Role requirements, hierarchy validation, rate-limit expectations, and sensitive-data annotations are encoded as contract metadata. Bulky observed examples and sample-derived large enums are removed for CI, linting, code generation, and mock-server use.",
+    "contact": {
+      "name": "Fantasy402 Contract Maintainers"
+    },
+    "x-api-state": "observed-secured",
+    "x-last-captured": "2026-05-08",
+    "x-next-review": "2026-06-08",
+    "x-ai-discovery": {
+      "llmsTxt": "./llms.txt",
+      "stableJson": "./openapi.json",
+      "stableYaml": "./openapi.yaml"
+    }
   },
   "servers": [
     {
@@ -59,12 +70,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -83,15 +111,18 @@
         },
         "x-sample-count": 1,
         "x-observed-auth": [
-          "authorization"
+          "authorization: Bearer undefined",
+          "cf_clearance",
+          "__cf_bm",
+          "browser headers"
         ],
         "x-origin": "https://fantasy402.com",
         "security": [
           {
-            "sessionCookie": []
-          },
-          {
-            "agentToken": []
+            "cloudflareClearance": [],
+            "cloudflareBotManagement": [],
+            "browserUserAgent": [],
+            "browserAjaxHeader": []
           }
         ],
         "x-required-roles": [
@@ -113,7 +144,12 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/CommonAgentRequest"
+                "$ref": "#/components/schemas/AuthenticateCustomerRequest"
+              },
+              "examples": {
+                "redacted": {
+                  "$ref": "#/components/examples/AuthenticateCustomerRequestRedacted"
+                }
               }
             }
           }
@@ -174,12 +210,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -281,12 +334,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -385,12 +455,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -492,12 +579,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -588,12 +692,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -684,12 +805,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -780,12 +918,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -874,12 +1029,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -968,12 +1140,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1062,12 +1251,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1167,12 +1373,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1274,12 +1497,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1382,12 +1622,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1478,12 +1735,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1573,12 +1847,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1661,6 +1952,27 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "Deprecation": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "HTTP deprecation signal. Value is true while this observed endpoint remains deprecated."
+              },
+              "Sunset": {
+                "schema": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "description": "Planned sunset timestamp for this deprecated observed endpoint."
+              },
+              "Link": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Migration guidance link with rel=\"deprecation\"."
+              }
             }
           },
           "410": {
@@ -1670,6 +1982,37 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "problem": {
+                    "$ref": "#/components/examples/GenericProblem"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Deprecation": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "HTTP deprecation signal. Value is true while this observed endpoint remains deprecated."
+              },
+              "Sunset": {
+                "schema": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "description": "Planned sunset timestamp for this deprecated observed endpoint."
+              },
+              "Link": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Migration guidance link with rel=\"deprecation\"."
               }
             }
           },
@@ -1693,12 +2036,48 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
+              },
+              "Deprecation": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "HTTP deprecation signal. Value is true while this observed endpoint remains deprecated."
+              },
+              "Sunset": {
+                "schema": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "description": "Planned sunset timestamp for this deprecated observed endpoint."
+              },
+              "Link": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Migration guidance link with rel=\"deprecation\"."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1754,7 +2133,13 @@
         "deprecated": true,
         "description": "Deprecated pending audit. Exposes login activity, IP addresses, and free-form operational messages. Use a narrowed audit-log endpoint when available.",
         "x-security-review-required": true,
-        "x-privacy-classification": "PII:AuditLog"
+        "x-privacy-classification": "PII:AuditLog",
+        "x-sunset": "2026-06-30T00:00:00Z",
+        "x-migration-target": "narrowed-audit-log-endpoint",
+        "externalDocs": {
+          "description": "Deprecation and migration guidance.",
+          "url": "./remediation-closeout.md"
+        }
       }
     },
     "/cloud/api/Manager/getMessagesByParent": {
@@ -1792,12 +2177,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -1917,12 +2319,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2012,12 +2431,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2107,12 +2543,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2210,12 +2663,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2336,12 +2806,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2431,12 +2918,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2503,6 +3007,37 @@
                 "schema": {
                   "$ref": "#/components/schemas/GetTicketDetailPrint"
                 }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "problem": {
+                    "$ref": "#/components/examples/GenericProblem"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Deprecation": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "HTTP deprecation signal. Value is true while this observed endpoint remains deprecated."
+              },
+              "Sunset": {
+                "schema": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "description": "Planned sunset timestamp for this deprecated observed endpoint."
+              },
+              "Link": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Migration guidance link with rel=\"deprecation\"."
               }
             }
           },
@@ -2526,12 +3061,48 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
+              },
+              "Deprecation": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "HTTP deprecation signal. Value is true while this observed endpoint remains deprecated."
+              },
+              "Sunset": {
+                "schema": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "description": "Planned sunset timestamp for this deprecated observed endpoint."
+              },
+              "Link": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Migration guidance link with rel=\"deprecation\"."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2591,7 +3162,13 @@
           "/cloud/api/Report/getPendingByTicket",
           "/cloud/api/Report/getWagerDetailTransaction",
           "/cloud/api/Manager/getWagaerDetailShort"
-        ]
+        ],
+        "x-sunset": "2026-06-30T00:00:00Z",
+        "x-migration-target": "/cloud/api/Report/getPendingByTicket",
+        "externalDocs": {
+          "description": "Deprecation and migration guidance.",
+          "url": "./remediation-closeout.md"
+        }
       }
     },
     "/cloud/api/Report/getTransactions": {
@@ -2629,12 +3206,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2724,12 +3318,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2846,12 +3457,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -2928,6 +3556,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "problem": {
+                    "$ref": "#/components/examples/GenericProblem"
+                  }
+                }
               }
             }
           },
@@ -2937,6 +3575,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "problem": {
+                    "$ref": "#/components/examples/GenericProblem"
+                  }
                 }
               }
             }
@@ -2961,12 +3609,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3055,12 +3720,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3149,12 +3831,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3243,12 +3942,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3314,6 +4030,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/GetAppsCashierURL"
                 }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "problem": {
+                    "$ref": "#/components/examples/GenericProblem"
+                  }
+                }
               }
             }
           },
@@ -3337,12 +4063,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3410,6 +4153,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/GetAppsCashierURL"
                 }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "problem": {
+                    "$ref": "#/components/examples/GenericProblem"
+                  }
+                }
               }
             }
           },
@@ -3433,12 +4186,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3537,12 +4307,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3633,12 +4420,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3729,12 +4533,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3806,10 +4627,14 @@
                       "type": "object",
                       "properties": {
                         "CustomerIDPrefix": {
-                          "type": "string"
+                          "type": "string",
+                          "x-sensitive": true,
+                          "x-privacy-classification": "PII:AccountIdentifier"
                         },
                         "CustomerIDSufix": {
-                          "type": "string"
+                          "type": "string",
+                          "x-sensitive": true,
+                          "x-privacy-classification": "PII:AccountIdentifier"
                         }
                       },
                       "required": [
@@ -3845,12 +4670,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -3941,12 +4783,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4056,12 +4915,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4163,12 +5039,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4273,12 +5166,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4376,12 +5286,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4470,12 +5397,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4574,12 +5518,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4685,12 +5646,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4800,12 +5778,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -4919,12 +5914,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5018,12 +6030,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5115,12 +6144,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5212,12 +6258,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5309,12 +6372,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5406,12 +6486,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5503,12 +6600,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5600,12 +6714,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5705,12 +6836,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5815,12 +6963,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -5912,12 +7077,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6008,12 +7190,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6128,12 +7327,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6246,12 +7462,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6365,12 +7598,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6483,12 +7733,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6587,12 +7854,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6694,12 +7978,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6790,12 +8091,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6886,12 +8204,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -6997,12 +8332,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7102,12 +8454,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7209,12 +8578,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7313,12 +8699,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7438,12 +8841,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7561,12 +8981,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7645,6 +9082,11 @@
                   "agentOwner",
                   "operation"
                 ]
+              },
+              "examples": {
+                "valid": {
+                  "$ref": "#/components/examples/GetAccountInfoOwnerRequestValid"
+                }
               }
             }
           }
@@ -7680,12 +9122,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7704,15 +9163,20 @@
         },
         "x-sample-count": 1,
         "x-observed-auth": [
-          "authorization"
+          "authorization",
+          "cf_clearance",
+          "__cf_bm",
+          "browser headers"
         ],
         "x-origin": "https://fantasy402.com",
         "security": [
           {
-            "sessionCookie": []
-          },
-          {
-            "agentToken": []
+            "sessionCookie": [],
+            "agentToken": [],
+            "cloudflareClearance": [],
+            "cloudflareBotManagement": [],
+            "browserUserAgent": [],
+            "browserAjaxHeader": []
           }
         ],
         "x-required-roles": [
@@ -7815,12 +9279,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -7839,15 +9320,20 @@
         },
         "x-sample-count": 1,
         "x-observed-auth": [
-          "authorization"
+          "authorization",
+          "cf_clearance",
+          "__cf_bm",
+          "browser headers"
         ],
         "x-origin": "https://fantasy402.com",
         "security": [
           {
-            "sessionCookie": []
-          },
-          {
-            "agentToken": []
+            "sessionCookie": [],
+            "agentToken": [],
+            "cloudflareClearance": [],
+            "cloudflareBotManagement": [],
+            "browserUserAgent": [],
+            "browserAjaxHeader": []
           }
         ],
         "x-required-roles": [
@@ -7869,7 +9355,12 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/CommonAgentRequest"
+                "$ref": "#/components/schemas/GetConfigWebReportsRequest"
+              },
+              "examples": {
+                "valid": {
+                  "$ref": "#/components/examples/GetConfigWebReportsRequestValid"
+                }
               }
             }
           }
@@ -7919,12 +9410,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8037,12 +9545,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8145,12 +9670,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8269,12 +9811,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8393,12 +9952,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8527,12 +10103,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8643,12 +10236,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8732,12 +10342,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8839,12 +10466,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -8932,12 +10576,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -9046,12 +10707,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -9152,12 +10830,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -9259,12 +10954,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -9374,12 +11086,29 @@
                   "type": "integer"
                 },
                 "description": "Unix timestamp when the current window resets."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "description": "Seconds to wait before retrying the request."
               }
             },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "$ref": "#/components/examples/RateLimitProblem"
+                  }
                 }
               }
             }
@@ -10022,7 +11751,9 @@
             "type": "string"
           },
           "CustomerIDPrefix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CasinoHeadCountRate": {
             "type": "integer"
@@ -10172,7 +11903,9 @@
             "type": "integer"
           },
           "CustomerIDSufix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "NotifyNewMessages": {
             "type": []
@@ -10184,10 +11917,14 @@
             "type": "string"
           },
           "OfficeReceiveEmail": {
-            "type": []
+            "type": [],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "EmailOffice": {
-            "type": []
+            "type": [],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "HideMasterSheet": {
             "type": "string"
@@ -10299,15 +12036,17 @@
           "NameLast": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "NameFirst": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "NameMI": {
-            "type": []
+            "type": [],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "Address": {
             "type": []
@@ -10327,7 +12066,7 @@
           "EMail": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "HomePhone": {
             "type": []
@@ -11658,13 +13397,15 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Agent": {
             "type": "string",
             "enum": [
               "__REDACTED__"
-            ]
+            ],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           }
         },
         "required": [
@@ -11696,7 +13437,7 @@
               "NameFirst": {
                 "type": "string",
                 "x-sensitive": true,
-                "x-privacy-classification": "PII:AccountIdentifier"
+                "x-privacy-classification": "PII:Name"
               }
             },
             "required": [
@@ -11885,7 +13626,9 @@
             "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerIDPrefix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "AgentLevel": {
             "type": "integer"
@@ -11898,7 +13641,9 @@
             ]
           },
           "CustomerIDSufix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           }
         },
         "required": [
@@ -11913,7 +13658,9 @@
         "type": "object",
         "properties": {
           "MasterAgent": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerID": {
             "type": "string",
@@ -11951,7 +13698,7 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "CurrentBalance": {
             "type": [
@@ -13456,7 +15203,7 @@
           "email": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "CreditLimit": {
             "type": "integer"
@@ -13839,7 +15586,9 @@
             "type": "string"
           },
           "PlayerName": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "OpenDateTime": {
             "type": "string",
@@ -13849,7 +15598,10 @@
             "type": "integer"
           },
           "PasswordFix": {
-            "type": "string"
+            "type": "string",
+            "description": "Observed account configuration flag. Not a password value.",
+            "x-security-review-required": true,
+            "x-sensitive": false
           },
           "AllowPropBuilder": {
             "type": "string"
@@ -13872,12 +15624,12 @@
           "NameFirst": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "NameLast": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Phone": {
             "type": "string"
@@ -20128,7 +21880,10 @@
             "type": "string"
           },
           "showPassword": {
-            "type": "string"
+            "type": "string",
+            "description": "Observed report/UI visibility flag. Not a password value.",
+            "x-security-review-required": true,
+            "x-sensitive": false
           },
           "showBalance": {
             "type": "string"
@@ -20143,7 +21898,9 @@
             "type": "string"
           },
           "showName": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "showSettleFigure": {
             "type": "string"
@@ -20217,10 +21974,14 @@
             "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerIDF": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "NameF": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "TimeAcceptedF": {
             "type": "string"
@@ -20241,7 +22002,9 @@
             "type": "string"
           },
           "AgentF": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           }
         },
         "required": [
@@ -20411,7 +22174,9 @@
             "type": "string"
           },
           "CustomerIDPrefix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CasinoHeadCountRate": {
             "type": "integer"
@@ -20561,7 +22326,9 @@
             "type": "integer"
           },
           "CustomerIDSufix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "NotifyNewMessages": {
             "type": "string"
@@ -20573,10 +22340,14 @@
             "type": "string"
           },
           "OfficeReceiveEmail": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "EmailOffice": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "HideMasterSheet": {
             "type": "string"
@@ -21032,7 +22803,7 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "TicketNumber": {
             "type": "integer"
@@ -21465,7 +23236,7 @@
           "Name": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Pending": {
             "type": "string"
@@ -21560,7 +23331,9 @@
             "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerIDFix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "MasterAgentID": {
             "type": "string",
@@ -21576,7 +23349,7 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Login": {
             "type": "string",
@@ -21677,7 +23450,7 @@
           "Name": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Login": {
             "type": "string",
@@ -22269,6 +24042,191 @@
             "type": "string"
           }
         }
+      },
+      "AuthenticateCustomerRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Observed customer authentication form payload. Password is write-only and must never appear in responses or examples.",
+        "required": [
+          "customerID",
+          "password",
+          "operation",
+          "RRO"
+        ],
+        "properties": {
+          "customerID": {
+            "$ref": "#/components/schemas/CustomerId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          },
+          "state": {
+            "type": "boolean",
+            "description": "Static authentication flow flag observed as true. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Plaintext credential submitted only for authentication. Never returned by the API and intentionally redacted from examples.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "multiaccount": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "default": 1,
+            "description": "Static authentication flow flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "response_type": {
+            "type": "string",
+            "enum": [
+              "code"
+            ],
+            "description": "Static authentication flow value observed as code. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "client_id": {
+            "$ref": "#/components/schemas/AgentId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "fantasy402.com"
+            ],
+            "description": "Static authentication flow domain. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "redirect_uri": {
+            "type": "string",
+            "description": "Static authentication flow redirect URI. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "operation": {
+            "type": "string",
+            "const": "authenticateCustomer",
+            "description": "Static authentication operation discriminator. Non-sensitive; safe to hardcode.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "RRO": {
+            "$ref": "#/components/schemas/RROFlag",
+            "description": "Static request flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          }
+        }
+      },
+      "GetConfigWebReportsRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Observed getConfigWebReports form payload from browser traffic.",
+        "required": [
+          "agentID",
+          "operation",
+          "RRO",
+          "agentOwner"
+        ],
+        "properties": {
+          "agentID": {
+            "$ref": "#/components/schemas/AgentId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          },
+          "operation": {
+            "type": "string",
+            "const": "getConfigWebReports"
+          },
+          "RRO": {
+            "$ref": "#/components/schemas/RROFlag"
+          },
+          "agentOwner": {
+            "$ref": "#/components/schemas/AgentId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "RFC 9457 problem detail object for machine-readable API errors.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "Stable problem type URI. Use about:blank only for generic errors."
+          },
+          "title": {
+            "type": "string",
+            "description": "Short, human-readable error summary."
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "description": "HTTP status code generated by the origin server."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Human-readable detail specific to this occurrence."
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "Request path or trace URI for this occurrence."
+          },
+          "retryAfter": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Retry delay in seconds when the error is recoverable."
+          },
+          "rateLimit": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "remaining": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reset": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Unix timestamp when the current rate-limit window resets."
+              }
+            }
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ]
       }
     },
     "securitySchemes": {
@@ -22276,13 +24234,50 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "ASP.NET_SessionId",
-        "description": "Session cookie issued after login. Required for browser-compatible clients."
+        "description": "Application session cookie observed on authenticated /cloud/api/* browser calls. Required for browser-compatible clients and must belong to the authenticated agent session."
       },
       "agentToken": {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Recommended replacement token format carrying agent identity and hierarchy claims."
+        "description": "Observed browser Authorization bearer token carrying agent identity and hierarchy claims. The ingestion Worker stores this as FANTASY402_AUTHORIZATION."
+      },
+      "cloudflareClearance": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cf_clearance",
+        "description": "Cloudflare challenge-clearance cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_CLEARANCE."
+      },
+      "cloudflareBotManagement": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__cf_bm",
+        "description": "Cloudflare Bot Management cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_BM."
+      },
+      "browserUserAgent": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "User-Agent",
+        "description": "Browser User-Agent header observed during API discovery. Used as part of the browser-compatible request context, not as an application credential."
+      },
+      "browserAjaxHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Requested-With",
+        "description": "Observed XMLHttpRequest marker for same-origin API calls. Additional browser metadata headers are documented in x-observed-browser-headers.",
+        "x-observed-browser-headers": [
+          "Accept",
+          "Accept-Language",
+          "Origin",
+          "Referer",
+          "Sec-CH-UA",
+          "Sec-CH-UA-Mobile",
+          "Sec-CH-UA-Platform",
+          "Sec-Fetch-Dest",
+          "Sec-Fetch-Mode",
+          "Sec-Fetch-Site",
+          "Priority"
+        ]
       }
     },
     "parameters": {
@@ -22350,19 +24345,101 @@
           "status": "Failed",
           "msg": "Invalid CustomerID"
         }
+      },
+      "AuthenticateCustomerRequestRedacted": {
+        "summary": "Redacted customer authentication request",
+        "description": "Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.",
+        "value": {
+          "customerID": "__REDACTED__",
+          "state": true,
+          "password": "__REDACTED_PASSWORD__",
+          "multiaccount": 1,
+          "response_type": "code",
+          "client_id": "__REDACTED__",
+          "domain": "fantasy402.com",
+          "redirect_uri": "fantasy402.com",
+          "operation": "authenticateCustomer",
+          "RRO": 1
+        }
+      },
+      "GetConfigWebReportsRequestValid": {
+        "summary": "Redacted web report config request",
+        "value": {
+          "agentID": "__REDACTED__",
+          "operation": "getConfigWebReports",
+          "RRO": 1,
+          "agentOwner": "__REDACTED__"
+        }
+      },
+      "GetAccountInfoOwnerRequestValid": {
+        "summary": "Redacted account owner info request",
+        "value": {
+          "operation": "getAccountInfoOwner",
+          "agentOwner": "__REDACTED__"
+        }
+      },
+      "RateLimitProblem": {
+        "summary": "Rate limit exceeded",
+        "value": {
+          "type": "https://fantasy402.com/errors/rate-limit-exceeded",
+          "title": "Rate Limit Exceeded",
+          "status": 429,
+          "detail": "Request budget for this operation was exhausted. Retry after the indicated delay.",
+          "instance": "/cloud/api/Manager/getBetTicker",
+          "retryAfter": 47,
+          "rateLimit": {
+            "limit": 30,
+            "remaining": 0,
+            "reset": 1779026447
+          }
+        }
+      },
+      "GenericProblem": {
+        "summary": "Generic API error",
+        "value": {
+          "type": "about:blank",
+          "title": "API Error",
+          "status": 400,
+          "detail": "The request could not be processed.",
+          "instance": "/cloud/api/Manager/getPlayers"
+        }
       }
     }
   },
   "security": [
     {
-      "sessionCookie": []
-    },
-    {
-      "agentToken": []
+      "sessionCookie": [],
+      "agentToken": [],
+      "cloudflareClearance": [],
+      "cloudflareBotManagement": [],
+      "browserUserAgent": [],
+      "browserAjaxHeader": []
     }
   ],
   "externalDocs": {
     "description": "Gap-analysis and report-call repair notes.",
     "url": "../fantasy402-redacted-deep/gap-analysis/report-call-repair-notes.md"
-  }
+  },
+  "x-observed-browser-headers": [
+    "Accept",
+    "Accept-Language",
+    "Origin",
+    "Referer",
+    "Sec-CH-UA",
+    "Sec-CH-UA-Mobile",
+    "Sec-CH-UA-Platform",
+    "Sec-Fetch-Dest",
+    "Sec-Fetch-Mode",
+    "Sec-Fetch-Site",
+    "Priority"
+  ],
+  "x-auth-flow-constants": [
+    "state",
+    "multiaccount",
+    "response_type",
+    "domain",
+    "redirect_uri",
+    "operation",
+    "RRO"
+  ]
 }

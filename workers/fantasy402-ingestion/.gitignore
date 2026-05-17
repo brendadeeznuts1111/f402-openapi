@@ -1,0 +1,7 @@
+.wrangler/
+fantasy402/
+!fantasy402/
+fantasy402/*
+!fantasy402/browser-auth.example.json
+!fantasy402/browser-request.example.curl
+.archive-auth-token

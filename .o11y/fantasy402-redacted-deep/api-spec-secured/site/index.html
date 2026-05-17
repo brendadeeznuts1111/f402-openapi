@@ -26,6 +26,8 @@
     .tag { display: inline-block; padding: 2px 6px; margin: 1px 2px 1px 0; border-radius: 999px; background: #e7eef7; color: #243b53; font-size: 12px; }
     .deprecated { color: #9f3a38; font-weight: 700; }
     .section { margin-top: 32px; }
+    .matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; }
+    .callout { border-left: 4px solid var(--accent); background: #eef5fc; padding: 12px 14px; margin: 12px 0; }
     @media (max-width: 760px) { header, main { padding-left: 18px; padding-right: 18px; } .stats { grid-template-columns: 1fr 1fr; } table { display: block; overflow-x: auto; } }
   </style>
 </head>
@@ -37,8 +39,8 @@
   <main>
     <section class="stats">
       <div class="stat"><strong>90</strong><span>Operations</span></div>
-      <div class="stat"><strong>62</strong><span>Schemas</span></div>
-      <div class="stat"><strong>30</strong><span>Sensitive Schemas</span></div>
+      <div class="stat"><strong>65</strong><span>Schemas</span></div>
+      <div class="stat"><strong>32</strong><span>Sensitive Schemas</span></div>
       <div class="stat"><strong>2</strong><span>Deprecated</span></div>
     </section>
 
@@ -862,6 +864,709 @@
     </section>
 
     <section class="section">
+      <h2>Discovery</h2>
+      <div class="callout">Use <code>openapi.json</code> as the stable machine-readable JSON contract for SDK generators, contract tests, and AI agents. Use <code>llms.txt</code> for a compact natural-language index before loading the full schema.</div>
+      <table>
+        <thead><tr><th>Artifact</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><code>openapi.json</code></td><td>Stable JSON alias for the secured examples contract.</td></tr>
+          <tr><td><code>openapi.secured.examples.json</code></td><td>Versioned JSON artifact used by CI and the static docs.</td></tr>
+          <tr><td><code>openapi.yaml</code></td><td>Stable YAML alias when the generated YAML artifact is present.</td></tr>
+          <tr><td><code>llms.txt</code></td><td>Compact API map for AI-assisted clients and documentation agents.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Role Capability Matrix</h2>
+      <table class="matrix">
+        <thead><tr><th>Capability</th><th>ROLE_AGENT</th><th>ROLE_MASTER</th><th>ROLE_SUB_AGENT</th></tr></thead>
+        <tbody>
+          <tr><td>Authenticate and refresh browser-derived upstream auth</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td>Read own hierarchy player and pending wager data</td><td>Yes</td><td>Yes</td><td>Yes, scoped</td></tr>
+          <tr><td>Read sub-agent hierarchy data</td><td>No</td><td>Yes</td><td>Yes, scoped</td></tr>
+          <tr><td>Read billing, settlement, and master accounting data</td><td>No</td><td>Yes</td><td>No</td></tr>
+          <tr><td>Read transaction-entry reference data</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+          <tr><td>Access deprecated audit or print-detail surfaces</td><td>No, migration only</td><td>No, migration only</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Error Responses</h2>
+      <p>Error responses retain the observed JSON shape where available and also document <code>application/problem+json</code> for RFC 9457-compatible clients. Rate-limited responses include <code>Retry-After</code>, <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, and <code>X-RateLimit-Reset</code> headers.</p>
+      <table>
+        <thead><tr><th>Status</th><th>Problem Type</th><th>Client Behavior</th></tr></thead>
+        <tbody>
+          <tr><td><code>400</code></td><td><code>about:blank</code></td><td>Fix missing or invalid form fields before retrying.</td></tr>
+          <tr><td><code>401</code>/<code>403</code></td><td><code>about:blank</code></td><td>Refresh auth material or verify agent hierarchy authorization.</td></tr>
+          <tr><td><code>410</code></td><td><code>about:blank</code></td><td>Stop calling deprecated endpoints and follow the operation migration guidance.</td></tr>
+          <tr><td><code>429</code></td><td><code>https://fantasy402.com/errors/rate-limit-exceeded</code></td><td>Retry only after the greater of <code>Retry-After</code> or the rate-limit reset time.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Deprecation Signals</h2>
+      <p>Deprecated operations carry <code>Deprecation</code>, <code>Sunset</code>, and <code>Link</code> response headers in the contract so clients can surface migration warnings without scraping prose.</p>
+      <table>
+        <thead><tr><th>Operation</th><th>Reason</th><th>Migration</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>/cloud/api/Manager/getWebLog</code></td>
+            <td>Audit-log surface exposes login activity, network addresses, and operational messages.</td>
+            <td>Use a narrowed audit-log endpoint when one is available.</td>
+          </tr>
+<tr>
+            <td><code>/cloud/api/Report/getTicketDetailPrint</code></td>
+            <td>Observed print-detail call returned Invalid Method and remains manual-review only.</td>
+            <td>Use getPendingByTicket, getWagerDetailTransaction, or Manager/getWagaerDetailShort for read-only ticket data.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="operation-request-parameters">
+      <h2>Operation Request Parameters</h2>
+      <p>Every non-GET operation in this secured contract has a request body schema and at least one required parameter. Common form-encoded read operations use <code>CommonAgentRequest</code>: <code>agentID</code> and <code>operation</code> are required; <code>RRO</code>, <code>agentOwner</code>, date fields, and <code>customerID</code> are documented when observed. The Worker sends the browser-observed routing tuple for default ingestion endpoints.</p>
+      <table>
+        <thead><tr><th>Method</th><th>Operation</th><th>Content Type</th><th>Required Params</th><th>Optional / Observed Params</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/app/language/ui.json</code><br>get_app_language_ui_json</td>
+            <td>none</td>
+            <td><span class="tag">none</span></td>
+            <td><span class="tag">none</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Customer/getCommunicationMessages</code><br>post_cloud_api_Customer_getCommunicationMessages</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Customer/getHeriarchy</code><br>post_cloud_api_Customer_getHeriarchy</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/League/Get_SportsLeagues</code><br>post_cloud_api_League_Get_SportsLeagues</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/checkValidAgent</code><br>post_cloud_api_Manager_checkValidAgent</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/crashGetLimits</code><br>post_cloud_api_Manager_crashGetLimits</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAccountInfoOwner</code><br>post_cloud_api_Manager_getAccountInfoOwner</td>
+            <td>application/json</td>
+            <td><code>operation</code> <code>agentOwner</code></td>
+            <td><span class="tag">none</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAddedInfo</code><br>post_cloud_api_Manager_getAddedInfo</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailed</code><br>post_cloud_api_Manager_getAgentAccountingDetailed</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailedPlayerCount</code><br>post_cloud_api_Manager_getAgentAccountingDetailedPlayerCount</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailedRules</code><br>post_cloud_api_Manager_getAgentAccountingDetailedRules</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentAccountingDetailedTransactions</code><br>post_cloud_api_Manager_getAgentAccountingDetailedTransactions</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentBilling</code><br>post_cloud_api_Manager_getAgentBilling</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentManagement</code><br>post_cloud_api_Manager_getAgentManagement</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPerformance</code><br>post_cloud_api_Manager_getAgentPerformance</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPermissionSetting</code><br>post_cloud_api_Manager_getAgentPermissionSetting</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPositionData</code><br>post_cloud_api_Manager_getAgentPositionData</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPositionList</code><br>post_cloud_api_Manager_getAgentPositionList</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAgentPrefix</code><br>post_cloud_api_Manager_getAgentPrefix</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getAuthorizations</code><br>post_cloud_api_Manager_getAuthorizations</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getBetTicker</code><br>post_cloud_api_Manager_getBetTicker</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getBetTickerConfig</code><br>post_cloud_api_Manager_getBetTickerConfig</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getCircleLimits</code><br>post_cloud_api_Manager_getCircleLimits</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getColorsSelections</code><br>post_cloud_api_Manager_getColorsSelections</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getConfigWebReports</code><br>post_cloud_api_Manager_getConfigWebReports</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code> <code>RRO</code> <code>agentOwner</code></td>
+            <td><span class="tag">none</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getConfigWebReportsCustomerAdmin</code><br>post_cloud_api_Manager_getConfigWebReportsCustomerAdmin</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getConfigWebReportsPending</code><br>post_cloud_api_Manager_getConfigWebReportsPending</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getCryptoAvailable</code><br>post_cloud_api_Manager_getCryptoAvailable</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getDynamicLive</code><br>post_cloud_api_Manager_getDynamicLive</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getDynamicLiveLeagues</code><br>post_cloud_api_Manager_getDynamicLiveLeagues</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getEnterTransactions</code><br>post_cloud_api_Manager_getEnterTransactions</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getExtendedProps</code><br>post_cloud_api_Manager_getExtendedProps</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGames</code><br>post_cloud_api_Manager_getGames</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGamesCustom</code><br>post_cloud_api_Manager_getGamesCustom</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGamesPosition</code><br>post_cloud_api_Manager_getGamesPosition</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGameVolume</code><br>post_cloud_api_Manager_getGameVolume</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGetSubAgentByMaster</code><br>post_cloud_api_Manager_getGetSubAgentByMaster</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getGraded</code><br>post_cloud_api_Manager_getGraded</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getHeriarchy</code><br>post_cloud_api_Manager_getHeriarchy</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getHeriarchyRates</code><br>post_cloud_api_Manager_getHeriarchyRates</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getLastIDPlayer</code><br>post_cloud_api_Manager_getLastIDPlayer</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getLinesProps</code><br>post_cloud_api_Manager_getLinesProps</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getLineTypes</code><br>post_cloud_api_Manager_getLineTypes</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getListAgenstByAgent</code><br>post_cloud_api_Manager_getListAgenstByAgent</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getListVip</code><br>post_cloud_api_Manager_getListVip</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getMasterSheet</code><br>post_cloud_api_Manager_getMasterSheet</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getMessage</code><br>post_cloud_api_Manager_getMessage</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getMessagesByParent</code><br>post_cloud_api_Manager_getMessagesByParent</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getNewEmailsCount</code><br>post_cloud_api_Manager_getNewEmailsCount</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPending</code><br>post_cloud_api_Manager_getPending</td>
+            <td>application/json</td>
+            <td><code>agentID</code> <code>path</code> <code>RRO</code> <code>date</code> <code>wagerType</code> <code>sort</code> <code>typeSort</code> <code>week</code> <code>customerID</code> <code>agentOwner</code></td>
+            <td><span class="tag">none</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPeriodsBySport</code><br>post_cloud_api_Manager_getPeriodsBySport</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPlayerCount</code><br>post_cloud_api_Manager_getPlayerCount</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPlayers</code><br>post_cloud_api_Manager_getPlayers</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getProps</code><br>post_cloud_api_Manager_getProps</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getPropWagers</code><br>post_cloud_api_Manager_getPropWagers</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getReportDeletedTransactions</code><br>post_cloud_api_Manager_getReportDeletedTransactions</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getReportPlayerAnalysis</code><br>post_cloud_api_Manager_getReportPlayerAnalysis</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSettleBalance</code><br>post_cloud_api_Manager_getSettleBalance</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSportsType</code><br>post_cloud_api_Manager_getSportsType</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSportsTypesLive</code><br>post_cloud_api_Manager_getSportsTypesLive</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getStores</code><br>post_cloud_api_Manager_getStores</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getSubSportByReport</code><br>post_cloud_api_Manager_getSubSportByReport</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTotalActiveCustomer</code><br>post_cloud_api_Manager_getTotalActiveCustomer</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTransactionDetail</code><br>post_cloud_api_Manager_getTransactionDetail</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTransactionHistory</code><br>post_cloud_api_Manager_getTransactionHistory</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getTransactionList</code><br>post_cloud_api_Manager_getTransactionList</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWagaerDetailShort</code><br>post_cloud_api_Manager_getWagaerDetailShort</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWebLog</code><br>post_cloud_api_Manager_getWebLog</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWeeklyFigureByAgent</code><br>post_cloud_api_Manager_getWeeklyFigureByAgent</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/getWeeklyFigureByAgentLite</code><br>post_cloud_api_Manager_getWeeklyFigureByAgentLite</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/liveCasinoGetLimits</code><br>post_cloud_api_Manager_liveCasinoGetLimits</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/nextLogin</code><br>post_cloud_api_Manager_nextLogin</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/primaryAgents</code><br>post_cloud_api_Manager_primaryAgents</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/primaryAgentsGetAgents</code><br>post_cloud_api_Manager_primaryAgentsGetAgents</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/primaryAgentsGetTransactions</code><br>post_cloud_api_Manager_primaryAgentsGetTransactions</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Manager/searchCustomerAdmin</code><br>post_cloud_api_Manager_searchCustomerAdmin</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Provider/getAppsCashierURL</code><br>post_cloud_api_Provider_getAppsCashierURL</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Provider/getCryptoWalletURL</code><br>post_cloud_api_Provider_getCryptoWalletURL</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getDailyFiguresByCustomer</code><br>post_cloud_api_Report_getDailyFiguresByCustomer</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getGradedWagerByCustomer</code><br>post_cloud_api_Report_getGradedWagerByCustomer</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getGrading</code><br>post_cloud_api_Report_getGrading</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getLeaderBoard</code><br>post_cloud_api_Report_getLeaderBoard</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getPendingByTicket</code><br>post_cloud_api_Report_getPendingByTicket</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getScoresLiveDynamic</code><br>post_cloud_api_Report_getScoresLiveDynamic</td>
+            <td>application/json</td>
+            <td><code>customerID</code> <code>operation</code> <code>RRO</code> <code>agentID</code> <code>agentOwner</code></td>
+            <td><span class="tag">none</span></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getTicketDetailPrint</code><br>post_cloud_api_Report_getTicketDetailPrint</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getTransactions</code><br>post_cloud_api_Report_getTransactions</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getWagerDetailTransaction</code><br>post_cloud_api_Report_getWagerDetailTransaction</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/getWagersByFigureDate</code><br>post_cloud_api_Report_getWagersByFigureDate</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/Report/Pending</code><br>post_cloud_api_Report_Pending</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>agentID</code> <code>operation</code></td>
+            <td><code>RRO</code> <code>agentOwner</code> <code>customerID</code> <code>startDate</code> <code>endDate</code> <code>start</code> <code>end</code></td>
+          </tr>
+<tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/cloud/api/System/authenticateCustomer</code><br>post_cloud_api_System_authenticateCustomer</td>
+            <td>application/x-www-form-urlencoded</td>
+            <td><code>customerID</code> <code>password</code> <code>operation</code> <code>RRO</code></td>
+            <td><code>state</code> <code>multiaccount</code> <code>response_type</code> <code>client_id</code> <code>domain</code> <code>redirect_uri</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
       <h2>Security Schemes</h2>
       <table>
         <thead><tr><th>Name</th><th>Type</th><th>Location/Scheme</th><th>Description</th></tr></thead>
@@ -869,14 +1574,271 @@
           <tr>
             <td><code>sessionCookie</code></td>
             <td>apiKey</td>
-            <td>cookie</td>
-            <td>Session cookie issued after login. Required for browser-compatible clients.</td>
+            <td>cookie: ASP.NET_SessionId</td>
+            <td>Application session cookie observed on authenticated /cloud/api/* browser calls. Required for browser-compatible clients and must belong to the authenticated agent session.</td>
           </tr>
 <tr>
             <td><code>agentToken</code></td>
             <td>http</td>
             <td>bearer</td>
-            <td>Recommended replacement token format carrying agent identity and hierarchy claims.</td>
+            <td>Observed browser Authorization bearer token carrying agent identity and hierarchy claims. The ingestion Worker stores this as FANTASY402_AUTHORIZATION.</td>
+          </tr>
+<tr>
+            <td><code>cloudflareClearance</code></td>
+            <td>apiKey</td>
+            <td>cookie: cf_clearance</td>
+            <td>Cloudflare challenge-clearance cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_CLEARANCE.</td>
+          </tr>
+<tr>
+            <td><code>cloudflareBotManagement</code></td>
+            <td>apiKey</td>
+            <td>cookie: __cf_bm</td>
+            <td>Cloudflare Bot Management cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_BM.</td>
+          </tr>
+<tr>
+            <td><code>browserUserAgent</code></td>
+            <td>apiKey</td>
+            <td>header: User-Agent</td>
+            <td>Browser User-Agent header observed during API discovery. Used as part of the browser-compatible request context, not as an application credential.</td>
+          </tr>
+<tr>
+            <td><code>browserAjaxHeader</code></td>
+            <td>apiKey</td>
+            <td>header: X-Requested-With</td>
+            <td>Observed XMLHttpRequest marker for same-origin API calls. Additional browser metadata headers are documented in x-observed-browser-headers.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Worker Environment And Secrets Matrix</h2>
+      <p>The ingestion Worker reports only presence/absence for secrets in <code>/diagnostics</code>. Secret values must stay in Cloudflare Secrets Store or Worker secrets, never in the OpenAPI artifacts.</p>
+      <table>
+        <thead><tr><th>Name</th><th>Kind</th><th>Binding Source</th><th>Required</th><th>Used For</th><th>Diagnostics</th></tr></thead>
+        <tbody>
+          <tr><td><code>SESSION_KV</code></td><td>binding</td><td>KV namespace</td><td>Yes</td><td>Session cache and refresh bookkeeping.</td><td><code>bindings.sessionKv</code></td></tr>
+          <tr><td><code>AUTH_CACHE</code></td><td>binding</td><td>KV namespace</td><td>Yes</td><td>Short-lived browser auth overlay populated by protected <code>/refresh-auth</code>.</td><td><code>bindings.authCache</code></td></tr>
+          <tr><td><code>ANALYTICS_DB</code></td><td>binding</td><td>D1 database</td><td>Yes</td><td>Runs, snapshots, failures, scan verdicts, network summaries, and alert metadata.</td><td><code>bindings.analyticsDb</code></td></tr>
+          <tr><td><code>RAW_ARCHIVE</code></td><td>binding</td><td>R2 bucket</td><td>Yes</td><td>Raw success/failure archives, scan artifacts, screenshots, HAR files, and alert payloads.</td><td><code>bindings.rawArchive</code></td></tr>
+          <tr><td><code>ENVIRONMENT</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>Runtime environment label.</td><td><code>environment</code></td></tr>
+          <tr><td><code>WORKER_NAME</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>Deployment identity and diagnostics.</td><td><code>workerName</code></td></tr>
+          <tr><td><code>CLOUDFLARE_ACCOUNT_ID</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>Cloudflare URL Scanner API account scope.</td><td><code>cloudflare.accountId</code></td></tr>
+          <tr><td><code>CLOUDFLARE_ZONE_ID</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>Zone identity for operator context.</td><td><code>cloudflare.zoneId</code></td></tr>
+          <tr><td><code>FANTASY402_BASE_URL</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>Upstream Fantasy402 origin.</td><td>Implicit</td></tr>
+          <tr><td><code>FANTASY402_AUTH_STATE</code></td><td>var/constant</td><td>code or <code>wrangler.toml</code></td><td>No</td><td>Static authentication flow value for <code>state</code>; observed as <code>true</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_AUTH_MULTIACCOUNT</code></td><td>var/constant</td><td>code or <code>wrangler.toml</code></td><td>No</td><td>Static authentication flow value for <code>multiaccount</code>; observed as <code>1</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_AUTH_RESPONSE_TYPE</code></td><td>var/constant</td><td>code or <code>wrangler.toml</code></td><td>No</td><td>Static authentication flow value for <code>response_type</code>; observed as <code>code</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_AUTH_DOMAIN</code></td><td>var/constant</td><td>code or <code>wrangler.toml</code></td><td>No</td><td>Static authentication flow value for <code>domain</code>; observed as <code>fantasy402.com</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_AUTH_REDIRECT_URI</code></td><td>var/constant</td><td>code or <code>wrangler.toml</code></td><td>No</td><td>Static authentication flow value for <code>redirect_uri</code>; observed as <code>fantasy402.com</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_AUTH_OPERATION</code></td><td>constant</td><td>code</td><td>No</td><td>Static authentication flow value for <code>operation</code>; always <code>authenticateCustomer</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_AUTH_RRO</code></td><td>var/constant</td><td>code or <code>wrangler.toml</code></td><td>No</td><td>Static authentication flow value for <code>RRO</code>; observed as <code>1</code>.</td><td>Not secret</td></tr>
+          <tr><td><code>FANTASY402_INGESTION_ENDPOINTS</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>Comma-separated read-only ingestion endpoint keys.</td><td><code>configuredEndpoints</code></td></tr>
+          <tr><td><code>FANTASY402_ALLOWED_SCAN_HOSTS</code></td><td>var</td><td><code>wrangler.toml</code></td><td>Yes</td><td>URL Scanner host allowlist for unexpected-host alerts.</td><td><code>scanPolicy.allowedHosts</code></td></tr>
+          <tr><td><code>FANTASY402_REFERER</code></td><td>var/secret</td><td><code>wrangler.toml</code> or secret</td><td>Recommended</td><td>Browser-compatible upstream <code>Referer</code> header.</td><td><code>optionalSecrets.FANTASY402_REFERER</code></td></tr>
+          <tr><td><code>FANTASY402_USER_AGENT</code></td><td>var/secret</td><td><code>wrangler.toml</code> or secret</td><td>Recommended</td><td>Browser-compatible upstream <code>User-Agent</code> header.</td><td><code>optionalSecrets.FANTASY402_USER_AGENT</code></td></tr>
+          <tr><td><code>FANTASY402_USERNAME</code></td><td>secret</td><td>Secrets Store</td><td>Yes</td><td>Fallback login attempt when no browser session cookie is configured.</td><td><code>requiredSecrets</code></td></tr>
+          <tr><td><code>FANTASY402_PASSWORD</code></td><td>secret</td><td>Secrets Store</td><td>Yes</td><td>Fallback login attempt only. Never emitted in archives or docs.</td><td><code>requiredSecrets</code></td></tr>
+          <tr><td><code>FANTASY402_AGENT_ID</code></td><td>secret</td><td>Secrets Store</td><td>Yes</td><td>Agent-scoped request body fields for read-only ingestion calls.</td><td><code>requiredSecrets</code></td></tr>
+          <tr><td><code>CLOUDFLARE_API_TOKEN</code></td><td>secret</td><td>Secrets Store</td><td>Yes</td><td>Cloudflare URL Scanner submit/search/result calls.</td><td><code>requiredSecrets</code></td></tr>
+          <tr><td><code>FANTASY402_SESSION_COOKIE</code></td><td>secret</td><td>Secrets Store</td><td>Recommended</td><td>Optional browser-observed non-Cloudflare application cookie. Included in every upstream Cookie header when configured.</td><td><code>optionalSecrets.FANTASY402_SESSION_COOKIE</code></td></tr>
+          <tr><td><code>FANTASY402_AUTHORIZATION</code></td><td>secret</td><td>Worker secret</td><td>Recommended</td><td>Browser-observed bearer token for upstream API calls.</td><td><code>optionalSecrets.FANTASY402_AUTHORIZATION</code></td></tr>
+          <tr><td><code>FANTASY402_CF_CLEARANCE</code></td><td>secret</td><td>Secrets Store</td><td>Recommended</td><td>Cloudflare <code>cf_clearance</code> cookie appended to upstream requests.</td><td><code>optionalSecrets.FANTASY402_CF_CLEARANCE</code></td></tr>
+          <tr><td><code>FANTASY402_CF_BM</code></td><td>secret</td><td>Secrets Store</td><td>Recommended</td><td>Cloudflare <code>__cf_bm</code> cookie appended to upstream requests.</td><td><code>optionalSecrets.FANTASY402_CF_BM</code></td></tr>
+          <tr><td><code>FANTASY402_BROWSER_HEADERS_JSON</code></td><td>secret</td><td>Secrets Store</td><td>Recommended</td><td>Allowlisted observed browser metadata headers for upstream replay.</td><td><code>optionalSecrets.FANTASY402_BROWSER_HEADERS_JSON</code></td></tr>
+          <tr><td><code>FANTASY402_CUSTOMER_ID</code></td><td>secret</td><td>Worker secret or Secrets Store</td><td>Optional</td><td>Customer-scoped endpoints such as pending or communication messages.</td><td><code>optionalSecrets.FANTASY402_CUSTOMER_ID</code></td></tr>
+          <tr><td><code>INGESTION_TRIGGER_TOKEN</code></td><td>secret</td><td>Worker secret</td><td>Recommended</td><td>Preferred bearer token for protected operator routes.</td><td><code>auth.acceptedSecrets</code></td></tr>
+          <tr><td><code>ARCHIVE_AUTH_TOKEN</code></td><td>secret</td><td>Worker secret</td><td>Fallback</td><td>Fallback bearer token for archive, diagnostics, scan, and alert routes.</td><td><code>auth.acceptedSecrets</code></td></tr>
+          <tr><td><code>ALERT_WEBHOOK_URL</code></td><td>secret</td><td>Worker secret or Secrets Store</td><td>Optional</td><td>External alert delivery for ingestion and scan findings.</td><td><code>optionalSecrets.ALERT_WEBHOOK_URL</code></td></tr>
+        </tbody>
+      </table>
+      <p>For default form-encoded ingestion endpoints, the Worker sends the browser-observed routing tuple together: <code>RRO=1</code>, <code>agentID=&lt;FANTASY402_AGENT_ID&gt;</code>, <code>agentOwner=&lt;FANTASY402_AGENT_ID&gt;</code>, and <code>operation=&lt;endpoint operation&gt;</code>. <code>RRO</code> is static and non-sensitive, so it stays in code rather than Secrets Store.</p>
+    </section>
+
+    <section class="section">
+      <h2>Runtime Auth Refresh</h2>
+      <p><code>POST /refresh-auth</code> lets an operator or headless browser refresher update browser-derived upstream auth without changing Cloudflare secrets. The route is protected by the same bearer token as archive, scan, alert, and diagnostics routes. The runtime overlay takes precedence over configured Fantasy402 auth secrets until its TTL expires.</p>
+      <table>
+        <thead><tr><th>Accepted Field</th><th>Stored In</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>authorization</code></td><td><code>AUTH_CACHE</code></td><td>Write-only browser bearer value; normalized to <code>Bearer ...</code>.</td></tr>
+          <tr><td><code>sessionCookie</code></td><td><code>AUTH_CACHE</code></td><td>Write-only browser cookie fragment for any non-Cloudflare application cookies observed in successful browser traffic.</td></tr>
+          <tr><td><code>cfClearance</code></td><td><code>AUTH_CACHE</code></td><td>Write-only <code>cf_clearance</code> cookie value or name/value pair.</td></tr>
+          <tr><td><code>cfBm</code></td><td><code>AUTH_CACHE</code></td><td>Write-only <code>__cf_bm</code> cookie value or name/value pair.</td></tr>
+          <tr><td><code>browserHeaders</code> / <code>browserHeadersJson</code></td><td><code>AUTH_CACHE</code></td><td>Allowlisted browser metadata headers only; auth and cookie headers remain controlled by Worker code.</td></tr>
+          <tr><td><code>expiresInSeconds</code></td><td><code>AUTH_CACHE</code></td><td>Overlay TTL clamped between 60 seconds and 8 hours. Responses return only field names and expiry metadata.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Upstream Cookie Assembly</h2>
+      <p>The Worker preserves any browser-observed non-Cloudflare application cookie when it is configured. It adds <code>FANTASY402_SESSION_COOKIE</code> first, then appends any refreshed session cookie, <code>cf_clearance</code>, and <code>__cf_bm</code> without replacing existing cookie names.</p>
+      <table>
+        <thead><tr><th>Order</th><th>Cookie Source</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>FANTASY402_SESSION_COOKIE</code> or <code>AUTH_CACHE.sessionCookie</code></td><td>Optional application cookie. Always included when present.</td></tr>
+          <tr><td>2</td><td>Fallback login session</td><td>Added only when a cookie with the same name is not already present.</td></tr>
+          <tr><td>3</td><td><code>FANTASY402_CF_CLEARANCE</code> or <code>AUTH_CACHE.cfClearance</code></td><td>Cloudflare clearance cookie, normalized to <code>cf_clearance=...</code> if only the value is supplied.</td></tr>
+          <tr><td>4</td><td><code>FANTASY402_CF_BM</code> or <code>AUTH_CACHE.cfBm</code></td><td>Cloudflare Bot Management cookie, normalized to <code>__cf_bm=...</code> if only the value is supplied.</td></tr>
+        </tbody>
+      </table>
+      <p>Expected sanitized shape when an app cookie exists: <code>app_session=&lt;redacted&gt;; cf_clearance=&lt;redacted&gt;; __cf_bm=&lt;redacted&gt;</code>. Current captures may only show Cloudflare cookies; diagnostics reports names, not values.</p>
+    </section>
+
+    <section class="section">
+      <h2>Observed Authentication Form</h2>
+      <p><code>POST /cloud/api/System/authenticateCustomer</code> was observed as a browser form-encoded request. The password field is documented as write-only and every example is redacted.</p>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>customerID</code></td><td>string</td><td>Sensitive account identifier.</td></tr>
+          <tr><td><code>state</code></td><td>boolean</td><td>Static non-sensitive flow value. Observed value: <code>true</code>.</td></tr>
+          <tr><td><code>password</code></td><td>string</td><td>Write-only credential. Never returned by the API; examples use <code>__REDACTED_PASSWORD__</code>.</td></tr>
+          <tr><td><code>multiaccount</code></td><td>integer</td><td>Static non-sensitive flow value. Observed value: <code>1</code>.</td></tr>
+          <tr><td><code>response_type</code></td><td>string</td><td>Static non-sensitive flow value. Observed value: <code>code</code>.</td></tr>
+          <tr><td><code>client_id</code></td><td>string</td><td>Sensitive account/client identifier.</td></tr>
+          <tr><td><code>domain</code></td><td>string</td><td>Static non-sensitive flow value. Observed value: <code>fantasy402.com</code>.</td></tr>
+          <tr><td><code>redirect_uri</code></td><td>string</td><td>Static non-sensitive flow value. Observed value: <code>fantasy402.com</code>.</td></tr>
+          <tr><td><code>operation</code></td><td>string</td><td>Static non-sensitive discriminator. Required value: <code>authenticateCustomer</code>.</td></tr>
+          <tr><td><code>RRO</code></td><td>integer</td><td>Static non-sensitive request flag. Observed value: <code>1</code>.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Sensitive Schemas</h2>
+      <p>These schemas contain fields annotated with <code>x-sensitive: true</code>. Synthetic examples are linted so they do not contain raw credentials, live tokens, cookies, or real-looking PII.</p>
+      <table>
+        <thead><tr><th>Schema</th><th>Sensitive Fields</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>AccountInfo</code></td>
+            <td><code>AgentID</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>AccountInfo_15</code></td>
+            <td><code>AgentID</code> <code>Login</code> <code>NameFirst</code> <code>NameLast</code> <code>PlayerName</code> <code>customerID</code> <code>email</code></td>
+          </tr>
+<tr>
+            <td><code>AgentId</code></td>
+            <td><code>(schema)</code></td>
+          </tr>
+<tr>
+            <td><code>AuthenticateCustomerRequest</code></td>
+            <td><code>client_id</code> <code>customerID</code> <code>password</code></td>
+          </tr>
+<tr>
+            <td><code>CommonAgentRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>CustomerId</code></td>
+            <td><code>(schema)</code></td>
+          </tr>
+<tr>
+            <td><code>Data</code></td>
+            <td><code>CustomerID</code></td>
+          </tr>
+<tr>
+            <td><code>DATA_12</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>GENERAL</code></td>
+            <td><code>AgentID</code> <code>Login</code></td>
+          </tr>
+<tr>
+            <td><code>GetConfigWebReportsRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code></td>
+          </tr>
+<tr>
+            <td><code>GetPending</code></td>
+            <td><code>AgentLogin</code> <code>Login</code> <code>NameFirst</code> <code>agentID</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>GetPendingRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>GetScoresLiveDynamicRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_16</code></td>
+            <td><code>AgentID</code> <code>adds.properties.AgentID</code> <code>showName</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_17</code></td>
+            <td><code>AgentF</code> <code>AgentID</code> <code>CustomerIDF</code> <code>NameF</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_18</code></td>
+            <td><code>AgentID</code> <code>CustomerID</code> <code>CustomerIDPrefix</code> <code>CustomerIDSufix</code> <code>EmailOffice</code> <code>MasterAgentID</code> <code>MasterLogin</code> <code>OfficeReceiveEmail</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_19</code></td>
+            <td><code>Name</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_6</code></td>
+            <td><code>AgentID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST</code></td>
+            <td><code>AgentID</code> <code>CustomerID</code> <code>Login</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_1</code></td>
+            <td><code>AgentId</code> <code>Login</code> <code>MasterAgentID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_13</code></td>
+            <td><code>CustomerID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_14</code></td>
+            <td><code>AgentId</code> <code>Login</code> <code>MasterAgentID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_2</code></td>
+            <td><code>AgentID</code> <code>CustomerID</code> <code>CustomerIDPrefix</code> <code>CustomerIDSufix</code> <code>EMail</code> <code>EmailOffice</code> <code>Login</code> <code>MasterAgentID</code> <code>NameFirst</code> <code>NameLast</code> <code>NameMI</code> <code>OfficeReceiveEmail</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_20</code></td>
+            <td><code>CustomerID</code> <code>CustomerIDFix</code> <code>Login</code> <code>MasterAgentID</code> <code>Name</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_21</code></td>
+            <td><code>AgentID</code> <code>AgentLogin</code> <code>CustomerID</code> <code>PlayerLogin</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_3</code></td>
+            <td><code>Agent</code> <code>Login</code> <code>NameFirst</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_4</code></td>
+            <td><code>CustomerID</code> <code>Login</code> <code>info.properties.NameFirst</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_5</code></td>
+            <td><code>IPAddress</code> <code>LoginID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_7</code></td>
+            <td><code>AgentID</code> <code>CustomerIDPrefix</code> <code>CustomerIDSufix</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_8</code></td>
+            <td><code>AgentID</code> <code>AgentLogin</code> <code>CustomerID</code> <code>Login</code> <code>MasterAgent</code> <code>Name</code></td>
+          </tr>
+<tr>
+            <td><code>PendingRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>TOTAL</code></td>
+            <td><code>CustomerID</code> <code>Login</code> <code>MasterAgentID</code> <code>Name</code></td>
           </tr>
         </tbody>
       </table>

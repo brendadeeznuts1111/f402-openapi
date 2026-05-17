@@ -17,57 +17,78 @@
     }
   ],
   "paths": {
-    "/health": {
+    "/alerts": {
       "get": {
-        "operationId": "getHealth",
-        "summary": "Check Worker health",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Worker is responding",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                },
-                "examples": {
-                  "ok": {
-                    "value": {
-                      "status": "ok",
-                      "environment": "production"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/trigger": {
-      "post": {
-        "operationId": "triggerIngestion",
-        "summary": "Trigger an ingestion run",
+        "operationId": "listAlertEvents",
+        "summary": "List persisted operational alert events",
         "security": [
           {
             "triggerToken": []
           }
         ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "info",
+                "warning",
+                "critical"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,80}$"
+            }
+          }
+        ],
         "responses": {
-          "202": {
-            "description": "Ingestion completed or partially completed",
+          "200": {
+            "description": "Recent alert events",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TriggerResponse"
+                  "$ref": "#/components/schemas/AlertListResponse"
                 },
                 "examples": {
-                  "accepted": {
+                  "recent": {
                     "value": {
-                      "runId": "00000000-0000-4000-8000-000000000000",
-                      "status": "success",
-                      "endpointsSucceeded": 3,
-                      "endpointsFailed": 0
+                      "filters": {
+                        "severity": "critical",
+                        "type": "url-scan-malicious"
+                      },
+                      "events": [
+                        {
+                          "id": "00000000-0000-4000-8000-000000000000",
+                          "created_at": "2026-05-17T06:16:25.617Z",
+                          "severity": "critical",
+                          "type": "url-scan-malicious",
+                          "message": "URL Scanner malicious verdict for https://fantasy402.com. Scan ID: 00000000-0000-4000-8000-000000000000",
+                          "context_json": "{\"scanId\":\"00000000-0000-4000-8000-000000000000\"}",
+                          "context": {
+                            "scanId": "00000000-0000-4000-8000-000000000000"
+                          }
+                        }
+                      ]
                     }
                   }
                 }
@@ -80,24 +101,157 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts/policy-test": {
+      "post": {
+        "operationId": "createSyntheticPolicyAlert",
+        "summary": "Create synthetic URL Scanner network policy alerts",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Synthetic policy alerts created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts/summary": {
+      "get": {
+        "operationId": "summarizeAlertEvents",
+        "summary": "Summarize alert counts by severity and type",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Alert summary for a recent time window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts/test": {
+      "post": {
+        "operationId": "createSyntheticAlert",
+        "summary": "Create a protected synthetic alert for operational testing",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyntheticAlertRequest"
+              },
+              "examples": {
+                "warning": {
+                  "value": {
+                    "severity": "warning",
+                    "message": "Synthetic alert test from archive viewer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Synthetic alert persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyntheticAlertResponse"
                 },
                 "examples": {
-                  "unauthorized": {
+                  "created": {
                     "value": {
-                      "status": "failed",
-                      "message": "Unauthorized"
+                      "status": "created",
+                      "event": {
+                        "id": "00000000-0000-4000-8000-000000000000",
+                        "created_at": "2026-05-17T06:16:25.617Z",
+                        "severity": "warning",
+                        "type": "synthetic-test",
+                        "message": "Synthetic alert test from archive viewer",
+                        "context_json": "{\"synthetic\":true,\"source\":\"operator-api\"}",
+                        "context": {
+                          "synthetic": true,
+                          "source": "operator-api"
+                        }
+                      }
                     }
                   }
                 }
               }
             }
           },
-          "500": {
-            "description": "Ingestion failed",
+          "401": {
+            "description": "Missing or invalid trigger token",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TriggerResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -124,6 +278,42 @@
               "default": "fantasy402"
             },
             "description": "R2 key prefix to list. Must resolve under fantasy402/."
+          },
+          {
+            "name": "endpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,80}$"
+            },
+            "description": "Endpoint segment filter. Builds prefix fantasy402/{endpoint} unless prefix is supplied."
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date partition filter. With endpoint, builds prefix fantasy402/{endpoint}/{YYYY-MM-DD} unless prefix is supplied."
+          },
+          {
+            "name": "archiveType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "success",
+                "failure",
+                "scan-result",
+                "scan-screenshot",
+                "scan-har"
+              ]
+            },
+            "description": "Post-filters listed objects by customMetadata.archiveType."
           },
           {
             "name": "limit",
@@ -175,7 +365,13 @@
                         }
                       ],
                       "truncated": false,
-                      "cursor": null
+                      "cursor": null,
+                      "filters": {
+                        "prefix": "fantasy402/getAgentPerformance/2026-05-17",
+                        "endpoint": "getAgentPerformance",
+                        "date": "2026-05-17",
+                        "archiveType": "success"
+                      }
                     }
                   }
                 }
@@ -281,6 +477,221 @@
         }
       }
     },
+    "/diagnostics": {
+      "get": {
+        "operationId": "getDiagnostics",
+        "summary": "Check protected Worker runtime readiness",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binding and secret readiness without secret values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticsResponse"
+                },
+                "examples": {
+                  "ready": {
+                    "value": {
+                      "status": "ready",
+                      "environment": "production",
+                      "bindings": {
+                        "sessionKv": true,
+                        "analyticsDb": true,
+                        "rawArchive": true,
+                        "authCache": true
+                      },
+                      "requiredSecrets": {
+                        "present": [
+                          "upstream-auth",
+                          "agent-id",
+                          "scanner-api"
+                        ],
+                        "missing": []
+                      },
+                      "optionalSecrets": {
+                        "FANTASY402_CUSTOMER_ID": false,
+                        "ALERT_WEBHOOK_URL": false
+                      },
+                      "configuredEndpoints": [
+                        "getAgentPerformance",
+                        "getAgentBilling",
+                        "getEnterTransactions"
+                      ],
+                      "archive": {
+                        "prefix": "fantasy402",
+                        "storageClass": "InfrequentAccess"
+                      },
+                      "auth": {
+                        "configured": true,
+                        "acceptedSecrets": [
+                          "primary-runtime-auth",
+                          "archive-runtime-auth"
+                        ],
+                        "preferredSecret": "primary-runtime-auth"
+                      },
+                      "upstreamAuthShape": {
+                        "hasAuthorization": true,
+                        "hasCookie": true,
+                        "hasSessionCookie": true,
+                        "hasCfClearance": true,
+                        "hasCfBm": true,
+                        "cookieNames": [
+                          "application-session-cookie",
+                          "cf_clearance",
+                          "__cf_bm"
+                        ],
+                        "browserHeaderCount": 12
+                      },
+                      "workerName": "fantasy402-ingestion",
+                      "cloudflare": {
+                        "accountId": "7a470541a704caaf91e71efccc78fd36",
+                        "zoneId": "a3b7ba4bb62cb1b177b04b8675250674"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Check Worker health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Worker is responding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "examples": {
+                  "ok": {
+                    "value": {
+                      "status": "ok",
+                      "environment": "production"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanner/diagnostics": {
+      "get": {
+        "operationId": "getScannerDiagnostics",
+        "summary": "Verify Cloudflare URL Scanner token and account access",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scanner token and account diagnostics without secret values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScannerDiagnosticsResponse"
+                },
+                "examples": {
+                  "ready": {
+                    "value": {
+                      "status": "ready",
+                      "subsystem": "cloudflare-url-scanner",
+                      "accountId": "7a470541a704caaf91e71efccc78fd36",
+                      "tokenShape": {
+                        "configured": true,
+                        "length": 40,
+                        "trimmedLength": 40,
+                        "asciiOnly": true,
+                        "hasWhitespace": false,
+                        "hasLeadingOrTrailingWhitespace": false,
+                        "looksLikeFormattedOutput": false
+                      },
+                      "checks": [
+                        {
+                          "stage": "token-verify",
+                          "method": "GET",
+                          "path": "/accounts/7a470541a704caaf91e71efccc78fd36/tokens/verify",
+                          "httpStatus": 200,
+                          "success": true,
+                          "errors": [],
+                          "messages": []
+                        },
+                        {
+                          "stage": "url-scanner-access",
+                          "method": "GET",
+                          "path": "/accounts/7a470541a704caaf91e71efccc78fd36/urlscanner/v2/search?size=1&q=apikey:me",
+                          "httpStatus": 200,
+                          "success": true,
+                          "errors": [],
+                          "messages": []
+                        }
+                      ],
+                      "failure": null
+                    }
+                  },
+                  "malformedToken": {
+                    "value": {
+                      "status": "degraded",
+                      "subsystem": "cloudflare-url-scanner",
+                      "accountId": "7a470541a704caaf91e71efccc78fd36",
+                      "tokenShape": {
+                        "configured": true,
+                        "length": 21,
+                        "trimmedLength": 21,
+                        "asciiOnly": false,
+                        "hasWhitespace": true,
+                        "hasLeadingOrTrailingWhitespace": false,
+                        "looksLikeFormattedOutput": true
+                      },
+                      "checks": [],
+                      "failure": {
+                        "stage": "token-shape",
+                        "code": null,
+                        "message": "CLOUDFLARE_API_TOKEN looks like formatted CLI/table output, not a raw API token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scans": {
       "get": {
         "operationId": "listScanVerdicts",
@@ -300,6 +711,41 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20
+            }
+          },
+          {
+            "name": "malicious",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "urlContains",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
             }
           }
         ],
@@ -326,7 +772,778 @@
                           "screenshot_r2_key": "fantasy402/screenshots/00000000-0000-4000-8000-000000000000_desktop.png",
                           "har_r2_key": "fantasy402/hars/00000000-0000-4000-8000-000000000000.har"
                         }
+                      ],
+                      "filters": {
+                        "malicious": null,
+                        "urlContains": null,
+                        "since": null,
+                        "until": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/detail": {
+      "get": {
+        "operationId": "getScanDetail",
+        "summary": "Fetch a scan verdict with optional archived scan JSON preview",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "includeRaw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scan detail and archive summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanDetailResponse"
+                },
+                "examples": {
+                  "detail": {
+                    "value": {
+                      "verdict": {
+                        "scan_id": "00000000-0000-4000-8000-000000000000",
+                        "timestamp": "2026-05-17T06:16:25.617Z",
+                        "url": "https://fantasy402.com",
+                        "malicious": 0,
+                        "tls_valid_days": 366,
+                        "agent_readiness_level": 0,
+                        "scan_r2_key": "fantasy402/scans/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                        "screenshot_r2_key": "fantasy402/screenshots/00000000-0000-4000-8000-000000000000_desktop.png",
+                        "har_r2_key": "fantasy402/hars/00000000-0000-4000-8000-000000000000.har"
+                      },
+                      "archive": {
+                        "key": "fantasy402/scans/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                        "found": true,
+                        "etag": "etag",
+                        "size": 1024,
+                        "uploaded": "2026-05-17T06:16:25.617Z",
+                        "storageClass": "InfrequentAccess",
+                        "httpMetadata": {
+                          "contentType": "application/json; charset=utf-8"
+                        },
+                        "customMetadata": {
+                          "source": "cloudflare-url-scanner",
+                          "archiveType": "scan-result"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scan ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan verdict not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/export": {
+      "get": {
+        "operationId": "exportScanEvidence",
+        "summary": "Export a scan evidence manifest without raw binary artifacts",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evidence manifest with verdict and archived artifact metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanEvidenceExportResponse"
+                },
+                "examples": {
+                  "manifest": {
+                    "value": {
+                      "generatedAt": "2026-05-17T06:16:25.617Z",
+                      "scanId": "00000000-0000-4000-8000-000000000000",
+                      "verdict": {
+                        "scan_id": "00000000-0000-4000-8000-000000000000",
+                        "timestamp": "2026-05-17T06:16:25.617Z",
+                        "url": "https://fantasy402.com",
+                        "malicious": 0,
+                        "tls_valid_days": 366,
+                        "agent_readiness_level": 0,
+                        "scan_r2_key": "fantasy402/scans/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                        "screenshot_r2_key": "fantasy402/screenshots/00000000-0000-4000-8000-000000000000_desktop.png",
+                        "har_r2_key": "fantasy402/hars/00000000-0000-4000-8000-000000000000.har"
+                      },
+                      "artifacts": [
+                        {
+                          "type": "scan",
+                          "key": "fantasy402/scans/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                          "found": true,
+                          "etag": "etag",
+                          "size": 1024,
+                          "uploaded": "2026-05-17T06:16:25.617Z",
+                          "storageClass": "InfrequentAccess",
+                          "httpMetadata": {
+                            "contentType": "application/json; charset=utf-8"
+                          },
+                          "customMetadata": {
+                            "source": "cloudflare-url-scanner",
+                            "archiveType": "scan-result"
+                          }
+                        }
                       ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scan ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan verdict not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/har": {
+      "get": {
+        "operationId": "getScanHar",
+        "summary": "Fetch the archived HAR network evidence for a URL Scanner verdict",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HAR JSON evidence from R2",
+            "headers": {
+              "X-Archive-Key": {
+                "description": "R2 object key for the HAR artifact",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "R2 object ETag",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scan ID, or verdict points at a non-HAR key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan verdict or HAR object not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/network-diff": {
+      "get": {
+        "operationId": "diffScanNetworkSummaries",
+        "summary": "Compare two persisted or archived scan network summaries",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "baseScanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "compareScanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Network summary delta between two scans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "generatedAt",
+                    "base",
+                    "compare",
+                    "diff"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "base": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "compare": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "diff": {
+                      "type": "object",
+                      "required": [
+                        "totalRequestsDelta",
+                        "hosts",
+                        "statuses",
+                        "methods",
+                        "mimeTypes",
+                        "failedRequestsDelta"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "totalRequestsDelta": {
+                          "type": "integer"
+                        },
+                        "hosts": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/NetworkCountDiff"
+                          }
+                        },
+                        "statuses": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/NetworkCountDiff"
+                          }
+                        },
+                        "methods": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/NetworkCountDiff"
+                          }
+                        },
+                        "mimeTypes": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/NetworkCountDiff"
+                          }
+                        },
+                        "failedRequestsDelta": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scan IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "One of the scans or HAR objects was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Archived HAR is not valid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/network-summary": {
+      "get": {
+        "operationId": "getScanNetworkSummary",
+        "summary": "Summarize archived HAR network evidence for a URL Scanner verdict",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Derived network summary from the archived HAR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "scanId",
+                    "harR2Key",
+                    "generatedAt",
+                    "summary",
+                    "source"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "scanId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "harR2Key": {
+                      "type": "string"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "totalRequests",
+                        "byMethod",
+                        "byStatus",
+                        "byHost",
+                        "byMimeType",
+                        "failedRequests",
+                        "slowestRequests",
+                        "largestResponses"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "totalRequests": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "byMethod": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "byStatus": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "byHost": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "byMimeType": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "failedRequests": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/HarRequestSummary"
+                          }
+                        },
+                        "slowestRequests": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/HarRequestSummary"
+                          }
+                        },
+                        "largestResponses": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/HarRequestSummary"
+                          }
+                        }
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "d1",
+                        "r2"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scan ID, or verdict points at a non-HAR key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan verdict or HAR object not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Archived HAR is not valid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/screenshot": {
+      "get": {
+        "operationId": "getScanScreenshot",
+        "summary": "Fetch the archived desktop screenshot for a URL Scanner verdict",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scanId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PNG screenshot evidence from R2",
+            "headers": {
+              "X-Archive-Key": {
+                "description": "R2 object key for the screenshot artifact",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "R2 object ETag",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scan ID, or verdict points at a non-screenshot key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Scan verdict or screenshot object not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/summary": {
+      "get": {
+        "operationId": "summarizeScanVerdicts",
+        "summary": "Summarize recent URL Scanner posture",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 7
+            }
+          },
+          {
+            "name": "tlsWarningDays",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent scan posture summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanSummaryResponse"
+                },
+                "examples": {
+                  "ok": {
+                    "value": {
+                      "window": {
+                        "days": 7,
+                        "since": "2026-05-10T06:16:25.617Z",
+                        "tlsWarningDays": 7,
+                        "scannedRows": 1,
+                        "capped": false
+                      },
+                      "totals": {
+                        "scans": 1,
+                        "malicious": 0,
+                        "clean": 1,
+                        "tlsExpiring": 0,
+                        "minTlsValidDays": 366
+                      },
+                      "latest": {
+                        "scan_id": "00000000-0000-4000-8000-000000000000",
+                        "timestamp": "2026-05-17T06:16:25.617Z",
+                        "url": "https://fantasy402.com",
+                        "malicious": 0,
+                        "tls_valid_days": 366,
+                        "agent_readiness_level": 0,
+                        "scan_r2_key": "fantasy402/scans/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                        "screenshot_r2_key": "fantasy402/screenshots/00000000-0000-4000-8000-000000000000_desktop.png",
+                        "har_r2_key": "fantasy402/hars/00000000-0000-4000-8000-000000000000.har"
+                      },
+                      "status": "ok"
                     }
                   }
                 }
@@ -418,7 +1635,347 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/ScanErrorResponse"
+                },
+                "examples": {
+                  "cloudflareApiError": {
+                    "value": {
+                      "status": "failed",
+                      "subsystem": "cloudflare-url-scanner",
+                      "stage": "submission",
+                      "method": "POST",
+                      "path": "/urlscanner/v2/scan",
+                      "httpStatus": 400,
+                      "code": 9106,
+                      "message": "Authentication failed (status: 400)",
+                      "retryable": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trigger": {
+      "post": {
+        "operationId": "triggerIngestion",
+        "summary": "Trigger an ingestion run",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Ingestion completed or partially completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerResponse"
+                },
+                "examples": {
+                  "accepted": {
+                    "value": {
+                      "runId": "00000000-0000-4000-8000-000000000000",
+                      "status": "success",
+                      "endpointsSucceeded": 3,
+                      "endpointsFailed": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthorized": {
+                    "value": {
+                      "status": "failed",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ingestion failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trigger-scan": {
+      "post": {
+        "operationId": "triggerUrlScanAlias",
+        "summary": "Trigger a Cloudflare URL Scanner run (compatibility alias)",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanTriggerRequest"
+              },
+              "examples": {
+                "defaultTarget": {
+                  "value": {
+                    "url": "https://fantasy402.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Scan completed and verdict was stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanTriggerResponse"
+                },
+                "examples": {
+                  "accepted": {
+                    "value": {
+                      "scanId": "00000000-0000-4000-8000-000000000000",
+                      "url": "https://fantasy402.com",
+                      "malicious": false,
+                      "tlsValidDays": 42
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid scan target URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Scan failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanErrorResponse"
+                },
+                "examples": {
+                  "cloudflareApiError": {
+                    "value": {
+                      "status": "failed",
+                      "subsystem": "cloudflare-url-scanner",
+                      "stage": "submission",
+                      "method": "POST",
+                      "path": "/urlscanner/v2/scan",
+                      "httpStatus": 400,
+                      "code": 9106,
+                      "message": "Authentication failed (status: 400)",
+                      "retryable": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refresh-auth": {
+      "post": {
+        "operationId": "refreshFantasy402Auth",
+        "summary": "Refresh browser-derived upstream auth without changing Worker secrets",
+        "description": "Stores short-lived browser-derived Fantasy402 authorization material in AUTH_CACHE. Values are never echoed in responses or diagnostics. The cached overlay takes effect before configured secrets and expires automatically.",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshAuthRequest"
+              },
+              "examples": {
+                "browserOverlay": {
+                  "value": {
+                    "authorization": "Bearer <redacted-browser-jwt>",
+                    "sessionCookie": "application-session-cookie=<placeholder>",
+                    "cfClearance": "<redacted-cf-clearance>",
+                    "cfBm": "<redacted-cf-bm>",
+                    "browserHeaders": {
+                      "accept": "*/*",
+                      "accept-language": "en-US,en;q=0.9",
+                      "origin": "https://fantasy402.com",
+                      "referer": "https://fantasy402.com/manager.html",
+                      "user-agent": "Mozilla/5.0 (...) Chrome/... Safari/...",
+                      "x-requested-with": "XMLHttpRequest"
+                    },
+                    "expiresInSeconds": 3600
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auth overlay accepted and cached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshAuthResponse"
+                },
+                "examples": {
+                  "ok": {
+                    "value": {
+                      "status": "ok",
+                      "accepted": [
+                        "authorization",
+                        "sessionCookie",
+                        "cfClearance",
+                        "cfBm",
+                        "browserHeadersJson"
+                      ],
+                      "expiresAt": "2026-05-17T16:30:00.000Z",
+                      "ttlSeconds": 3600
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON body or no supported auth fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingest/local": {
+      "post": {
+        "operationId": "uploadLocalIngestionResults",
+        "summary": "Upload locally fetched Fantasy402 endpoint responses",
+        "description": "Protected storage-only ingestion path for operator machines that can access Fantasy402 directly. The Worker archives supplied responses to R2 and records snapshots in D1; it does not fetch Fantasy402 for this route.",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalIngestRequest"
+              },
+              "examples": {
+                "singleEndpoint": {
+                  "value": {
+                    "results": [
+                      {
+                        "endpointKey": "getAgentPerformance",
+                        "httpStatus": 200,
+                        "capturedAt": "2026-05-17T12:00:00.000Z",
+                        "data": {
+                          "performance": []
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Local responses archived and indexed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalIngestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid upload body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "One or more local results failed to store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalIngestResponse"
                 }
               }
             }
@@ -432,7 +1989,7 @@
       "triggerToken": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Manual ingestion trigger token stored as INGESTION_TRIGGER_TOKEN."
+        "description": "Manual ingestion trigger token stored as the configured runtime bearer secret."
       }
     },
     "schemas": {
@@ -545,6 +2102,7 @@
       "ArchiveListResponse": {
         "type": "object",
         "required": [
+          "filters",
           "objects",
           "truncated",
           "cursor"
@@ -565,6 +2123,9 @@
               "string",
               "null"
             ]
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ArchiveFilters"
           }
         }
       },
@@ -636,6 +2197,7 @@
       "ScanListResponse": {
         "type": "object",
         "required": [
+          "filters",
           "results"
         ],
         "additionalProperties": false,
@@ -645,6 +2207,9 @@
             "items": {
               "$ref": "#/components/schemas/ScanVerdict"
             }
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ScanListFilters"
           }
         }
       },
@@ -684,6 +2249,1103 @@
               "integer",
               "null"
             ]
+          }
+        }
+      },
+      "ArchiveFilters": {
+        "type": "object",
+        "required": [
+          "prefix",
+          "endpoint",
+          "date",
+          "archiveType"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "archiveType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DiagnosticsResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "environment",
+          "workerName",
+          "cloudflare",
+          "bindings",
+          "requiredSecrets",
+          "auth",
+          "upstreamAuthShape",
+          "optionalSecrets",
+          "configuredEndpoints",
+          "archive"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded"
+            ]
+          },
+          "environment": {
+            "type": "string"
+          },
+          "bindings": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sessionKv",
+              "authCache",
+              "analyticsDb",
+              "rawArchive"
+            ],
+            "properties": {
+              "sessionKv": {
+                "type": "boolean"
+              },
+              "analyticsDb": {
+                "type": "boolean"
+              },
+              "rawArchive": {
+                "type": "boolean"
+              },
+              "authCache": {
+                "type": "boolean"
+              }
+            }
+          },
+          "requiredSecrets": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "present",
+              "missing"
+            ],
+            "properties": {
+              "present": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "missing": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "optionalSecrets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "configuredEndpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "archive": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "prefix",
+              "storageClass"
+            ],
+            "properties": {
+              "prefix": {
+                "type": "string"
+              },
+              "storageClass": {
+                "type": "string"
+              }
+            }
+          },
+          "auth": {
+            "type": "object",
+            "required": [
+              "configured",
+              "acceptedSecrets",
+              "preferredSecret"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "configured": {
+                "type": "boolean"
+              },
+              "acceptedSecrets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "preferredSecret": {
+                "type": "string"
+              }
+            }
+          },
+          "upstreamAuthShape": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hasAuthorization",
+              "hasCookie",
+              "hasSessionCookie",
+              "hasCfClearance",
+              "hasCfBm",
+              "cookieNames",
+              "browserHeaderCount"
+            ],
+            "properties": {
+              "hasAuthorization": {
+                "type": "boolean"
+              },
+              "hasCookie": {
+                "type": "boolean"
+              },
+              "hasSessionCookie": {
+                "type": "boolean"
+              },
+              "hasCfClearance": {
+                "type": "boolean"
+              },
+              "hasCfBm": {
+                "type": "boolean"
+              },
+              "cookieNames": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Sanitized cookie names only; never includes cookie values."
+              },
+              "browserHeaderCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "workerName": {
+            "type": "string"
+          },
+          "cloudflare": {
+            "type": "object",
+            "required": [
+              "accountId",
+              "zoneId"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "accountId": {
+                "type": "string"
+              },
+              "zoneId": {
+                "type": "string"
+              }
+            }
+          },
+          "scanPolicy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "allowedHosts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ScanErrorResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "subsystem",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "subsystem": {
+            "type": "string",
+            "const": "cloudflare-url-scanner"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "httpStatus": {
+            "type": "integer"
+          },
+          "code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ScannerDiagnosticsResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "subsystem",
+          "accountId",
+          "tokenShape",
+          "checks",
+          "failure"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded"
+            ]
+          },
+          "subsystem": {
+            "type": "string",
+            "const": "cloudflare-url-scanner"
+          },
+          "accountId": {
+            "type": "string"
+          },
+          "tokenShape": {
+            "type": "object",
+            "required": [
+              "configured",
+              "length",
+              "trimmedLength",
+              "asciiOnly",
+              "hasWhitespace",
+              "hasLeadingOrTrailingWhitespace",
+              "looksLikeFormattedOutput"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "configured": {
+                "type": "boolean"
+              },
+              "length": {
+                "type": "integer"
+              },
+              "trimmedLength": {
+                "type": "integer"
+              },
+              "asciiOnly": {
+                "type": "boolean"
+              },
+              "hasWhitespace": {
+                "type": "boolean"
+              },
+              "hasLeadingOrTrailingWhitespace": {
+                "type": "boolean"
+              },
+              "looksLikeFormattedOutput": {
+                "type": "boolean"
+              }
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScannerDiagnosticCheck"
+            }
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScannerDiagnosticFailure"
+              }
+            ]
+          }
+        }
+      },
+      "ScannerDiagnosticCheck": {
+        "type": "object",
+        "required": [
+          "stage",
+          "method",
+          "path",
+          "httpStatus",
+          "success",
+          "errors",
+          "messages"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "httpStatus": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudflareApiMessage"
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudflareApiMessage"
+            }
+          }
+        }
+      },
+      "ScannerDiagnosticFailure": {
+        "type": "object",
+        "required": [
+          "stage",
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "CloudflareApiMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ScanArchiveSummary": {
+        "type": "object",
+        "required": [
+          "key",
+          "found"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "found": {
+            "type": "boolean"
+          },
+          "etag": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "uploaded": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "storageClass": {
+            "type": "string"
+          },
+          "httpMetadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "customMetadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "raw": true
+        }
+      },
+      "ScanDetailResponse": {
+        "type": "object",
+        "required": [
+          "verdict",
+          "archive"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/ScanVerdict"
+          },
+          "archive": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScanArchiveSummary"
+              }
+            ]
+          }
+        }
+      },
+      "ScanListFilters": {
+        "type": "object",
+        "required": [
+          "malicious",
+          "urlContains",
+          "since",
+          "until"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "malicious": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "enum": [
+              0,
+              1,
+              null
+            ]
+          },
+          "urlContains": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "ScanEvidenceArtifact": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ScanArchiveSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "scan",
+                  "screenshot",
+                  "har"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "ScanEvidenceExportResponse": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "scanId",
+          "verdict",
+          "artifacts"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ScanVerdict"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanEvidenceArtifact"
+            }
+          }
+        }
+      },
+      "ScanSummaryWindow": {
+        "type": "object",
+        "required": [
+          "days",
+          "since",
+          "tlsWarningDays",
+          "scannedRows",
+          "capped"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "days": {
+            "type": "integer"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tlsWarningDays": {
+            "type": "integer"
+          },
+          "scannedRows": {
+            "type": "integer"
+          },
+          "capped": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ScanSummaryTotals": {
+        "type": "object",
+        "required": [
+          "scans",
+          "malicious",
+          "clean",
+          "tlsExpiring",
+          "minTlsValidDays"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "scans": {
+            "type": "integer"
+          },
+          "malicious": {
+            "type": "integer"
+          },
+          "clean": {
+            "type": "integer"
+          },
+          "tlsExpiring": {
+            "type": "integer"
+          },
+          "minTlsValidDays": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "ScanSummaryResponse": {
+        "type": "object",
+        "required": [
+          "window",
+          "totals",
+          "latest",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "window": {
+            "$ref": "#/components/schemas/ScanSummaryWindow"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ScanSummaryTotals"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScanVerdict"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warning",
+              "alert",
+              "empty"
+            ]
+          }
+        }
+      },
+      "AlertEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "severity",
+          "type",
+          "message",
+          "context_json",
+          "context"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "context_json": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "context": true
+        }
+      },
+      "AlertListFilters": {
+        "type": "object",
+        "required": [
+          "severity",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "info",
+              "warning",
+              "critical",
+              null
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AlertListResponse": {
+        "type": "object",
+        "required": [
+          "filters",
+          "events"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/AlertListFilters"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertEvent"
+            }
+          }
+        }
+      },
+      "SyntheticAlertRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ],
+            "default": "warning"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500,
+            "default": "Synthetic alert test"
+          }
+        }
+      },
+      "SyntheticAlertResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "event"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "created"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AlertEvent"
+              }
+            ]
+          }
+        }
+      },
+      "HarRequestSummary": {
+        "type": "object",
+        "required": [
+          "method",
+          "url",
+          "host",
+          "status",
+          "statusText",
+          "timeMs",
+          "bodySize"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "statusText": {
+            "type": "string"
+          },
+          "timeMs": {
+            "type": "number"
+          },
+          "bodySize": {
+            "type": "number"
+          }
+        }
+      },
+      "NetworkCountDiff": {
+        "type": "object",
+        "required": [
+          "base",
+          "compare",
+          "delta"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "integer"
+          },
+          "compare": {
+            "type": "integer"
+          },
+          "delta": {
+            "type": "integer"
+          }
+        }
+      },
+      "RefreshAuthRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "authorization": {
+            "type": "string",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "description": "Browser-observed Authorization bearer value. The Worker normalizes missing Bearer prefix.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "sessionCookie": {
+            "type": "string",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "description": "Browser-observed application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "cfClearance": {
+            "type": "string",
+            "maxLength": 4096,
+            "writeOnly": true,
+            "description": "Cloudflare cf_clearance cookie value or name=value pair.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "cfBm": {
+            "type": "string",
+            "maxLength": 4096,
+            "writeOnly": true,
+            "description": "Cloudflare __cf_bm cookie value or name=value pair.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "browserHeadersJson": {
+            "type": "string",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "description": "JSON string containing allowlisted browser metadata headers."
+          },
+          "browserHeaders": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "writeOnly": true,
+            "description": "Allowlisted browser metadata headers. Cookie, authorization, host, content-type, and content-length remain controlled by Worker code."
+          },
+          "userAgent": {
+            "type": "string",
+            "maxLength": 512,
+            "writeOnly": true,
+            "description": "Browser User-Agent override."
+          },
+          "referer": {
+            "type": "string",
+            "maxLength": 2048,
+            "writeOnly": true,
+            "description": "Browser Referer override."
+          },
+          "customerId": {
+            "type": "string",
+            "maxLength": 128,
+            "writeOnly": true,
+            "description": "Optional customer-scoped request identifier for endpoints that require it.",
+            "x-sensitive": true,
+            "x-privacy-classification": "CustomerIdentifier"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 28800,
+            "default": 3600,
+            "description": "KV overlay TTL. The Worker clamps values to 60 seconds through 8 hours."
+          }
+        }
+      },
+      "RefreshAuthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "accepted",
+          "expiresAt",
+          "ttlSeconds"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "accepted": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization",
+                "sessionCookie",
+                "cfClearance",
+                "cfBm",
+                "browserHeadersJson",
+                "userAgent",
+                "referer",
+                "customerId"
+              ]
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ttlSeconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 28800
+          }
+        }
+      },
+      "LocalIngestRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 25,
+            "items": {
+              "$ref": "#/components/schemas/LocalIngestItem"
+            }
+          }
+        }
+      },
+      "LocalIngestItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "endpointKey",
+          "httpStatus",
+          "data"
+        ],
+        "properties": {
+          "endpointKey": {
+            "type": "string",
+            "enum": [
+              "getAgentPerformance",
+              "getAgentBilling",
+              "getEnterTransactions",
+              "getPending",
+              "Pending",
+              "getPlayers",
+              "getAddedInfo",
+              "getCommunicationMessages",
+              "getLineTypes",
+              "getHeriarchy"
+            ]
+          },
+          "httpStatus": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "description": "Already-fetched upstream response body. Credential-shaped fields are redacted before archive storage."
+          }
+        }
+      },
+      "LocalIngestResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId",
+          "status",
+          "endpointsSucceeded",
+          "endpointsFailed",
+          "stored"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed"
+            ]
+          },
+          "endpointsSucceeded": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "endpointsFailed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stored": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
           }
         }
       }

@@ -1,0 +1,17 @@
+curl 'https://fantasy402.com/cloud/api/Manager/getAgentPerformance' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9' \
+  -H 'authorization: Bearer <redacted-browser-jwt>' \
+  -H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
+  -b 'app_session=<redacted-app-cookie>; cf_clearance=<redacted-cf-clearance>; __cf_bm=<redacted-cf-bm>' \
+  -H 'origin: https://fantasy402.com' \
+  -H 'referer: https://fantasy402.com/manager.html' \
+  -H 'sec-ch-ua: "Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "macOS"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'user-agent: Mozilla/5.0 (...) Chrome/... Safari/...' \
+  -H 'x-requested-with: XMLHttpRequest' \
+  --data-raw 'agentID=AGENT123&operation=getAgentPerformance&RRO=1&agentOwner=AGENT123'

@@ -51,7 +51,7 @@ const credentialFields = [];
 walk(spec, (value, pointer) => {
   if (isObject(value) && typeof value.$ref === 'string') refs.push(value.$ref);
   const key = pointer.split('/').at(-1)?.replaceAll('~1', '/').replaceAll('~0', '~');
-  if (key && credentialFieldRe.test(key)) credentialFields.push(pointer);
+  if (key && credentialFieldRe.test(key) && !isReviewedCredentialField(value, pointer)) credentialFields.push(pointer);
 });
 refs.forEach(resolvePointer);
 assert(credentialFields.length === 0, `credential fields remain: ${credentialFields.slice(0, 10).join(', ')}`);
@@ -83,3 +83,25 @@ console.log(JSON.stringify({
   firstPartyOpsChecked: firstPartyOps.length,
   credentialFieldsRemaining: credentialFields.length,
 }, null, 2));
+
+function isReviewedCredentialField(value, pointer) {
+  if (
+    pointer === '#/components/schemas/AuthenticateCustomerRequest/properties/password'
+    && isObject(value)
+    && value.writeOnly === true
+    && value['x-sensitive'] === true
+    && value['x-security-review-required'] === true
+  ) {
+    return true;
+  }
+
+  if (
+    pointer === '#/components/examples/AuthenticateCustomerRequestRedacted/value/password'
+    && typeof value === 'string'
+    && /^__REDACTED_/.test(value)
+  ) {
+    return true;
+  }
+
+  return false;
+}

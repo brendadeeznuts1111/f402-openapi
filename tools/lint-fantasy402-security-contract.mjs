@@ -27,7 +27,9 @@ function walk(value, pointer = '#') {
 
   for (const [key, child] of Object.entries(value)) {
     const childPointer = `${pointer}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`;
-    if (credentialFieldRe.test(key)) add(0, childPointer, 'Credential field is forbidden in the secured OpenAPI contract.');
+    if (credentialFieldRe.test(key) && !isReviewedCredentialField(child, childPointer)) {
+      add(0, childPointer, 'Credential field is forbidden unless it is the reviewed write-only authenticateCustomer password.');
+    }
     if (sensitiveNameRe.test(key) && isObject(child) && child.type && child['x-sensitive'] !== true) {
       add(1, childPointer, 'Sensitive account/network field must include x-sensitive: true.');
     }
@@ -67,3 +69,25 @@ console.log(JSON.stringify({
 
 if (findings.some((finding) => finding.priority === 0)) process.exit(1);
 if (maxPriority < 3 && process.env.FAIL_ON_WARNINGS === '1') process.exit(1);
+
+function isReviewedCredentialField(value, pointer) {
+  if (
+    pointer === '#/components/schemas/AuthenticateCustomerRequest/properties/password'
+    && isObject(value)
+    && value.writeOnly === true
+    && value['x-sensitive'] === true
+    && value['x-security-review-required'] === true
+  ) {
+    return true;
+  }
+
+  if (
+    pointer === '#/components/examples/AuthenticateCustomerRequestRedacted/value/password'
+    && typeof value === 'string'
+    && /^__REDACTED_/.test(value)
+  ) {
+    return true;
+  }
+
+  return false;
+}

@@ -33,9 +33,9 @@ if (!auth.authorization || isPlaceholder(auth.authorization)) findings.push("aut
 if (!auth.cfClearance || isPlaceholder(auth.cfClearance)) findings.push("cfClearance is missing or placeholder");
 if (!auth.cfBm || isPlaceholder(auth.cfBm)) findings.push("cfBm is missing or placeholder");
 if (!auth.sessionCookie || isPlaceholder(auth.sessionCookie)) {
-  warnings.push("sessionCookie is missing or placeholder. Observed login flow may not require a non-Cloudflare app cookie.");
+  findings.push("sessionCookie is missing or placeholder");
 } else if (!authShape.hasSessionCookie) {
-  warnings.push("sessionCookie contains only Cloudflare cookie names. Include any browser application cookies if present.");
+  findings.push("sessionCookie contains only Cloudflare cookie names; include the app session cookie such as ASP.NET_SessionId");
 }
 if (browserHeaderCount === 0) findings.push("browser headers/userAgent are missing");
 
@@ -75,6 +75,10 @@ const output = {
   authFile,
   endpointCount: endpointsOut.length,
   authShape,
+  ingestionReadiness: {
+    status: authShape.hasAuthorization && authShape.hasCfClearance && authShape.hasCfBm && authShape.hasSessionCookie ? "ready" : "blocked",
+    blocker: authShape.hasSessionCookie ? null : "missing non-Cloudflare app session cookie",
+  },
   browserHeaderCount,
   findings: allFindings,
   warnings,

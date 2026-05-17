@@ -15,11 +15,11 @@ for (const field of ["authorization", "cfClearance", "cfBm"]) {
 }
 
 if (!auth.sessionCookie) {
-  warnings.push("sessionCookie is missing. Current observed login flow may rely on bearer token plus Cloudflare cookies, but include any non-Cloudflare browser cookies if present.");
+  findings.push("sessionCookie is missing. Copy a successful authenticated /cloud/api browser request that includes the app session cookie.");
 } else if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
   findings.push("sessionCookie still looks like a placeholder");
 } else if (!hasNonCloudflareCookie(auth.sessionCookie)) {
-  warnings.push("sessionCookie contains only Cloudflare cookies. If the browser sends an application session cookie, include it here too.");
+  findings.push("sessionCookie contains only Cloudflare cookies. Include the browser application cookie such as ASP.NET_SessionId.");
 }
 
 if (!auth.browserHeaders && !auth.browserHeadersJson && !auth.userAgent) {
@@ -38,6 +38,7 @@ const summary = {
     customerId: Boolean(auth.customerId || process.env.FANTASY402_CUSTOMER_ID),
     authorization: Boolean(auth.authorization),
     sessionCookie: Boolean(auth.sessionCookie),
+    appSessionCookie: Boolean(auth.sessionCookie && hasNonCloudflareCookie(auth.sessionCookie)),
     cfClearance: Boolean(auth.cfClearance),
     cfBm: Boolean(auth.cfBm),
     browserHeaders: Boolean(auth.browserHeaders || auth.browserHeadersJson || auth.userAgent),

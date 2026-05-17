@@ -399,11 +399,11 @@ function validateBrowserAuthPayload(payload, path) {
     if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
   }
   if (!payload.sessionCookie) {
-    // The observed legacy login flow primarily relies on bearer auth plus Cloudflare
-    // cookies. Keep sessionCookie optional, but include browser application cookies
-    // here if future captures show one.
+    findings.push("sessionCookie is missing");
   } else if (payload.sessionCookie && isPlaceholderToken(payload.sessionCookie)) {
     findings.push("sessionCookie still looks like a placeholder");
+  } else if (!hasNonCloudflareCookie(payload.sessionCookie)) {
+    findings.push("sessionCookie contains only Cloudflare cookies; include the app session cookie such as ASP.NET_SessionId");
   }
   if (!payload.browserHeaders && !payload.browserHeadersJson && !payload.userAgent) {
     findings.push("browserHeaders/browserHeadersJson or userAgent is missing");

@@ -27,6 +27,18 @@ The build validates:
 - Critical examples and sensitive-schema examples.
 - Static documentation generation.
 
+## Static Portal
+
+The generated HTML portal includes:
+
+- Copy buttons for rendered code blocks.
+- Role filters for `ROLE_AGENT`, `ROLE_MASTER`, and `ROLE_SUB_AGENT` operation rows.
+- A rate-limit calculator based on each operation's `x-rate-limit` metadata.
+- A sandboxed Worker operator test panel for safe `/health`, `/diagnostics`, scan, and alert-summary requests.
+- A collapsible schema section for every component schema, including sensitive-field markers, validation constraints, and operation cross-references.
+
+The secured spec version is `2026-05-17-slim-v1.2`, with `x-api-state: observed`, `x-last-captured: 2026-05-08`, and `x-next-review: 2026-06-08`.
+
 ## Publication
 
 Publish `openapi.secured.examples.yaml` and `site/**` to the internal developer portal. Use `openapi.secured.slim.yaml` for generated clients.

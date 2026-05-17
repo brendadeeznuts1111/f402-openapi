@@ -109,6 +109,146 @@ function fieldTags(fields) {
   return fields.map((field) => `<code>${escapeHtml(field)}</code>`).join(' ');
 }
 
+function schemaNameFromRef(ref) {
+  return typeof ref === 'string' && ref.startsWith('#/components/schemas/')
+    ? ref.slice('#/components/schemas/'.length)
+    : '';
+}
+
+function collectSchemaRefs(value, refs = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectSchemaRefs(item, refs);
+    return refs;
+  }
+  if (!isObject(value)) return refs;
+  const schemaName = schemaNameFromRef(value.$ref);
+  if (schemaName) refs.add(schemaName);
+  for (const child of Object.values(value)) collectSchemaRefs(child, refs);
+  return refs;
+}
+
+function schemaUsageMap() {
+  const usage = new Map();
+  for (const [apiPath, methods] of Object.entries(spec.paths || {})) {
+    for (const [method, operation] of Object.entries(methods)) {
+      const opLabel = `${method.toUpperCase()} ${apiPath}`;
+      for (const ref of collectSchemaRefs(operation)) {
+        if (!usage.has(ref)) usage.set(ref, new Set());
+        usage.get(ref).add(opLabel);
+      }
+    }
+  }
+  return usage;
+}
+
+function schemaContextMap() {
+  const contexts = new Map();
+  function add(ref, context) {
+    if (!contexts.has(ref)) contexts.set(ref, new Set());
+    contexts.get(ref).add(context);
+  }
+  for (const methods of Object.values(spec.paths || {})) {
+    for (const operation of Object.values(methods || {})) {
+      for (const ref of collectSchemaRefs(operation.requestBody || {})) add(ref, 'request');
+      for (const response of Object.values(operation.responses || {})) {
+        for (const ref of collectSchemaRefs(response)) add(ref, 'response');
+      }
+    }
+  }
+  return contexts;
+}
+
+function constraintSummary(schema) {
+  const resolved = resolveRef(schema) || {};
+  const constraints = [];
+  for (const key of ['type', 'format', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'pattern']) {
+    if (resolved[key] !== undefined) constraints.push(`${key}: ${JSON.stringify(resolved[key])}`);
+  }
+  if (Array.isArray(resolved.enum)) constraints.push(`enum: ${resolved.enum.map((item) => JSON.stringify(item)).join(', ')}`);
+  const itemRef = schemaNameFromRef(resolved.items?.$ref);
+  if (itemRef) constraints.push(`items: ${itemRef}`);
+  return constraints.length ? constraints.join('; ') : 'none';
+}
+
+function schemaFieldRows(name, schema) {
+  const resolved = resolveRef(schema) || {};
+  const properties = resolved.properties || {};
+  const required = new Set(resolved.required || []);
+  const rows = Object.entries(properties).map(([field, property]) => {
+    const propertySchema = resolveRef(property) || property;
+    const refName = schemaNameFromRef(property?.$ref) || schemaNameFromRef(propertySchema?.items?.$ref);
+    return `<tr>
+      <td>${propertySchema?.['x-sensitive'] === true ? '<span title="Sensitive field">🔒</span> ' : ''}<code>${escapeHtml(field)}</code></td>
+      <td>${required.has(field) ? 'required' : 'optional'}</td>
+      <td>${refName ? `<a href="#schema-${escapeHtml(refName)}"><code>${escapeHtml(refName)}</code></a>` : escapeHtml(constraintSummary(property))}</td>
+    </tr>`;
+  });
+  if (!rows.length) {
+    rows.push(`<tr><td colspan="3">${escapeHtml(constraintSummary(schema))}</td></tr>`);
+  }
+  return rows.join('\n');
+}
+
+function schemaType(schema) {
+  const resolved = resolveRef(schema) || {};
+  if (Array.isArray(resolved.type)) return resolved.type.join(' | ');
+  if (resolved.type) return resolved.type;
+  if (resolved.oneOf) return 'oneOf';
+  if (resolved.anyOf) return 'anyOf';
+  if (resolved.allOf) return 'allOf';
+  return 'unspecified';
+}
+
+function countEnums(value) {
+  if (Array.isArray(value)) return value.reduce((count, item) => count + countEnums(item), 0);
+  if (!isObject(value)) return 0;
+  return (Array.isArray(value.enum) ? 1 : 0)
+    + Object.values(value).reduce((count, child) => count + countEnums(child), 0);
+}
+
+function collectSchemaSearchTerms(value, terms = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectSchemaSearchTerms(item, terms);
+    return terms;
+  }
+  if (!isObject(value)) return terms;
+  for (const key of ['type', 'format', 'pattern', 'description', 'x-privacy-classification']) {
+    if (typeof value[key] === 'string') terms.add(value[key].toLowerCase());
+  }
+  if (Array.isArray(value.enum)) {
+    for (const item of value.enum.slice(0, 20)) terms.add(String(item).toLowerCase());
+  }
+  for (const propertyName of Object.keys(value.properties || {})) terms.add(propertyName.toLowerCase());
+  for (const child of Object.values(value)) collectSchemaSearchTerms(child, terms);
+  return terms;
+}
+
+const schemaUsage = schemaUsageMap();
+const schemaContexts = schemaContextMap();
+const schemaRows = Object.entries(spec.components?.schemas || {})
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([name, schema]) => ({
+    name,
+    schema,
+    type: schemaType(schema),
+    category: Array.from(schemaContexts.get(name) || []).sort().join(' + ') || 'primitive',
+    required: Array.isArray(schema.required) ? schema.required.slice().sort() : [],
+    enumCount: countEnums(schema),
+    sensitive: collectSensitivePaths(schema).length,
+    usedBy: Array.from(schemaUsage.get(name) || []).sort(),
+  }));
+
+const roleOptions = Array.from(new Set(operations.flatMap((op) => op.roles))).sort();
+const rateLimitRows = operations
+  .filter((op) => op.rate?.limit && op.rate?.window)
+  .map((op) => ({
+    path: op.path,
+    method: op.method,
+    roles: op.roles,
+    limit: Number(op.rate.limit),
+    window: Number(op.rate.window),
+  }));
+
 const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -139,6 +279,33 @@ const html = `<!doctype html>
     .section { margin-top: 32px; }
     .matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; }
     .callout { border-left: 4px solid var(--accent); background: #eef5fc; padding: 12px 14px; margin: 12px 0; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0 16px; }
+    .control { display: inline-flex; gap: 6px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); font-size: 13px; }
+    button, input, select, textarea { font: inherit; }
+    button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 6px 9px; cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    pre { position: relative; margin: 12px 0; padding: 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #101820; color: #edf2f7; }
+    pre code { color: inherit; }
+    .copy-code { position: absolute; top: 8px; right: 8px; background: #edf2f7; color: #17202a; }
+    details.schema { margin: 10px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    details.schema > summary { cursor: pointer; padding: 12px 14px; font-weight: 700; }
+    .schema-body { padding: 0 14px 14px; }
+    .schema-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0; }
+    .schema-controls input[type="search"] { min-width: min(420px, 100%); flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+    .schema-filter.active { border-color: var(--accent); background: #eef5fc; color: var(--accent); }
+    .schema-filter[data-filter="sensitive"].active { border-color: #9f3a38; color: #9f3a38; background: #fbeeee; }
+    .schema-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .schema-title { min-width: 220px; }
+    .schema-meta-line { color: var(--muted); margin: 6px 0 10px; }
+    .schema-grid-note { color: var(--muted); margin: 8px 0; }
+    .schema-hidden { display: none; }
+    #schema-empty { display: none; }
+    #schema-empty.visible { display: block; }
+    .sandbox { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 10px; max-width: 980px; }
+    .sandbox label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+    .sandbox input, .sandbox select, .sandbox textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+    .sandbox textarea { grid-column: 1 / -1; min-height: 120px; font-family: "SFMono-Regular", Consolas, monospace; }
+    .hidden-by-role { display: none; }
     @media (max-width: 760px) { header, main { padding-left: 18px; padding-right: 18px; } .stats { grid-template-columns: 1fr 1fr; } table { display: block; overflow-x: auto; } }
   </style>
 </head>
@@ -157,10 +324,14 @@ const html = `<!doctype html>
 
     <section>
       <h2>Operations</h2>
+      <div class="toolbar" aria-label="Role filters">
+        ${roleOptions.map((role) => `<label class="control"><input type="checkbox" class="role-filter" value="${escapeHtml(role)}" checked> ${escapeHtml(role)}</label>`).join('\n')}
+        <button type="button" id="show-all-roles">Show all</button>
+      </div>
       <table>
         <thead><tr><th>Method</th><th>Path</th><th>Roles</th><th>Responses</th><th>Rate Limit</th><th>Examples</th><th>Status</th></tr></thead>
         <tbody>
-          ${operations.map(op => `<tr>
+          ${operations.map(op => `<tr data-roles="${escapeHtml(op.roles.join(' '))}">
             <td><span class="method ${methodClass(op.method)}">${escapeHtml(op.method)}</span></td>
             <td><code>${escapeHtml(op.path)}</code><br>${escapeHtml(op.summary)}</td>
             <td>${op.roles.map(role => `<span class="tag">${escapeHtml(role)}</span>`).join('')}</td>
@@ -171,6 +342,35 @@ const html = `<!doctype html>
           </tr>`).join('\n')}
         </tbody>
       </table>
+    </section>
+
+    <section class="section">
+      <h2>Rate Limit Calculator</h2>
+      <div class="toolbar">
+        <label class="control">Tier multiplier <input id="tier-multiplier" type="number" min="0.1" step="0.1" value="1" style="width:80px"></label>
+        <label class="control">Operation <select id="rate-operation">
+          ${rateLimitRows.map((op, index) => `<option value="${index}">${escapeHtml(op.method)} ${escapeHtml(op.path)} (${escapeHtml(op.limit)}/${escapeHtml(op.window)}s)</option>`).join('\n')}
+        </select></label>
+      </div>
+      <div class="callout" id="rate-output"></div>
+    </section>
+
+    <section class="section">
+      <h2>Try It Now Proxy</h2>
+      <p>This sandbox calls the ingestion Worker operator API from your browser. Use a non-production token unless you intend to inspect protected diagnostics or archive routes.</p>
+      <div class="sandbox">
+        <label>Worker origin <input id="try-origin" value="https://fantasy402-ingestion.utahj4754.workers.dev"></label>
+        <label>Bearer token <input id="try-token" type="password" autocomplete="off" placeholder="optional for /health"></label>
+        <label>Route <select id="try-route">
+          <option value="/health">GET /health</option>
+          <option value="/diagnostics">GET /diagnostics</option>
+          <option value="/scans?limit=5">GET /scans?limit=5</option>
+          <option value="/alerts/summary?days=7">GET /alerts/summary?days=7</option>
+        </select></label>
+        <label>Method <select id="try-method"><option>GET</option><option>POST</option></select></label>
+        <textarea id="try-output" readonly placeholder="Response appears here"></textarea>
+      </div>
+      <div class="toolbar"><button type="button" id="try-send">Send sandbox request</button></div>
     </section>
 
     <section class="section">
@@ -185,6 +385,13 @@ const html = `<!doctype html>
           <tr><td><code>llms.txt</code></td><td>Compact API map for AI-assisted clients and documentation agents.</td></tr>
         </tbody>
       </table>
+    </section>
+
+    <section class="section">
+      <h2>Mock Server Recipe</h2>
+      <p>The examples contract is mock-server ready for local frontend development and generated-client smoke tests. This repo does not deploy a live mock runtime.</p>
+      <pre><button type="button" class="copy-code" aria-label="Copy mock command">Copy</button><code>npx @stoplight/prism-cli mock .o11y/fantasy402-redacted-deep/api-spec-secured/site/openapi.secured.examples.json --host 127.0.0.1 --port 4010</code></pre>
+      <p>Mock responses are synthetic and redacted. Use them for shape validation and UI wiring, not production wagering or settlement behavior.</p>
     </section>
 
     <section class="section">
@@ -220,15 +427,69 @@ const html = `<!doctype html>
       <h2>Deprecation Signals</h2>
       <p>Deprecated operations carry <code>Deprecation</code>, <code>Sunset</code>, and <code>Link</code> response headers in the contract so clients can surface migration warnings without scraping prose.</p>
       <table>
-        <thead><tr><th>Operation</th><th>Reason</th><th>Migration</th></tr></thead>
+        <thead><tr><th>Operation</th><th>Reason</th><th>Replacement / Timeline</th></tr></thead>
         <tbody>
           ${deprecatedOperations.map(op => `<tr>
             <td><code>${escapeHtml(op.path)}</code></td>
             <td>${escapeHtml(op.path.includes('getWebLog') ? 'Audit-log surface exposes login activity, network addresses, and operational messages.' : 'Observed print-detail call returned Invalid Method and remains manual-review only.')}</td>
-            <td>${escapeHtml(op.path.includes('getTicketDetailPrint') ? 'Use getPendingByTicket, getWagerDetailTransaction, or Manager/getWagaerDetailShort for read-only ticket data.' : 'Use a narrowed audit-log endpoint when one is available.')}</td>
+            <td>${escapeHtml(op.path.includes('getTicketDetailPrint') ? 'Replacement candidates: Report/getPendingByTicket, Report/getWagerDetailTransaction, or Manager/getWagaerDetailShort. Confirm exact print-detail replacement before removing manual-review flag. Sunset target: 2026-06-30.' : 'No like-for-like replacement has been observed. Treat 410 Gone as authoritative and keep blocked until a narrowed audit-log endpoint is captured. Sunset target: 2026-06-30.')}</td>
           </tr>`).join('\n')}
         </tbody>
       </table>
+    </section>
+
+    <section class="section" id="schemas">
+      <h2>Schemas</h2>
+      <p>All component schemas are shown below. Sensitive fields are marked with <span title="Sensitive field">🔒</span>, references link to other schemas, and usage lists show which operations reference each schema.</p>
+      <div class="schema-controls" aria-label="Schema filters">
+        <input id="schema-search" type="search" placeholder="Search schemas, fields, constraints, or operations" autocomplete="off">
+        <button type="button" class="schema-filter active" data-filter="all">All</button>
+        <button type="button" class="schema-filter" data-filter="sensitive">Sensitive</button>
+        <button type="button" class="schema-filter" data-filter="request">Request</button>
+        <button type="button" class="schema-filter" data-filter="response">Response</button>
+        <button type="button" class="schema-filter" data-filter="primitive">Primitive</button>
+        <button type="button" id="expand-schemas">Expand visible</button>
+        <button type="button" id="collapse-schemas">Collapse all</button>
+      </div>
+      <p class="schema-grid-note"><span id="schema-visible-count">${schemaRows.length}</span> of ${schemaRows.length} schemas shown.</p>
+      <table>
+        <thead><tr><th>Schema</th><th>Type</th><th>Required Fields</th><th>Sensitive Fields</th><th>Enum Count</th><th>Operation Usage</th></tr></thead>
+        <tbody>
+          ${schemaRows.map((row) => `<tr>
+            <td><a href="#schema-${escapeHtml(row.name)}"><code>${escapeHtml(row.name)}</code></a></td>
+            <td>${escapeHtml(row.type)}</td>
+            <td>${fieldTags(row.required)}</td>
+            <td>${row.sensitive ? `<span class="tag">${escapeHtml(row.sensitive)}</span>` : '<span class="tag">none</span>'}</td>
+            <td>${escapeHtml(row.enumCount)}</td>
+            <td>${escapeHtml(row.usedBy.length)}</td>
+          </tr>`).join('\n')}
+        </tbody>
+      </table>
+      <div id="schema-empty" class="callout">No schemas match the current search and filter.</div>
+      ${schemaRows.map((row) => {
+        const searchText = [
+          row.name,
+          row.type,
+          row.category,
+          row.required.join(' '),
+          row.usedBy.join(' '),
+          collectSensitivePaths(row.schema).join(' '),
+          constraintSummary(row.schema),
+          Array.from(collectSchemaSearchTerms(row.schema)).join(' '),
+        ].join(' ').toLowerCase();
+        return `<details class="schema" id="schema-${escapeHtml(row.name)}" data-schema-name="${escapeHtml(row.name.toLowerCase())}" data-schema-category="${escapeHtml(row.category)}" data-schema-sensitive="${row.sensitive ? 'true' : 'false'}" data-schema-search="${escapeHtml(searchText)}">
+        <summary><span class="schema-summary"><span class="schema-title"><code>${escapeHtml(row.name)}</code></span><span class="tag">${escapeHtml(row.type)}</span><span class="tag">${escapeHtml(row.category)}</span>${row.sensitive ? `<span class="tag">${row.sensitive} sensitive</span>` : ''}<span class="tag">${escapeHtml(row.usedBy.length)} ops</span></span></summary>
+        <div class="schema-body">
+          <p>${escapeHtml(row.schema.description || 'No schema description.')}</p>
+          <p class="schema-meta-line"><strong>Required:</strong> ${fieldTags(row.required)} <strong>Enums:</strong> ${escapeHtml(row.enumCount)} <strong>Sensitive fields:</strong> ${escapeHtml(row.sensitive)}</p>
+          <p><strong>Used by:</strong> ${row.usedBy.length ? row.usedBy.map((op) => `<code>${escapeHtml(op)}</code>`).join(' ') : '<span class="tag">not directly referenced by operations</span>'}</p>
+          <table>
+            <thead><tr><th>Field</th><th>Required</th><th>Constraints / Reference</th></tr></thead>
+            <tbody>${schemaFieldRows(row.name, row.schema)}</tbody>
+          </table>
+        </div>
+      </details>`;
+      }).join('\n')}
     </section>
 
     <section class="section" id="operation-request-parameters">
@@ -372,6 +633,113 @@ const html = `<!doctype html>
       </table>
     </section>
   </main>
+  <script type="application/json" id="rate-limit-data">${JSON.stringify(rateLimitRows).replaceAll('<', '\\u003c')}</script>
+  <script>
+    const roleInputs = Array.from(document.querySelectorAll('.role-filter'));
+    function applyRoleFilters() {
+      const active = new Set(roleInputs.filter((input) => input.checked).map((input) => input.value));
+      document.querySelectorAll('tr[data-roles]').forEach((row) => {
+        const roles = String(row.dataset.roles || '').split(/\\s+/).filter(Boolean);
+        row.classList.toggle('hidden-by-role', roles.length > 0 && !roles.some((role) => active.has(role)));
+      });
+    }
+    roleInputs.forEach((input) => input.addEventListener('change', applyRoleFilters));
+    document.querySelector('#show-all-roles')?.addEventListener('click', () => {
+      roleInputs.forEach((input) => { input.checked = true; });
+      applyRoleFilters();
+    });
+
+    document.querySelectorAll('pre').forEach((pre) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-code';
+      button.textContent = 'Copy';
+      button.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(pre.innerText);
+        button.textContent = 'Copied';
+        setTimeout(() => { button.textContent = 'Copy'; }, 1200);
+      });
+      pre.appendChild(button);
+    });
+
+    const rateData = JSON.parse(document.querySelector('#rate-limit-data')?.textContent || '[]');
+    const rateSelect = document.querySelector('#rate-operation');
+    const tierInput = document.querySelector('#tier-multiplier');
+    const rateOutput = document.querySelector('#rate-output');
+    function updateRateLimit() {
+      const selected = rateData[Number(rateSelect?.value || 0)];
+      if (!selected || !rateOutput) return;
+      const multiplier = Math.max(Number(tierInput?.value || 1), 0);
+      const budget = Math.floor(selected.limit * multiplier);
+      const perMinute = Math.floor((budget * 60) / selected.window);
+      rateOutput.textContent = selected.method + ' ' + selected.path + ': ' + budget + ' requests per ' + selected.window + 's window, approximately ' + perMinute + ' requests/min at tier multiplier ' + multiplier + '.';
+    }
+    rateSelect?.addEventListener('change', updateRateLimit);
+    tierInput?.addEventListener('input', updateRateLimit);
+    updateRateLimit();
+
+    document.querySelector('#try-send')?.addEventListener('click', async () => {
+      const output = document.querySelector('#try-output');
+      const origin = String(document.querySelector('#try-origin')?.value || '').replace(/\\/$/, '');
+      const route = String(document.querySelector('#try-route')?.value || '/health');
+      const method = String(document.querySelector('#try-method')?.value || 'GET');
+      const token = String(document.querySelector('#try-token')?.value || '');
+      output.value = 'Sending...';
+      try {
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = 'Bearer ' + token;
+        const response = await fetch(origin + route, { method, headers });
+        const text = await response.text();
+        output.value = JSON.stringify({ status: response.status, body: text ? JSON.parse(text) : null }, null, 2);
+      } catch (error) {
+        output.value = error instanceof Error ? error.message : String(error);
+      }
+    });
+
+    const schemaSearch = document.querySelector('#schema-search');
+    const schemaFilters = Array.from(document.querySelectorAll('.schema-filter'));
+    const schemaCards = Array.from(document.querySelectorAll('details.schema'));
+    const schemaVisibleCount = document.querySelector('#schema-visible-count');
+    const schemaEmpty = document.querySelector('#schema-empty');
+    let activeSchemaFilter = 'all';
+
+    function schemaMatchesFilter(card) {
+      if (activeSchemaFilter === 'all') return true;
+      if (activeSchemaFilter === 'sensitive') return card.dataset.schemaSensitive === 'true';
+      return String(card.dataset.schemaCategory || '').includes(activeSchemaFilter);
+    }
+
+    function applySchemaFilters() {
+      const query = String(schemaSearch?.value || '').trim().toLowerCase();
+      let visible = 0;
+      for (const card of schemaCards) {
+        const matchesQuery = !query || String(card.dataset.schemaSearch || '').includes(query);
+        const show = matchesQuery && schemaMatchesFilter(card);
+        card.classList.toggle('schema-hidden', !show);
+        if (show) visible += 1;
+      }
+      if (schemaVisibleCount) schemaVisibleCount.textContent = String(visible);
+      schemaEmpty?.classList.toggle('visible', visible === 0);
+    }
+
+    schemaSearch?.addEventListener('input', applySchemaFilters);
+    schemaFilters.forEach((button) => {
+      button.addEventListener('click', () => {
+        activeSchemaFilter = String(button.dataset.filter || 'all');
+        schemaFilters.forEach((candidate) => candidate.classList.toggle('active', candidate === button));
+        applySchemaFilters();
+      });
+    });
+    document.querySelector('#expand-schemas')?.addEventListener('click', () => {
+      schemaCards.forEach((card) => {
+        if (!card.classList.contains('schema-hidden')) card.open = true;
+      });
+    });
+    document.querySelector('#collapse-schemas')?.addEventListener('click', () => {
+      schemaCards.forEach((card) => { card.open = false; });
+    });
+    applySchemaFilters();
+  </script>
 </body>
 </html>`;
 

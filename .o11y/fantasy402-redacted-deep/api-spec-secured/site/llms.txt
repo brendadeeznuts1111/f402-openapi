@@ -1,4 +1,4 @@
-# Fantasy402 API (Secured Observed Contract) - Slim + Minimal Examples
+# Fantasy402 API (Secured Observed Contract)
 > Secured observed contract for Fantasy402 pay-per-head sportsbook operations.
 
 ## Overview

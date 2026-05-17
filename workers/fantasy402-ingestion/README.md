@@ -287,7 +287,9 @@ curl -X POST "https://fantasy402-ingestion.utahj4754.workers.dev/refresh-auth" \
   }'
 ```
 
-The cached overlay takes precedence over configured Fantasy402 auth secrets and expires automatically. If the overlay includes `sessionCookie`, it replaces the configured session-cookie value for the overlay lifetime. The endpoint returns only accepted field names plus expiry metadata.
+The cached overlay takes precedence over configured Fantasy402 auth secrets and expires automatically. If the overlay includes `sessionCookie`, it replaces the configured session-cookie value for the overlay lifetime. The endpoint rejects `sessionCookie` values that contain only `cf_clearance` and `__cf_bm`, because accepting that payload would poison scheduled runs into the known upstream 403/1106 state. The endpoint returns only accepted field names plus expiry metadata.
+
+`sessionCookie` must include at least one non-Cloudflare application cookie from the successful browser request, such as `ASP.NET_SessionId` or the current equivalent. `cf_clearance` and `__cf_bm` prove browser clearance but are not enough for ingestion; if diagnostics reports `upstreamAuthShape.ingestionReadiness.status = "blocked"` with `missing non-Cloudflare app session cookie`, scheduled ingestion will continue to fail upstream with 403/1106 until a fresh app session cookie is pushed.
 
 For a one-command operator run from the browser machine, create a local untracked auth file from the template:
 
@@ -323,6 +325,14 @@ pbpaste | npm run auth:import-curl -- -
 
 Use a successful authenticated `/cloud/api/*` request from the browser. The importer extracts only the local auth/header fields needed by the ingestion script.
 
+For the fastest refresh path from a copied browser request:
+
+```bash
+pbpaste | INGESTION_TRIGGER_TOKEN="$(cat .archive-auth-token)" npm run ingest:curl -- -
+```
+
+The pipeline now hard-fails before `/refresh-auth` if the copied request has only Cloudflare cookies and no application session cookie, so a bad capture cannot silently refresh the Worker into the known 403/1106 state.
+
 The local ingestion path requires the bearer token and Cloudflare cookies. If the browser also sends a non-Cloudflare application cookie, include it as `sessionCookie`:
 
 ```json
@@ -331,7 +341,7 @@ The local ingestion path requires the bearer token and Cloudflare cookies. If th
 }
 ```
 
-If the copied cURL contains only `cf_clearance` and `__cf_bm`, that matches the currently observed login flow. Add `sessionCookie` only when a successful browser request includes another cookie name.
+If the copied cURL contains only `cf_clearance` and `__cf_bm`, it is not ingestion-ready. Capture a successful authenticated `/cloud/api/*` request that also carries the upstream application session cookie, or let the Worker fall back to `authenticateCustomer` when the configured username/password path is available.
 
 Check the local auth file without printing any secret values:
 
@@ -345,7 +355,7 @@ Dry-run the configured endpoint request shapes without calling Fantasy402:
 npm run ingest:dry-run
 ```
 
-The dry-run prints one sanitized entry per endpoint with `bodyKeys`, `hasRRO`, `hasAgentID`, `hasAgentOwner`, `hasCustomerID`, and auth booleans such as `hasSessionCookie`, `hasCfClearance`, and `hasCfBm`. It exits non-zero for missing required bearer/Cloudflare auth or if a customer-scoped endpoint lacks `customerId`; missing non-Cloudflare app cookies are warnings.
+The dry-run prints one sanitized entry per endpoint with `bodyKeys`, `hasRRO`, `hasAgentID`, `hasAgentOwner`, `hasCustomerID`, and auth booleans such as `hasSessionCookie`, `hasCfClearance`, and `hasCfBm`. It exits non-zero for missing required bearer/Cloudflare auth, if a customer-scoped endpoint lacks `customerId`, or if the available cookie state lacks a non-Cloudflare application session cookie.
 
 Or run the full local flow from the copied cURL in one step:
 

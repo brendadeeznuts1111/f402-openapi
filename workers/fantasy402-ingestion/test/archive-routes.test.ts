@@ -899,7 +899,7 @@ test("ingestion keeps configured session cookie when appending Cloudflare cookie
   }
 });
 
-test("ingestion uses bearer plus Cloudflare cookies without requiring app session cookie", async () => {
+test("ingestion uses authenticateCustomer fallback when bearer plus Cloudflare cookies lack app session cookie", async () => {
   const originalFetch = globalThis.fetch;
   const seen: Array<{ url: string; authorization: string | null; cookie: string | null }> = [];
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -909,6 +909,12 @@ test("ingestion uses bearer plus Cloudflare cookies without requiring app sessio
       authorization: headers.get("Authorization"),
       cookie: headers.get("Cookie"),
     });
+    if (String(input).endsWith("/cloud/api/System/authenticateCustomer")) {
+      return Response.json(
+        { tokenauth: "login-token" },
+        { headers: { "Set-Cookie": "app_session=login-session; Path=/; HttpOnly" } },
+      );
+    }
     if (String(input).endsWith("/cloud/api/Manager/getAgentPerformance")) {
       return Response.json({ performance: [] });
     }
@@ -930,10 +936,10 @@ test("ingestion uses bearer plus Cloudflare cookies without requiring app sessio
     );
     assert.equal(response.status, 202);
     assert.equal(seen.some((request) => request.url.endsWith("/cloud/api/Auth/login")), false);
-    assert.equal(seen.some((request) => request.url.endsWith("/cloud/api/System/authenticateCustomer")), false);
+    assert.equal(seen.some((request) => request.url.endsWith("/cloud/api/System/authenticateCustomer")), true);
     const apiRequest = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAgentPerformance"));
-    assert.equal(apiRequest?.authorization, "Bearer browser-token");
-    assert.equal(apiRequest?.cookie, "cf_clearance=clearance-token; __cf_bm=bm-token");
+    assert.equal(apiRequest?.authorization, "Bearer login-token");
+    assert.equal(apiRequest?.cookie, "app_session=login-session; cf_clearance=clearance-token; __cf_bm=bm-token");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1013,6 +1019,31 @@ test("refresh-auth stores browser auth overlay in KV without echoing secrets", a
   assert.doesNotMatch(JSON.stringify(body), /refreshed-token|refreshed-session|clearance-token|bm-token/);
   const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
   assert.equal(stored.authorization, "Bearer refreshed-token");
+});
+
+test("refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH_CACHE", async () => {
+  const authKv = new MemoryKVNamespace();
+  const response = await worker.fetch(
+    new Request("https://worker.test/refresh-auth", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        authorization: "Bearer refreshed-token",
+        sessionCookie: "cf_clearance=clearance-token; __cf_bm=bm-token",
+        cfClearance: "clearance-token",
+        cfBm: "bm-token",
+      }),
+    }),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), { AUTH_CACHE: authKv }),
+  );
+  assert.equal(response.status, 400);
+  const body = await response.json() as { status: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.match(body.message, /non-Cloudflare application session cookie/);
+  assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
 });
 
 test("authenticateCustomer fallback caches bearer token and app session in AUTH_CACHE", async () => {

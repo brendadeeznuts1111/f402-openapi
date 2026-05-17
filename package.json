@@ -1,0 +1,22 @@
+{
+  "name": "f402-openapi-contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:contract": "node tools/build-fantasy402-secured-contract.cjs",
+    "lint:openapi": "spectral lint .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json --ruleset spectral.yaml",
+    "verify:contract": "npm run build:contract && npm run lint:openapi && node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "6.14.3"
+  },
+  "overrides": {
+    "@stoplight/spectral-formatters": "1.4.1",
+    "@stoplight/spectral-rulesets": "1.22.0",
+    "@stoplight/spectral-runtime": "1.1.2",
+    "hasown": "2.0.2",
+    "lodash": "4.17.21",
+    "rollup": "2.79.2"
+  }
+}

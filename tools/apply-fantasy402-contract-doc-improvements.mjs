@@ -15,6 +15,59 @@ function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function resolveRef(spec, ref) {
+  if (!ref?.startsWith('#/')) return null;
+  const parts = ref.slice(2).split('/').map((part) => part.replaceAll('~1', '/').replaceAll('~0', '~'));
+  let current = spec;
+  for (const part of parts) current = current?.[part];
+  return current || null;
+}
+
+function syntheticExampleForSchema(spec, schema, fieldName = '', seen = new Set()) {
+  if (!schema) return null;
+  if (schema.$ref) {
+    if (seen.has(schema.$ref)) return null;
+    seen.add(schema.$ref);
+    return syntheticExampleForSchema(spec, resolveRef(spec, schema.$ref), fieldName, seen);
+  }
+  if (schema['x-sensitive'] === true) {
+    return fieldName.toLowerCase() === 'password' ? '__REDACTED_PASSWORD__' : '__REDACTED__';
+  }
+  if (schema.const !== undefined) return schema.const;
+  if (Array.isArray(schema.enum) && schema.enum.length) return schema.enum[0];
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length) return syntheticExampleForSchema(spec, schema.oneOf[0], fieldName, seen);
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length) return syntheticExampleForSchema(spec, schema.anyOf[0], fieldName, seen);
+  if (Array.isArray(schema.allOf) && schema.allOf.length) {
+    return schema.allOf.reduce((value, child) => {
+      const childValue = syntheticExampleForSchema(spec, child, fieldName, new Set(seen));
+      return isObject(value) && isObject(childValue) ? { ...value, ...childValue } : childValue ?? value;
+    }, {});
+  }
+
+  const allowedTypes = Array.isArray(schema.type) ? schema.type : [schema.type].filter(Boolean);
+  const type = allowedTypes.find((candidate) => candidate !== 'null') || allowedTypes[0];
+  if (type === 'array') return [];
+  if (type === 'integer') return 1;
+  if (type === 'number') return 1;
+  if (type === 'boolean') return true;
+  if (type === 'string') {
+    if (schema.format === 'date') return '2026-05-17';
+    if (schema.format === 'date-time') return '2026-05-17T00:00:00.000Z';
+    return fieldName ? `synthetic-${fieldName}` : 'synthetic-value';
+  }
+  if (type === 'object' || schema.properties) {
+    const value = {};
+    const required = new Set(schema.required || []);
+    for (const [propertyName, propertySchema] of Object.entries(schema.properties || {})) {
+      if (required.has(propertyName)) {
+        value[propertyName] = syntheticExampleForSchema(spec, propertySchema, propertyName, new Set(seen));
+      }
+    }
+    return value;
+  }
+  return null;
+}
+
 function ensureProblemDetails(spec) {
   spec.components ||= {};
   spec.components.schemas ||= {};
@@ -88,6 +141,10 @@ function ensureProblemDetails(spec) {
     },
   };
 
+  spec.components.examples.RateLimitError ||= {
+    value: { status: 'Failed', msg: 'Too Many Requests' },
+  };
+
   spec.components.examples.GenericProblem = {
     summary: 'Generic API error',
     value: {
@@ -96,6 +153,140 @@ function ensureProblemDetails(spec) {
       status: 400,
       detail: 'The request could not be processed.',
       instance: '/cloud/api/Manager/getPlayers',
+    },
+  };
+}
+
+function contentFor(spec, apiPath, status = '200') {
+  return spec.paths?.[apiPath]?.post?.responses?.[status]?.content?.['application/json'];
+}
+
+function requestContentFor(spec, apiPath) {
+  return Object.values(spec.paths?.[apiPath]?.post?.requestBody?.content || {})[0];
+}
+
+function ensureExamples(spec) {
+  spec.components ||= {};
+  spec.components.examples ||= {};
+
+  const endpointExamples = [
+    {
+      path: '/cloud/api/Manager/getBetTicker',
+      request: 'BetTickerRequestValid',
+      response: 'BetTickerResponseEmpty',
+      responseName: 'emptyTicker',
+    },
+    {
+      path: '/cloud/api/Manager/getPending',
+      request: 'GetPendingRequestValid',
+      response: 'GetPendingResponseEmpty',
+      responseName: 'emptyPending',
+    },
+    {
+      path: '/cloud/api/Manager/getAgentPositionList',
+      request: 'AgentPositionListRequestValid',
+      response: 'AgentPositionListResponseEmpty',
+      responseName: 'emptyPositions',
+    },
+    {
+      path: '/cloud/api/Manager/getAgentPositionData',
+      request: 'AgentPositionDataRequestValid',
+      response: 'AgentPositionDataResponseEmpty',
+      responseName: 'emptyPositions',
+    },
+  ];
+
+  for (const endpoint of endpointExamples) {
+    const request = requestContentFor(spec, endpoint.path);
+    if (request) {
+      request.examples ||= {};
+      request.examples.valid = { $ref: `#/components/examples/${endpoint.request}` };
+    }
+    const ok = contentFor(spec, endpoint.path, '200');
+    if (ok) {
+      ok.examples ||= {};
+      ok.examples[endpoint.responseName] = { $ref: `#/components/examples/${endpoint.response}` };
+    }
+  }
+
+  const authenticateOk = contentFor(spec, '/cloud/api/System/authenticateCustomer', '200');
+  if (authenticateOk) {
+    authenticateOk.examples ||= {};
+    authenticateOk.examples.authenticated = { $ref: '#/components/examples/AuthenticateCustomerResponseValid' };
+  }
+
+  const rateLimitedPaths = [
+    '/cloud/api/Manager/getBetTicker',
+    '/cloud/api/Manager/getPending',
+    '/cloud/api/System/authenticateCustomer',
+    '/cloud/api/Manager/getAgentPositionList',
+    '/cloud/api/Manager/getAgentPositionData',
+  ];
+  for (const apiPath of rateLimitedPaths) {
+    const rateLimited = contentFor(spec, apiPath, '429');
+    if (rateLimited) {
+      rateLimited.examples ||= {};
+      rateLimited.examples.tooManyRequests ||= { $ref: '#/components/examples/RateLimitError' };
+    }
+  }
+
+  spec.components.examples = {
+    ...spec.components.examples,
+    BetTickerRequestValid: {
+      value: {
+        RRO: 1,
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
+        operation: 'getBetTicker',
+      },
+    },
+    BetTickerResponseEmpty: {
+      value: { LIST: [] },
+    },
+    GetPendingRequestValid: {
+      value: {
+        RRO: 1,
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
+        customerID: '__REDACTED__',
+        date: '2026-05-17T00:00:00.000Z',
+        path: 'P',
+        sort: 'acceptedDateTime',
+        typeSort: 'desc',
+        wagerType: 'A',
+        week: 0,
+      },
+    },
+    GetPendingResponseEmpty: {
+      value: [],
+    },
+    AuthenticateCustomerResponseValid: {
+      value: {
+        accountInfo: syntheticExampleForSchema(spec, { $ref: '#/components/schemas/AccountInfo' }),
+        code: 'synthetic-auth-code',
+      },
+    },
+    AgentPositionListRequestValid: {
+      value: {
+        RRO: 1,
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
+        operation: 'getAgentPositionList',
+      },
+    },
+    AgentPositionListResponseEmpty: {
+      value: { LIST: [] },
+    },
+    AgentPositionDataRequestValid: {
+      value: {
+        RRO: 1,
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
+        operation: 'getAgentPositionData',
+      },
+    },
+    AgentPositionDataResponseEmpty: {
+      value: [],
     },
   };
 }
@@ -136,11 +327,20 @@ function enhanceErrorResponses(operation) {
 function enhanceDeprecatedOperation(operation, apiPath) {
   if (operation.deprecated !== true) return;
   const sunset = apiPath.includes('getWebLog') ? '2026-06-30T00:00:00Z' : '2026-06-30T00:00:00Z';
-  const migrationTarget = apiPath.includes('getTicketDetailPrint')
-    ? '/cloud/api/Report/getPendingByTicket'
-    : 'narrowed-audit-log-endpoint';
+  const isTicketPrint = apiPath.includes('getTicketDetailPrint');
+  const migrationTarget = isTicketPrint ? '/cloud/api/Report/getPendingByTicket' : null;
   operation['x-sunset'] = sunset;
   operation['x-migration-target'] = migrationTarget;
+  operation['x-migration-guidance'] = isTicketPrint
+    ? 'Likely replacement is ticket detail lookup through getPendingByTicket, with getWagerDetailTransaction or Manager/getWagaerDetailShort as supporting read-only detail views. Confirm exact print-specific replacement before removing manual-review status.'
+    : 'No like-for-like replacement has been observed. Treat 410 Gone as authoritative and keep this blocked until a narrowed audit-log endpoint is captured.';
+  if (isTicketPrint) {
+    operation['x-replacement-candidates'] ||= [
+      '/cloud/api/Report/getPendingByTicket',
+      '/cloud/api/Report/getWagerDetailTransaction',
+      '/cloud/api/Manager/getWagaerDetailShort',
+    ];
+  }
   operation.externalDocs ||= {
     description: 'Deprecation and migration guidance.',
     url: './remediation-closeout.md',
@@ -165,11 +365,13 @@ function enhanceDeprecatedOperation(operation, apiPath) {
 
 function enhanceInfo(spec) {
   spec.info ||= {};
-  spec.info.version ||= '2.0.0-secured-observed';
-  spec.info.contact ||= {
-    name: 'Fantasy402 Contract Maintainers',
+  spec.info.title = 'Fantasy402 API (Secured Observed Contract)';
+  spec.info.version = '2026-05-17-slim-v1.2';
+  spec.info.contact = {
+    name: 'BILLY666 / Sports Terminal',
+    url: 'https://factory-wager.com',
   };
-  spec.info['x-api-state'] = 'observed-secured';
+  spec.info['x-api-state'] = 'observed';
   spec.info['x-last-captured'] = '2026-05-08';
   spec.info['x-next-review'] = '2026-06-08';
   spec.info['x-ai-discovery'] = {
@@ -182,6 +384,7 @@ function enhanceInfo(spec) {
 function enhanceSpec(spec) {
   enhanceInfo(spec);
   ensureProblemDetails(spec);
+  ensureExamples(spec);
   for (const [apiPath, pathItem] of Object.entries(spec.paths || {})) {
     for (const operation of Object.values(pathItem || {})) {
       if (!isObject(operation)) continue;

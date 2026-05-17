@@ -2420,7 +2420,8 @@
               "hasCfClearance",
               "hasCfBm",
               "cookieNames",
-              "browserHeaderCount"
+              "browserHeaderCount",
+              "ingestionReadiness"
             ],
             "properties": {
               "hasAuthorization": {
@@ -2448,6 +2449,31 @@
               "browserHeaderCount": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "ingestionReadiness": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "status",
+                  "blocker"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "blocked"
+                    ],
+                    "description": "Sanitized ingestion auth readiness derived from observed upstream auth shape."
+                  },
+                  "blocker": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Present only when scheduled upstream ingestion is blocked by missing browser auth material."
+                  }
+                }
               }
             }
           },
@@ -3148,7 +3174,7 @@
             "type": "string",
             "maxLength": 8192,
             "writeOnly": true,
-            "description": "Browser-observed application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies.",
+            "description": "Browser-observed non-Cloudflare application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies; required for ingestion readiness because Cloudflare cookies alone can still yield upstream 403/1106.",
             "x-sensitive": true,
             "x-privacy-classification": "Credential",
             "x-security-review-required": true

@@ -27,6 +27,8 @@ requireText(contents.source, "cookieNames,", "failure diagnostics must include s
 requireText(contents.source, "function isCloudflareCookieName", "source must classify Cloudflare cookie names explicitly");
 requireText(contents.source, "upstreamAuthShape: upstreamAuthDiagnostics(env)", "diagnostics must expose sanitized upstream auth shape");
 requireText(contents.source, "function upstreamAuthDiagnostics", "source must define sanitized upstream auth diagnostics");
+requireText(contents.source, "ingestionReadiness", "diagnostics must expose ingestion readiness derived from auth shape");
+requireText(contents.source, "missing non-Cloudflare app session cookie", "diagnostics must name the missing app-session-cookie blocker");
 requireText(contents.source, 'normalizeAuthorization(env.FANTASY402_AUTHORIZATION)', "source must skip fallback login when browser bearer auth is configured");
 requireText(contents.source, '/cloud/api/System/authenticateCustomer', "source must use browser-observed authenticateCustomer fallback");
 requireText(contents.source, '/cloud/api/System/renewToken', "source must implement browser-observed renewToken flow");
@@ -73,11 +75,14 @@ requireText(contents.readme, "npm run ingest:dry-run", "README must document san
 const checkAuth = fs.readFileSync(path.join(workerRoot, "scripts/check-browser-auth.mjs"), "utf8");
 const dryRun = fs.readFileSync(path.join(workerRoot, "scripts/ingestion-dry-run.mjs"), "utf8");
 requireText(checkAuth, "contains only Cloudflare cookies", "auth check must warn when sessionCookie has only Cloudflare cookies");
+requireText(checkAuth, "appSessionCookie", "auth check must report non-Cloudflare app session cookie presence");
 requireText(dryRun, "callsFantasy402: false", "dry-run must explicitly avoid calling Fantasy402");
 requireText(dryRun, "hasSessionCookie", "dry-run must report hasSessionCookie");
+requireText(dryRun, "ingestionReadiness", "dry-run must report ingestion readiness");
 requireText(dryRun, "bodyKeys", "dry-run must report per-endpoint bodyKeys");
 const localBrowserIngest = fs.readFileSync(path.join(workerRoot, "scripts/local-browser-ingest.mjs"), "utf8");
 requireText(localBrowserIngest, "hasNonCloudflareCookie(authPayload.sessionCookie)", "local browser ingest must diagnose non-Cloudflare app-cookie presence generically");
+requireText(localBrowserIngest, "include the app session cookie", "local browser ingest must hard-fail without app session cookie");
 requireText(localBrowserIngest, "cookieNames: cookieNames(cookieHeader(authPayload))", "local browser ingest failure reports must include sanitized cookie names");
 
 requireText(contents.securedSite, "<h2>Upstream Cookie Assembly</h2>", "secured HTML docs must include Upstream Cookie Assembly section");
@@ -98,6 +103,17 @@ if (!refreshSchema) {
   if (!/upstream Cookie header alongside Cloudflare cookies/.test(sessionCookie?.description ?? "")) {
     findings.push("RefreshAuthRequest.sessionCookie description must document Cookie header assembly");
   }
+  if (!/non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
+    findings.push("RefreshAuthRequest.sessionCookie description must document non-Cloudflare app-session requirement");
+  }
+  if (!/403\/1106/.test(sessionCookie?.description ?? "")) {
+    findings.push("RefreshAuthRequest.sessionCookie description must document upstream 403/1106 blocker");
+  }
+}
+
+const upstreamAuthShape = workerOpenapi.components?.schemas?.DiagnosticsResponse?.properties?.upstreamAuthShape;
+if (!upstreamAuthShape?.properties?.ingestionReadiness) {
+  findings.push("DiagnosticsResponse.upstreamAuthShape must include ingestionReadiness");
 }
 
 const serializedOpenapi = JSON.stringify(workerOpenapi);

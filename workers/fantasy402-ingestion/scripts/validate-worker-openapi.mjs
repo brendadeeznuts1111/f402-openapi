@@ -38,6 +38,27 @@ if (/password|ASP\.NET_SessionId|backdoor69|billy666/i.test(serialized)) {
   findings.push("worker OpenAPI spec contains forbidden credential-like text");
 }
 
+const upstreamAuthShape = spec.components?.schemas?.DiagnosticsResponse?.properties?.upstreamAuthShape;
+if (!upstreamAuthShape?.properties?.ingestionReadiness) {
+  findings.push("DiagnosticsResponse.upstreamAuthShape must include ingestionReadiness");
+} else {
+  const readiness = upstreamAuthShape.properties.ingestionReadiness;
+  if (!readiness.required?.includes("status")) findings.push("ingestionReadiness must require status");
+  if (!readiness.required?.includes("blocker")) findings.push("ingestionReadiness must require blocker");
+  const statusEnum = readiness.properties?.status?.enum ?? [];
+  if (!statusEnum.includes("ready") || !statusEnum.includes("blocked")) {
+    findings.push("ingestionReadiness.status must enumerate ready and blocked");
+  }
+}
+
+const sessionCookie = spec.components?.schemas?.RefreshAuthRequest?.properties?.sessionCookie;
+if (!/non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
+  findings.push("RefreshAuthRequest.sessionCookie must document non-Cloudflare app-session requirement");
+}
+if (!/403\/1106/.test(sessionCookie?.description ?? "")) {
+  findings.push("RefreshAuthRequest.sessionCookie must document the upstream 403/1106 blocker");
+}
+
 for (const [name, schema] of Object.entries(spec.components?.schemas ?? {})) {
   if (schema.type === "object" && schema.additionalProperties !== false) {
     findings.push(`schema ${name} must set additionalProperties: false`);

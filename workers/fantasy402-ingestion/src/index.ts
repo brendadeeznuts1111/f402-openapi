@@ -2409,14 +2409,19 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     .map((cookie) => cookieName(cookie))
     .filter((name): name is string => Boolean(name));
   const hasCookieName = (name: string) => cookieNames.some((cookie) => cookie.toLowerCase() === name.toLowerCase());
+  const hasSessionCookie = cookieNames.some((name) => !isCloudflareCookieName(name));
   return {
     hasAuthorization: Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION)),
     hasCookie: cookieNames.length > 0,
-    hasSessionCookie: cookieNames.some((name) => !isCloudflareCookieName(name)),
+    hasSessionCookie,
     hasCfClearance: hasCookieName("cf_clearance"),
     hasCfBm: hasCookieName("__cf_bm"),
     cookieNames,
     browserHeaderCount: observedBrowserHeaderCount(env.FANTASY402_BROWSER_HEADERS_JSON),
+    ingestionReadiness: {
+      status: hasSessionCookie ? "ready" : "blocked",
+      blocker: hasSessionCookie ? null : "missing non-Cloudflare app session cookie",
+    },
   };
 }
 
@@ -2672,6 +2677,7 @@ function archiveViewer(): Response {
         <button id="loadDiagnostics">Load Diagnostics</button>
         <div class="status" id="diagnosticsStatus"></div>
       </div>
+      <div class="mini-card" id="authStateCard" hidden></div>
       <pre id="diagnostics"></pre>
     </section>
     <section class="panel" style="margin-top: 16px;">
@@ -2714,6 +2720,7 @@ function archiveViewer(): Response {
     const scanSummaryEl = document.querySelector("#scanSummary");
     const diagnosticsStatusEl = document.querySelector("#diagnosticsStatus");
     const diagnosticsEl = document.querySelector("#diagnostics");
+    const authStateCardEl = document.querySelector("#authStateCard");
     const alertsStatusEl = document.querySelector("#alertsStatus");
     const alertBadgesEl = document.querySelector("#alertBadges");
     const alertsSummaryEl = document.querySelector("#alertsSummary");
@@ -2817,6 +2824,8 @@ function archiveViewer(): Response {
       if (!token) return setDiagnosticsStatus("Missing bearer token.", true);
       setDiagnosticsStatus("Loading diagnostics...");
       diagnosticsEl.textContent = "";
+      authStateCardEl.hidden = true;
+      authStateCardEl.textContent = "";
       const [runtimeResponse, scannerResponse] = await Promise.all([
         fetch("/diagnostics", {
           headers: { Authorization: "Bearer " + token }
@@ -2839,8 +2848,41 @@ function archiveViewer(): Response {
         runtime: parseJsonOrText(runtimeText),
         scanner: parseJsonOrText(scannerText)
       };
-      setDiagnosticsStatus(diagnostics.scanner.status === "ready" ? "Loaded diagnostics." : "Loaded diagnostics with scanner issues.", diagnostics.scanner.status !== "ready");
+      renderAuthState(diagnostics.runtime);
+      const authBlocked = diagnostics.runtime.upstreamAuthShape?.ingestionReadiness?.status === "blocked";
+      const scannerBlocked = diagnostics.scanner.status !== "ready";
+      setDiagnosticsStatus(authBlocked ? "Loaded diagnostics with ingestion auth blocker." : scannerBlocked ? "Loaded diagnostics with scanner issues." : "Loaded diagnostics.", authBlocked || scannerBlocked);
       diagnosticsEl.textContent = JSON.stringify(diagnostics, null, 2);
+    }
+
+    function renderAuthState(runtime) {
+      const shape = runtime.upstreamAuthShape || {};
+      const readiness = shape.ingestionReadiness || {};
+      const items = [
+        ["Ingestion", readiness.status || "unknown"],
+        ["Bearer", shape.hasAuthorization ? "present" : "missing"],
+        ["App session", shape.hasSessionCookie ? "present" : "missing"],
+        ["cf_clearance", shape.hasCfClearance ? "present" : "missing"],
+        ["__cf_bm", shape.hasCfBm ? "present" : "missing"],
+        ["Browser headers", String(shape.browserHeaderCount ?? 0)],
+      ];
+      authStateCardEl.textContent = "";
+      for (const [label, value] of items) {
+        const item = document.createElement("div");
+        item.className = "metric";
+        item.innerHTML = "<b></b><span></span>";
+        item.querySelector("b").textContent = label;
+        item.querySelector("span").textContent = value;
+        authStateCardEl.appendChild(item);
+      }
+      if (readiness.blocker) {
+        const item = document.createElement("div");
+        item.className = "metric";
+        item.innerHTML = "<b>Blocker</b><span></span>";
+        item.querySelector("span").textContent = readiness.blocker;
+        authStateCardEl.appendChild(item);
+      }
+      authStateCardEl.hidden = false;
     }
 
     async function loadAlerts() {

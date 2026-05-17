@@ -1,5 +1,7 @@
+import fs from "node:fs";
+
 const origin = new URL(process.env.WORKER_ORIGIN ?? "https://fantasy402-ingestion.utahj4754.workers.dev");
-const token = process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TOKEN || "";
+const token = process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TOKEN || readTokenFile();
 const results = [];
 
 await check("health", "/health?smoke=1", { status: 200, includes: '"status":"ok"' });
@@ -13,12 +15,42 @@ if (token) {
     includes: '"bindings"',
     headers: { Authorization: `Bearer ${token}` },
     forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (body.status !== "ready") findings.push(`expected diagnostics status ready, got ${JSON.stringify(body.status)}`);
+      if (body.auth?.configured !== true) findings.push("operator auth is not configured");
+      if (Array.isArray(body.requiredSecrets?.missing) && body.requiredSecrets.missing.length > 0) {
+        findings.push(`missing required secrets: ${body.requiredSecrets.missing.join(", ")}`);
+      }
+      if (body.upstreamAuthShape?.hasSessionCookie !== true) {
+        findings.push("upstream auth is missing a non-Cloudflare app session cookie");
+      }
+      for (const [binding, present] of Object.entries(body.bindings ?? {})) {
+        if (present !== true) findings.push(`missing binding ${binding}`);
+      }
+      return findings;
+    },
   });
   await check("archive authenticated", "/archive?prefix=fantasy402/&limit=5", {
     status: 200,
     includes: '"objects"',
     headers: { Authorization: `Bearer ${token}` },
     forbidden: [token],
+  });
+  await check("scanner diagnostics authenticated", "/scanner/diagnostics", {
+    status: 200,
+    includes: '"cloudflare-url-scanner"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (body.status !== "ready") findings.push(`expected scanner status ready, got ${JSON.stringify(body.status)}`);
+      if (body.tokenShape?.configured !== true) findings.push("scanner token is not configured");
+      for (const check of body.checks ?? []) {
+        if (check.success !== true) findings.push(`scanner check failed: ${check.stage}`);
+      }
+      return findings;
+    },
   });
 }
 
@@ -49,6 +81,13 @@ async function check(name, path, expectation) {
     if (expectation.includes && !body.includes(expectation.includes)) {
       findings.push(`response did not include ${JSON.stringify(expectation.includes)}`);
     }
+    if (expectation.validateJson) {
+      try {
+        findings.push(...expectation.validateJson(JSON.parse(body)));
+      } catch (error) {
+        findings.push(`response was not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     for (const value of expectation.forbidden ?? []) {
       if (value && body.includes(value)) findings.push("response leaked supplied bearer token");
     }
@@ -65,4 +104,18 @@ async function check(name, path, expectation) {
       findings: [error instanceof Error ? error.message : String(error)],
     });
   }
+}
+
+function readTokenFile() {
+  try {
+    const token = fs.readFileSync(".archive-auth-token", "utf8").trim();
+    if (!token || looksLikePlaceholder(token)) return "";
+    return token;
+  } catch {
+    return "";
+  }
+}
+
+function looksLikePlaceholder(value) {
+  return value === "..." || /^<.+>$/.test(value) || /redacted|placeholder|changeme/i.test(value);
 }

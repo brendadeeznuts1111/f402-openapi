@@ -7,11 +7,22 @@ const findings = [];
 if (spec.openapi !== "3.1.0") findings.push("openapi must be 3.1.0");
 if (!spec.paths?.["/health"]?.get) findings.push("missing GET /health operation");
 if (!spec.paths?.["/trigger"]?.post) findings.push("missing POST /trigger operation");
+if (!spec.paths?.["/archive"]?.get) findings.push("missing GET /archive operation");
+if (!spec.paths?.["/archive/object"]?.get) findings.push("missing GET /archive/object operation");
 if (!spec.components?.securitySchemes?.triggerToken) findings.push("missing triggerToken security scheme");
 
 const triggerSecurity = spec.paths?.["/trigger"]?.post?.security ?? [];
 if (!JSON.stringify(triggerSecurity).includes("triggerToken")) {
   findings.push("POST /trigger must require triggerToken security");
+}
+
+for (const [method, operation] of [
+  ["GET /archive", spec.paths?.["/archive"]?.get],
+  ["GET /archive/object", spec.paths?.["/archive/object"]?.get],
+]) {
+  if (!JSON.stringify(operation?.security ?? []).includes("triggerToken")) {
+    findings.push(`${method} must require triggerToken security`);
+  }
 }
 
 const serialized = JSON.stringify(spec);

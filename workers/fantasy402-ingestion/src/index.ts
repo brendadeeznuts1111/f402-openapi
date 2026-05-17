@@ -43,6 +43,9 @@ interface ApiResult {
   attempts: number;
   data: unknown;
   r2Key: string;
+  r2Etag: string;
+  r2Size: number;
+  r2StorageClass: string;
   responseHash: string;
   snapshotId: string;
 }
@@ -58,6 +61,8 @@ const SESSION_KEY = "fantasy402:session";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 4;
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ENDPOINT_ATTEMPTS = 3;
+const R2_ARCHIVE_PREFIX = "fantasy402";
+const R2_ARCHIVE_STORAGE_CLASS = "InfrequentAccess";
 
 class UpstreamHttpError extends Error {
   readonly retryable: boolean;
@@ -155,13 +160,26 @@ export default {
     }
 
     if (url.pathname === "/trigger" && request.method === "POST") {
-      const auth = request.headers.get("Authorization");
-      if (auth !== `Bearer ${env.INGESTION_TRIGGER_TOKEN}`) {
+      if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
 
       const result = await runIngestion(env);
       return json(result, result.status === "success" ? 202 : 500);
+    }
+
+    if (url.pathname === "/archive" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listArchiveObjects(url, env);
+    }
+
+    if (url.pathname === "/archive/object" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getArchiveObject(url, env);
     }
 
     return json({ status: "failed", message: "Not Found" }, 404);
@@ -267,16 +285,24 @@ async function fetchAndArchiveEndpoint(
   const responseHash = await sha256Hex(serialized);
   const snapshotId = crypto.randomUUID();
   const date = now.toISOString().slice(0, 10);
-  const r2Key = `fantasy402/${endpoint.key}/${date}/${runId}/${snapshotId}.json`;
+  const r2Key = archiveKey(endpoint.key, date, snapshotId);
+  const r2Object = await putArchiveObject(env, r2Key, serialized, {
+    source: "fantasy402",
+    archiveType: "success",
+    endpoint: endpoint.key,
+    path: endpoint.path,
+    runId,
+    snapshotId,
+    responseHash,
+    capturedAt: now.toISOString(),
+    size: String(serialized.length),
+  });
 
-  await env.RAW_ARCHIVE.put(r2Key, serialized, {
-    httpMetadata: { contentType: "application/json" },
-    customMetadata: {
-      endpoint: endpoint.key,
-      runId,
-      responseHash,
-      capturedAt: now.toISOString(),
-    },
+  console.log("r2 archive write", {
+    key: r2Key,
+    etag: r2Object.etag,
+    size: r2Object.size,
+    storageClass: r2Object.storageClass,
   });
 
   return {
@@ -285,6 +311,9 @@ async function fetchAndArchiveEndpoint(
     attempts: attempted.attempts,
     data,
     r2Key,
+    r2Etag: r2Object.etag,
+    r2Size: r2Object.size,
+    r2StorageClass: r2Object.storageClass,
     responseHash,
     snapshotId,
   };
@@ -340,8 +369,9 @@ async function withRetries(request: () => Promise<Response>, maxAttempts: number
 async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promise<void> {
   await env.ANALYTICS_DB.prepare(
     `INSERT INTO api_snapshots
-       (id, run_id, endpoint_key, path, captured_at, http_status, r2_key, response_hash, item_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, run_id, endpoint_key, path, captured_at, http_status, r2_key, response_hash, item_count,
+        attempts, r2_etag, r2_size, r2_storage_class)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       result.snapshotId,
@@ -353,26 +383,70 @@ async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promis
       result.r2Key,
       result.responseHash,
       countItems(result.data),
+      result.attempts,
+      result.r2Etag,
+      result.r2Size,
+      result.r2StorageClass,
     )
     .run();
 }
 
 async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointConfig, error: unknown): Promise<void> {
+  const failureId = crypto.randomUUID();
+  const failedAt = new Date();
+  const attempts = error instanceof EndpointAttemptError ? error.attempts : 1;
+  const body = JSON.stringify({
+    source: "fantasy402-ingestion-worker",
+    archiveType: "failure",
+    failureId,
+    runId,
+    endpoint: endpoint.key,
+    path: endpoint.path,
+    attempts,
+    failedAt: failedAt.toISOString(),
+    error: errorMessage(error).slice(0, 1000),
+  });
+  const responseHash = await sha256Hex(body);
+  const r2Key = archiveKey(`${endpoint.key}/failures`, failedAt.toISOString().slice(0, 10), failureId);
+  const r2Object = await putArchiveObject(env, r2Key, body, {
+    source: "fantasy402-ingestion-worker",
+    archiveType: "failure",
+    endpoint: endpoint.key,
+    path: endpoint.path,
+    runId,
+    failureId,
+    responseHash,
+    failedAt: failedAt.toISOString(),
+    size: String(body.length),
+  });
+
   await env.ANALYTICS_DB.prepare(
     `INSERT INTO endpoint_failures
-       (id, run_id, endpoint_key, path, failed_at, attempts, error_message)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (id, run_id, endpoint_key, path, failed_at, attempts, error_message,
+        r2_key, r2_etag, r2_size, r2_storage_class)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
-      crypto.randomUUID(),
+      failureId,
       runId,
       endpoint.key,
       endpoint.path,
-      new Date().toISOString(),
-      error instanceof EndpointAttemptError ? error.attempts : 1,
+      failedAt.toISOString(),
+      attempts,
       errorMessage(error).slice(0, 1000),
+      r2Key,
+      r2Object.etag,
+      r2Object.size,
+      r2Object.storageClass,
     )
     .run();
+
+  console.error("r2 failure archive write", {
+    key: r2Key,
+    etag: r2Object.etag,
+    size: r2Object.size,
+    storageClass: r2Object.storageClass,
+  });
 }
 
 async function storeAgentPerformance(
@@ -574,6 +648,88 @@ function numberField(record: Record<string, unknown>, keys: string[], fallback: 
 
 function baseUrl(env: Env): string {
   return env.FANTASY402_BASE_URL.replace(/\/+$/, "");
+}
+
+async function putArchiveObject(
+  env: Env,
+  key: string,
+  body: string,
+  customMetadata: Record<string, string>,
+): Promise<R2Object> {
+  return env.RAW_ARCHIVE.put(key, body, {
+    httpMetadata: {
+      contentType: "application/json; charset=utf-8",
+      cacheControl: "no-store, max-age=0",
+    },
+    customMetadata: {
+      ...customMetadata,
+      storageClass: "infrequent_access",
+    },
+    storageClass: R2_ARCHIVE_STORAGE_CLASS,
+  });
+}
+
+async function listArchiveObjects(url: URL, env: Env): Promise<Response> {
+  const prefix = normalizeArchivePrefix(url.searchParams.get("prefix") ?? R2_ARCHIVE_PREFIX);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 1000);
+  const cursor = url.searchParams.get("cursor") ?? undefined;
+  const listed = await env.RAW_ARCHIVE.list(cursor ? { prefix, limit, cursor } : { prefix, limit });
+
+  return json(
+    {
+      objects: listed.objects.map((object) => ({
+        key: object.key,
+        etag: object.etag,
+        size: object.size,
+        uploaded: object.uploaded.toISOString(),
+        storageClass: object.storageClass,
+        httpMetadata: object.httpMetadata ?? {},
+        customMetadata: object.customMetadata ?? {},
+      })),
+      truncated: listed.truncated,
+      cursor: listed.truncated ? listed.cursor : null,
+    },
+    200,
+  );
+}
+
+async function getArchiveObject(url: URL, env: Env): Promise<Response> {
+  const key = url.searchParams.get("key");
+  if (!key) return json({ status: "failed", message: "Missing key" }, 400);
+  if (!key.startsWith(`${R2_ARCHIVE_PREFIX}/`)) return json({ status: "failed", message: "Invalid key prefix" }, 400);
+
+  const object = await env.RAW_ARCHIVE.get(key);
+  if (!object) return json({ status: "failed", message: "Archive object not found" }, 404);
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Content-Type", headers.get("Content-Type") ?? "application/json; charset=utf-8");
+  headers.set("Cache-Control", "no-store");
+  headers.set("ETag", object.etag);
+  headers.set("X-Archive-Key", object.key);
+  headers.set("X-Archive-Storage-Class", object.storageClass);
+  headers.set("X-Archive-Size", String(object.size));
+
+  return new Response(object.body, { headers });
+}
+
+function archiveKey(endpointSegment: string, date: string, id: string): string {
+  return `${R2_ARCHIVE_PREFIX}/${endpointSegment}/${date}/${id}.json`;
+}
+
+function normalizeArchivePrefix(prefix: string): string {
+  const trimmed = prefix.replace(/^\/+/, "");
+  if (trimmed === R2_ARCHIVE_PREFIX || trimmed.startsWith(`${R2_ARCHIVE_PREFIX}/`)) return trimmed;
+  return R2_ARCHIVE_PREFIX;
+}
+
+function clampInteger(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+function isAuthorized(request: Request, env: Env): boolean {
+  return request.headers.get("Authorization") === `Bearer ${env.INGESTION_TRIGGER_TOKEN}`;
 }
 
 function isRetryableError(error: unknown): boolean {

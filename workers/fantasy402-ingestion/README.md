@@ -6,9 +6,18 @@ Cloudflare Worker for scheduled ingestion from the secured Fantasy402 read-only 
 
 - `SESSION_KV`: cached authenticated session cookie.
 - `ANALYTICS_DB`: D1 database for run metadata, raw snapshot pointers, and normalized metrics.
-- `RAW_ARCHIVE`: R2 bucket for raw JSON response archives.
+- `RAW_ARCHIVE`: R2 bucket for raw JSON response and failure archives.
 
-Endpoint calls retry up to three times for transient upstream failures. Final endpoint failures are written to the `endpoint_failures` D1 table for operator review.
+Endpoint calls retry up to three times for transient upstream failures. Final endpoint failures are written to the `endpoint_failures` D1 table and archived to R2 for operator review.
+
+R2 objects use date-partitioned keys:
+
+```text
+fantasy402/{endpoint}/{YYYY-MM-DD}/{uuid}.json
+fantasy402/{endpoint}/failures/{YYYY-MM-DD}/{uuid}.json
+```
+
+Archive objects are written with JSON content type, `Cache-Control: no-store`, rich custom metadata, and the `InfrequentAccess` storage class. D1 stores the R2 key, ETag, size, and storage class for queryable observability.
 
 ## Required Secrets
 
@@ -36,7 +45,14 @@ npm run dev
 Manual ingestion is protected:
 
 ```bash
-curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" http://localhost:8787/trigger
+curl -X POST -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" http://localhost:8787/trigger
+```
+
+Archive readback is protected by the same token:
+
+```bash
+curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" "http://localhost:8787/archive?prefix=fantasy402/getAgentPerformance&limit=25"
+curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" "http://localhost:8787/archive/object?key=fantasy402/getAgentPerformance/2026-05-17/example.json"
 ```
 
 ## Deployment

@@ -104,6 +104,182 @@
           }
         }
       }
+    },
+    "/archive": {
+      "get": {
+        "operationId": "listArchiveObjects",
+        "summary": "List archived R2 objects",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fantasy402"
+            },
+            "description": "R2 key prefix to list. Must resolve under fantasy402/."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archive object listing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveListResponse"
+                },
+                "examples": {
+                  "listing": {
+                    "value": {
+                      "objects": [
+                        {
+                          "key": "fantasy402/getAgentPerformance/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                          "etag": "00000000000000000000000000000000",
+                          "size": 512,
+                          "uploaded": "2026-05-17T00:00:00.000Z",
+                          "storageClass": "InfrequentAccess",
+                          "httpMetadata": {
+                            "contentType": "application/json; charset=utf-8",
+                            "cacheControl": "no-store, max-age=0"
+                          },
+                          "customMetadata": {
+                            "source": "fantasy402",
+                            "endpoint": "getAgentPerformance",
+                            "archiveType": "success"
+                          }
+                        }
+                      ],
+                      "truncated": false,
+                      "cursor": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/archive/object": {
+      "get": {
+        "operationId": "getArchiveObject",
+        "summary": "Read an archived R2 object",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^fantasy402/.+\\.json$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived JSON object",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Archive-Key": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Archive-Storage-Class": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Archive-Size": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or missing key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Archive object not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -117,7 +293,10 @@
     "schemas": {
       "HealthResponse": {
         "type": "object",
-        "required": ["status", "environment"],
+        "required": [
+          "status",
+          "environment"
+        ],
         "additionalProperties": false,
         "properties": {
           "status": {
@@ -131,7 +310,12 @@
       },
       "TriggerResponse": {
         "type": "object",
-        "required": ["runId", "status", "endpointsSucceeded", "endpointsFailed"],
+        "required": [
+          "runId",
+          "status",
+          "endpointsSucceeded",
+          "endpointsFailed"
+        ],
         "additionalProperties": false,
         "properties": {
           "runId": {
@@ -140,7 +324,10 @@
           },
           "status": {
             "type": "string",
-            "enum": ["success", "failed"]
+            "enum": [
+              "success",
+              "failed"
+            ]
           },
           "endpointsSucceeded": {
             "type": "integer",
@@ -154,7 +341,10 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["status", "message"],
+        "required": [
+          "status",
+          "message"
+        ],
         "additionalProperties": false,
         "properties": {
           "status": {
@@ -163,6 +353,73 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "ArchiveObjectSummary": {
+        "type": "object",
+        "required": [
+          "key",
+          "etag",
+          "size",
+          "uploaded",
+          "storageClass",
+          "httpMetadata",
+          "customMetadata"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "etag": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "uploaded": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "storageClass": {
+            "type": "string"
+          },
+          "httpMetadata": {
+            "type": "object"
+          },
+          "customMetadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ArchiveListResponse": {
+        "type": "object",
+        "required": [
+          "objects",
+          "truncated",
+          "cursor"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "objects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveObjectSummary"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       }

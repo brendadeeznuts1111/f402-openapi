@@ -471,8 +471,8 @@ function addMinimalExamples(spec) {
     BetTickerRequestValid: {
       value: {
         RRO: 1,
-        agentID: 'DEMOAGENT',
-        agentOwner: 'DEMOAGENT',
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
         operation: 'getBetTicker',
       },
     },
@@ -482,9 +482,9 @@ function addMinimalExamples(spec) {
     GetPendingRequestValid: {
       value: {
         RRO: 1,
-        agentID: 'DEMOAGENT',
-        agentOwner: 'DEMOAGENT',
-        customerID: 'DEMOCUST',
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
+        customerID: '__REDACTED__',
         date: '2026-05-17T00:00:00.000Z',
         path: 'P',
         sort: 'acceptedDateTime',
@@ -505,8 +505,8 @@ function addMinimalExamples(spec) {
     AgentPositionListRequestValid: {
       value: {
         RRO: 1,
-        agentID: 'DEMOAGENT',
-        agentOwner: 'DEMOAGENT',
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
         operation: 'getAgentPositionList',
       },
     },
@@ -516,8 +516,8 @@ function addMinimalExamples(spec) {
     AgentPositionDataRequestValid: {
       value: {
         RRO: 1,
-        agentID: 'DEMOAGENT',
-        agentOwner: 'DEMOAGENT',
+        agentID: '__REDACTED__',
+        agentOwner: '__REDACTED__',
         operation: 'getAgentPositionData',
       },
     },

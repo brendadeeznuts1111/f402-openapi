@@ -129,7 +129,6 @@ function collectSchemaRefs(value, refs = new Set()) {
 
 function schemaUsageMap() {
   const usage = new Map();
-  for (const op of operations) usage.set(op.operationId, new Set());
   for (const [apiPath, methods] of Object.entries(spec.paths || {})) {
     for (const [method, operation] of Object.entries(methods)) {
       const opLabel = `${method.toUpperCase()} ${apiPath}`;
@@ -140,6 +139,23 @@ function schemaUsageMap() {
     }
   }
   return usage;
+}
+
+function schemaContextMap() {
+  const contexts = new Map();
+  function add(ref, context) {
+    if (!contexts.has(ref)) contexts.set(ref, new Set());
+    contexts.get(ref).add(context);
+  }
+  for (const methods of Object.values(spec.paths || {})) {
+    for (const operation of Object.values(methods || {})) {
+      for (const ref of collectSchemaRefs(operation.requestBody || {})) add(ref, 'request');
+      for (const response of Object.values(operation.responses || {})) {
+        for (const ref of collectSchemaRefs(response)) add(ref, 'response');
+      }
+    }
+  }
+  return contexts;
 }
 
 function constraintSummary(schema) {
@@ -173,12 +189,51 @@ function schemaFieldRows(name, schema) {
   return rows.join('\n');
 }
 
+function schemaType(schema) {
+  const resolved = resolveRef(schema) || {};
+  if (Array.isArray(resolved.type)) return resolved.type.join(' | ');
+  if (resolved.type) return resolved.type;
+  if (resolved.oneOf) return 'oneOf';
+  if (resolved.anyOf) return 'anyOf';
+  if (resolved.allOf) return 'allOf';
+  return 'unspecified';
+}
+
+function countEnums(value) {
+  if (Array.isArray(value)) return value.reduce((count, item) => count + countEnums(item), 0);
+  if (!isObject(value)) return 0;
+  return (Array.isArray(value.enum) ? 1 : 0)
+    + Object.values(value).reduce((count, child) => count + countEnums(child), 0);
+}
+
+function collectSchemaSearchTerms(value, terms = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectSchemaSearchTerms(item, terms);
+    return terms;
+  }
+  if (!isObject(value)) return terms;
+  for (const key of ['type', 'format', 'pattern', 'description', 'x-privacy-classification']) {
+    if (typeof value[key] === 'string') terms.add(value[key].toLowerCase());
+  }
+  if (Array.isArray(value.enum)) {
+    for (const item of value.enum.slice(0, 20)) terms.add(String(item).toLowerCase());
+  }
+  for (const propertyName of Object.keys(value.properties || {})) terms.add(propertyName.toLowerCase());
+  for (const child of Object.values(value)) collectSchemaSearchTerms(child, terms);
+  return terms;
+}
+
 const schemaUsage = schemaUsageMap();
+const schemaContexts = schemaContextMap();
 const schemaRows = Object.entries(spec.components?.schemas || {})
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([name, schema]) => ({
     name,
     schema,
+    type: schemaType(schema),
+    category: Array.from(schemaContexts.get(name) || []).sort().join(' + ') || 'primitive',
+    required: Array.isArray(schema.required) ? schema.required.slice().sort() : [],
+    enumCount: countEnums(schema),
     sensitive: collectSensitivePaths(schema).length,
     usedBy: Array.from(schemaUsage.get(name) || []).sort(),
   }));
@@ -235,6 +290,17 @@ const html = `<!doctype html>
     details.schema { margin: 10px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
     details.schema > summary { cursor: pointer; padding: 12px 14px; font-weight: 700; }
     .schema-body { padding: 0 14px 14px; }
+    .schema-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0; }
+    .schema-controls input[type="search"] { min-width: min(420px, 100%); flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+    .schema-filter.active { border-color: var(--accent); background: #eef5fc; color: var(--accent); }
+    .schema-filter[data-filter="sensitive"].active { border-color: #9f3a38; color: #9f3a38; background: #fbeeee; }
+    .schema-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .schema-title { min-width: 220px; }
+    .schema-meta-line { color: var(--muted); margin: 6px 0 10px; }
+    .schema-grid-note { color: var(--muted); margin: 8px 0; }
+    .schema-hidden { display: none; }
+    #schema-empty { display: none; }
+    #schema-empty.visible { display: block; }
     .sandbox { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 10px; max-width: 980px; }
     .sandbox label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
     .sandbox input, .sandbox select, .sandbox textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
@@ -322,6 +388,13 @@ const html = `<!doctype html>
     </section>
 
     <section class="section">
+      <h2>Mock Server Recipe</h2>
+      <p>The examples contract is mock-server ready for local frontend development and generated-client smoke tests. This repo does not deploy a live mock runtime.</p>
+      <pre><button type="button" class="copy-code" aria-label="Copy mock command">Copy</button><code>npx @stoplight/prism-cli mock .o11y/fantasy402-redacted-deep/api-spec-secured/site/openapi.secured.examples.json --host 127.0.0.1 --port 4010</code></pre>
+      <p>Mock responses are synthetic and redacted. Use them for shape validation and UI wiring, not production wagering or settlement behavior.</p>
+    </section>
+
+    <section class="section">
       <h2>Role Capability Matrix</h2>
       <table class="matrix">
         <thead><tr><th>Capability</th><th>ROLE_AGENT</th><th>ROLE_MASTER</th><th>ROLE_SUB_AGENT</th></tr></thead>
@@ -368,17 +441,55 @@ const html = `<!doctype html>
     <section class="section" id="schemas">
       <h2>Schemas</h2>
       <p>All component schemas are shown below. Sensitive fields are marked with <span title="Sensitive field">🔒</span>, references link to other schemas, and usage lists show which operations reference each schema.</p>
-      ${schemaRows.map((row) => `<details class="schema" id="schema-${escapeHtml(row.name)}">
-        <summary><code>${escapeHtml(row.name)}</code> ${row.sensitive ? `<span class="tag">${row.sensitive} sensitive</span>` : ''}</summary>
+      <div class="schema-controls" aria-label="Schema filters">
+        <input id="schema-search" type="search" placeholder="Search schemas, fields, constraints, or operations" autocomplete="off">
+        <button type="button" class="schema-filter active" data-filter="all">All</button>
+        <button type="button" class="schema-filter" data-filter="sensitive">Sensitive</button>
+        <button type="button" class="schema-filter" data-filter="request">Request</button>
+        <button type="button" class="schema-filter" data-filter="response">Response</button>
+        <button type="button" class="schema-filter" data-filter="primitive">Primitive</button>
+        <button type="button" id="expand-schemas">Expand visible</button>
+        <button type="button" id="collapse-schemas">Collapse all</button>
+      </div>
+      <p class="schema-grid-note"><span id="schema-visible-count">${schemaRows.length}</span> of ${schemaRows.length} schemas shown.</p>
+      <table>
+        <thead><tr><th>Schema</th><th>Type</th><th>Required Fields</th><th>Sensitive Fields</th><th>Enum Count</th><th>Operation Usage</th></tr></thead>
+        <tbody>
+          ${schemaRows.map((row) => `<tr>
+            <td><a href="#schema-${escapeHtml(row.name)}"><code>${escapeHtml(row.name)}</code></a></td>
+            <td>${escapeHtml(row.type)}</td>
+            <td>${fieldTags(row.required)}</td>
+            <td>${row.sensitive ? `<span class="tag">${escapeHtml(row.sensitive)}</span>` : '<span class="tag">none</span>'}</td>
+            <td>${escapeHtml(row.enumCount)}</td>
+            <td>${escapeHtml(row.usedBy.length)}</td>
+          </tr>`).join('\n')}
+        </tbody>
+      </table>
+      <div id="schema-empty" class="callout">No schemas match the current search and filter.</div>
+      ${schemaRows.map((row) => {
+        const searchText = [
+          row.name,
+          row.type,
+          row.category,
+          row.required.join(' '),
+          row.usedBy.join(' '),
+          collectSensitivePaths(row.schema).join(' '),
+          constraintSummary(row.schema),
+          Array.from(collectSchemaSearchTerms(row.schema)).join(' '),
+        ].join(' ').toLowerCase();
+        return `<details class="schema" id="schema-${escapeHtml(row.name)}" data-schema-name="${escapeHtml(row.name.toLowerCase())}" data-schema-category="${escapeHtml(row.category)}" data-schema-sensitive="${row.sensitive ? 'true' : 'false'}" data-schema-search="${escapeHtml(searchText)}">
+        <summary><span class="schema-summary"><span class="schema-title"><code>${escapeHtml(row.name)}</code></span><span class="tag">${escapeHtml(row.type)}</span><span class="tag">${escapeHtml(row.category)}</span>${row.sensitive ? `<span class="tag">${row.sensitive} sensitive</span>` : ''}<span class="tag">${escapeHtml(row.usedBy.length)} ops</span></span></summary>
         <div class="schema-body">
           <p>${escapeHtml(row.schema.description || 'No schema description.')}</p>
+          <p class="schema-meta-line"><strong>Required:</strong> ${fieldTags(row.required)} <strong>Enums:</strong> ${escapeHtml(row.enumCount)} <strong>Sensitive fields:</strong> ${escapeHtml(row.sensitive)}</p>
           <p><strong>Used by:</strong> ${row.usedBy.length ? row.usedBy.map((op) => `<code>${escapeHtml(op)}</code>`).join(' ') : '<span class="tag">not directly referenced by operations</span>'}</p>
           <table>
             <thead><tr><th>Field</th><th>Required</th><th>Constraints / Reference</th></tr></thead>
             <tbody>${schemaFieldRows(row.name, row.schema)}</tbody>
           </table>
         </div>
-      </details>`).join('\n')}
+      </details>`;
+      }).join('\n')}
     </section>
 
     <section class="section" id="operation-request-parameters">
@@ -584,6 +695,50 @@ const html = `<!doctype html>
         output.value = error instanceof Error ? error.message : String(error);
       }
     });
+
+    const schemaSearch = document.querySelector('#schema-search');
+    const schemaFilters = Array.from(document.querySelectorAll('.schema-filter'));
+    const schemaCards = Array.from(document.querySelectorAll('details.schema'));
+    const schemaVisibleCount = document.querySelector('#schema-visible-count');
+    const schemaEmpty = document.querySelector('#schema-empty');
+    let activeSchemaFilter = 'all';
+
+    function schemaMatchesFilter(card) {
+      if (activeSchemaFilter === 'all') return true;
+      if (activeSchemaFilter === 'sensitive') return card.dataset.schemaSensitive === 'true';
+      return String(card.dataset.schemaCategory || '').includes(activeSchemaFilter);
+    }
+
+    function applySchemaFilters() {
+      const query = String(schemaSearch?.value || '').trim().toLowerCase();
+      let visible = 0;
+      for (const card of schemaCards) {
+        const matchesQuery = !query || String(card.dataset.schemaSearch || '').includes(query);
+        const show = matchesQuery && schemaMatchesFilter(card);
+        card.classList.toggle('schema-hidden', !show);
+        if (show) visible += 1;
+      }
+      if (schemaVisibleCount) schemaVisibleCount.textContent = String(visible);
+      schemaEmpty?.classList.toggle('visible', visible === 0);
+    }
+
+    schemaSearch?.addEventListener('input', applySchemaFilters);
+    schemaFilters.forEach((button) => {
+      button.addEventListener('click', () => {
+        activeSchemaFilter = String(button.dataset.filter || 'all');
+        schemaFilters.forEach((candidate) => candidate.classList.toggle('active', candidate === button));
+        applySchemaFilters();
+      });
+    });
+    document.querySelector('#expand-schemas')?.addEventListener('click', () => {
+      schemaCards.forEach((card) => {
+        if (!card.classList.contains('schema-hidden')) card.open = true;
+      });
+    });
+    document.querySelector('#collapse-schemas')?.addEventListener('click', () => {
+      schemaCards.forEach((card) => { card.open = false; });
+    });
+    applySchemaFilters();
   </script>
 </body>
 </html>`;

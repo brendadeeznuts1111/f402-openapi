@@ -5,6 +5,9 @@ on:
     paths:
       - ".o11y/fantasy402-redacted-deep/api-spec/openapi.json"
       - "tools/**"
+      - "package.json"
+      - "package-lock.json"
+      - "spectral.yaml"
       - ".github/workflows/fantasy402-secured-contract.yml"
   schedule:
     # Nightly offline contract build plus optional staging probe.
@@ -25,6 +28,9 @@ jobs:
 
       - name: Build and lint secured OpenAPI contract
         run: node tools/build-fantasy402-secured-contract.cjs
+
+      - name: Lint secured OpenAPI contract with Spectral
+        run: npm ci && npm run lint:openapi
 
       - name: Contract-test examples spec
         run: node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json

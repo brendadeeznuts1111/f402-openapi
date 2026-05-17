@@ -10,8 +10,13 @@ const findings = [];
 const credentialFieldRe = /^(Password|password|pass|PasswordF|PayoutPassword|PlaceWagerPassword)$/;
 const redactedTokens = new Set(['<redacted>', '__REDACTED__']);
 const criticalPaths = [
+  '/cloud/api/Manager/getBetTicker',
+  '/cloud/api/Manager/getPending',
   '/cloud/api/Report/Pending',
   '/cloud/api/Manager/getPlayers',
+  '/cloud/api/System/authenticateCustomer',
+  '/cloud/api/Manager/getAgentPositionList',
+  '/cloud/api/Manager/getAgentPositionData',
   '/cloud/api/Manager/getAgentBilling',
   '/cloud/api/Manager/getEnterTransactions',
 ];
@@ -162,7 +167,11 @@ function responseSchema(apiPath, status) {
 }
 
 function requestSchema(apiPath) {
-  return spec.paths?.[apiPath]?.post?.requestBody?.content?.['application/x-www-form-urlencoded']?.schema;
+  return Object.values(spec.paths?.[apiPath]?.post?.requestBody?.content || {})[0]?.schema;
+}
+
+function requestExamples(apiPath) {
+  return Object.values(spec.paths?.[apiPath]?.post?.requestBody?.content || {})[0]?.examples || {};
 }
 
 for (const apiPath of criticalPaths) {
@@ -171,9 +180,9 @@ for (const apiPath of criticalPaths) {
     add(0, `#/paths/${apiPath}`, 'Critical path missing from examples contract.');
     continue;
   }
-  const requestExamples = op.requestBody?.content?.['application/x-www-form-urlencoded']?.examples || {};
-  if (!Object.keys(requestExamples).length) add(0, `#/paths/${apiPath}/post/requestBody`, 'Critical path missing request examples.');
-  for (const [name, example] of Object.entries(requestExamples)) {
+  const examplesByName = requestExamples(apiPath);
+  if (!Object.keys(examplesByName).length) add(0, `#/paths/${apiPath}/post/requestBody`, 'Critical path missing request examples.');
+  for (const [name, example] of Object.entries(examplesByName)) {
     validateValue(requestSchema(apiPath), resolveExample(example), `#/paths/${apiPath}/post/requestBody/examples/${name}`);
   }
 
@@ -200,7 +209,7 @@ for (const [apiPath, methods] of Object.entries(spec.paths || {})) {
   }
 }
 
-for (const apiPath of ['/cloud/api/Report/Pending', '/cloud/api/Manager/getPlayers', '/cloud/api/Manager/getAgentBilling', '/cloud/api/Manager/getEnterTransactions']) {
+for (const apiPath of criticalPaths) {
   const rateExamples = spec.paths?.[apiPath]?.post?.responses?.['429']?.content?.['application/json']?.examples || {};
   if (!rateExamples.tooManyRequests) add(0, `#/paths/${apiPath}/post/responses/429`, 'Missing 429 rate-limit example.');
 }

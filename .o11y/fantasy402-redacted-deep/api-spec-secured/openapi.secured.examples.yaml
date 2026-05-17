@@ -36,6 +36,9 @@ paths:
                 required:
                   - accountInfo
                   - code
+              examples:
+                authenticated:
+                  '$ref': '#/components/examples/AuthenticateCustomerResponseValid'
         '429':
           description: Too Many Requests
           headers:
@@ -60,6 +63,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitError'
             'application/problem+json':
               schema:
                 '$ref': '#/components/schemas/ProblemDetails'
@@ -2878,6 +2884,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/INFO'
+              examples:
+                emptyTicker:
+                  '$ref': '#/components/examples/BetTickerResponseEmpty'
         '429':
           description: Too Many Requests
           headers:
@@ -2902,6 +2911,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitError'
             'application/problem+json':
               schema:
                 '$ref': '#/components/schemas/ProblemDetails'
@@ -2940,6 +2952,9 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               '$ref': '#/components/schemas/CommonAgentRequest'
+            examples:
+              valid:
+                '$ref': '#/components/examples/BetTickerRequestValid'
   /cloud/api/Manager/getListVip:
     post:
       summary: POST /cloud/api/Manager/getListVip
@@ -4608,6 +4623,9 @@ paths:
               schema:
                 type: array
                 items: {}
+              examples:
+                emptyPositions:
+                  '$ref': '#/components/examples/AgentPositionDataResponseEmpty'
         '429':
           description: Too Many Requests
           headers:
@@ -4632,6 +4650,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitError'
             'application/problem+json':
               schema:
                 '$ref': '#/components/schemas/ProblemDetails'
@@ -4670,6 +4691,9 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               '$ref': '#/components/schemas/CommonAgentRequest'
+            examples:
+              valid:
+                '$ref': '#/components/examples/AgentPositionDataRequestValid'
   /cloud/api/Manager/getAgentPositionList:
     post:
       summary: POST /cloud/api/Manager/getAgentPositionList
@@ -4681,6 +4705,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/INFO'
+              examples:
+                emptyPositions:
+                  '$ref': '#/components/examples/AgentPositionListResponseEmpty'
         '429':
           description: Too Many Requests
           headers:
@@ -4705,6 +4732,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitError'
             'application/problem+json':
               schema:
                 '$ref': '#/components/schemas/ProblemDetails'
@@ -4743,6 +4773,9 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               '$ref': '#/components/schemas/CommonAgentRequest'
+            examples:
+              valid:
+                '$ref': '#/components/examples/AgentPositionListRequestValid'
   /cloud/api/Manager/crashGetLimits:
     post:
       summary: POST /cloud/api/Manager/crashGetLimits
@@ -6800,6 +6833,9 @@ paths:
           application/json:
             schema:
               '$ref': '#/components/schemas/GetPendingRequest'
+            examples:
+              valid:
+                '$ref': '#/components/examples/GetPendingRequestValid'
       responses:
         '200':
           description: Success
@@ -6809,6 +6845,9 @@ paths:
                 type: array
                 items:
                   '$ref': '#/components/schemas/GetPending'
+              examples:
+                emptyPending:
+                  '$ref': '#/components/examples/GetPendingResponseEmpty'
         '429':
           description: Too Many Requests
           headers:
@@ -6833,6 +6872,9 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/ErrorResponse'
+              examples:
+                tooManyRequests:
+                  '$ref': '#/components/examples/RateLimitError'
             'application/problem+json':
               schema:
                 '$ref': '#/components/schemas/ProblemDetails'
@@ -17248,6 +17290,96 @@ components:
         status: 400
         detail: The request could not be processed.
         instance: /cloud/api/Manager/getPlayers
+    BetTickerRequestValid:
+      value:
+        RRO: 1
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
+        operation: getBetTicker
+    BetTickerResponseEmpty:
+      value:
+        LIST: []
+    GetPendingRequestValid:
+      value:
+        RRO: 1
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
+        customerID: __REDACTED__
+        date: '2026-05-17T00:00:00.000Z'
+        path: P
+        sort: acceptedDateTime
+        typeSort: desc
+        wagerType: A
+        week: 0
+    GetPendingResponseEmpty:
+      value: []
+    AuthenticateCustomerResponseValid:
+      value:
+        accountInfo:
+          customerID: __REDACTED__
+          Active: synthetic-Active
+          CasinoActive: synthetic-CasinoActive
+          AllowPoker: synthetic-AllowPoker
+          SuspendSportsbook: synthetic-SuspendSportsbook
+          LiveCasinoActive: synthetic-LiveCasinoActive
+          CreditLimit: 1
+          Office: synthetic-Office
+          CurrentBalance: 1
+          AvailableBalance: 1
+          PendingWagerBalance: 1
+          CurrencyCode: synthetic-CurrencyCode
+          Currency: synthetic-Currency
+          Store: synthetic-Store
+          CustProfile: synthetic-CustProfile
+          AgentID: __REDACTED__
+          WagerLimit: 1
+          DonotApplyCirleLimits: synthetic-DonotApplyCirleLimits
+          ParlayName: synthetic-ParlayName
+          CreditAcctFlag: synthetic-CreditAcctFlag
+          PercentBook: 1
+          ContestMaxBet: 1
+          FreePlayBalance: 1
+          EasternLineFlag: synthetic-EasternLineFlag
+          NotrueOdds: synthetic-NotrueOdds
+          MaxContestPrice: 1
+          NotrueOddsDiscount: 1
+          ParlayMaxPayout: 1
+          ParlayMaxBet: 1
+          AgentType: synthetic-AgentType
+          MaxIfBetReverse: null
+          EnforceAccumWagerLimitsFlag: synthetic-EnforceAccumWagerLimitsFlag
+          EnforceAccumWagerLimitsByLineFlag: null
+          TeamLimit: 1
+          maxRoundRobin: 1
+          Language: synthetic-Language
+          WSBettingType: 1
+          horseActive: synthetic-horseActive
+          DefaultSiteSkin: synthetic-DefaultSiteSkin
+          OTPEnabled: 1
+          OTP: synthetic-OTP
+          UseCaptcha: synthetic-UseCaptcha
+          SuspectedBot: null
+          DomainRedirect: synthetic-DomainRedirect
+          SkinOverride: synthetic-SkinOverride
+          AgentSkinOverride: synthetic-AgentSkinOverride
+        code: synthetic-auth-code
+    AgentPositionListRequestValid:
+      value:
+        RRO: 1
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
+        operation: getAgentPositionList
+    AgentPositionListResponseEmpty:
+      value:
+        LIST: []
+    AgentPositionDataRequestValid:
+      value:
+        RRO: 1
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
+        operation: getAgentPositionData
+    AgentPositionDataResponseEmpty:
+      value: []
 security:
   - sessionCookie: []
     agentToken: []

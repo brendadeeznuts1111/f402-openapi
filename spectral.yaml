@@ -1,0 +1,127 @@
+rules:
+  info-version-required:
+    description: Secured contracts must carry stable version metadata.
+    given: $.info.version
+    severity: error
+    then:
+      function: truthy
+
+  info-api-state-required:
+    description: Secured contracts must identify their observed/security state.
+    given: $.info.x-api-state
+    severity: error
+    then:
+      function: truthy
+
+  info-review-window-required:
+    description: Secured contracts must declare capture and next-review dates.
+    given:
+      - $.info.x-last-captured
+      - $.info.x-next-review
+    severity: error
+    then:
+      function: truthy
+
+  ai-discovery-required:
+    description: AI discovery metadata must point to compact docs and stable spec URLs.
+    given:
+      - $.info.x-ai-discovery.llmsTxt
+      - $.info.x-ai-discovery.stableJson
+      - $.info.x-ai-discovery.stableYaml
+    severity: error
+    then:
+      function: truthy
+
+  first-party-operation-roles-required:
+    description: Every observed Fantasy402 operation must declare required roles.
+    given: $.paths[*][*].x-required-roles
+    severity: error
+    then:
+      function: length
+      functionOptions:
+        min: 1
+
+  first-party-operation-rate-limit-required:
+    description: Every observed Fantasy402 operation must declare rate-limit metadata.
+    given: $.paths[*][*].x-rate-limit
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required:
+            - limit
+            - window
+          properties:
+            limit:
+              type: number
+              minimum: 1
+            window:
+              type: number
+              minimum: 1
+
+  first-party-operation-429-required:
+    description: Every observed Fantasy402 operation must document 429 handling.
+    given: $.paths[*][*][?(@ && @['x-rate-limit'])].responses
+    severity: error
+    then:
+      field: "429"
+      function: truthy
+
+  rate-limit-retry-after-required:
+    description: 429 responses must include Retry-After for retry automation.
+    given: $.paths[*][*].responses.429.headers
+    severity: error
+    then:
+      field: Retry-After
+      function: truthy
+
+  problem-json-required:
+    description: Error responses must document RFC 9457 problem+json content.
+    given:
+      - $.paths[*][*].responses.400.content
+      - $.paths[*][*].responses.401.content
+      - $.paths[*][*].responses.403.content
+      - $.paths[*][*].responses.410.content
+      - $.paths[*][*].responses.429.content
+    severity: error
+    then:
+      field: application/problem+json
+      function: truthy
+
+  deprecated-sunset-required:
+    description: Deprecated operations must declare machine-readable sunset metadata.
+    given:
+      - $.paths['/cloud/api/Manager/getWebLog'].post
+      - $.paths['/cloud/api/Report/getTicketDetailPrint'].post
+    severity: error
+    then:
+      field: x-sunset
+      function: truthy
+
+  deprecated-migration-required:
+    description: Deprecated operations must declare migration guidance metadata.
+    given:
+      - $.paths['/cloud/api/Manager/getWebLog'].post
+      - $.paths['/cloud/api/Report/getTicketDetailPrint'].post
+    severity: error
+    then:
+      field: x-migration-guidance
+      function: truthy
+
+  deprecated-response-headers-required:
+    description: Deprecated operation responses must expose deprecation headers.
+    given:
+      - $.paths['/cloud/api/Manager/getWebLog'].post.responses[*].headers
+      - $.paths['/cloud/api/Report/getTicketDetailPrint'].post.responses[*].headers
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required:
+            - Deprecation
+            - Sunset
+            - Link

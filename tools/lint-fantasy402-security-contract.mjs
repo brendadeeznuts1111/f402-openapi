@@ -8,7 +8,7 @@ const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
 
 const findings = [];
 const credentialFieldRe = /^(Password|password|pass|PasswordF|PayoutPassword|PlaceWagerPassword)$/;
-const sensitiveNameRe = /(IPAddress|IP|LoginID|Login|AgentLogin|MasterLogin|PlayerLogin|CustomerID|customerID|AgentID|agentID|agentOwner|MasterAgentID|email)$/;
+const sensitiveNameRe = /^(IPAddress|IP|LoginID|Login|AgentLogin|MasterLogin|PlayerLogin|CustomerID|CustomerIDF|CustomerIDFix|CustomerIDPrefix|CustomerIDSufix|customerID|Agent|AgentF|AgentID|agentID|agentOwner|MasterAgent|MasterAgentID|Name|NameF|NameFirst|NameLast|NameMI|PlayerName|showName|email|EMail|EmailOffice|OfficeReceiveEmail)$/i;
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);

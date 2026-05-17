@@ -26,6 +26,7 @@ if (require('fs').existsSync(sourceObservedSpec)) {
     sourceObservedSpec: path.relative(root, sourceObservedSpec),
   }, null, 2));
 }
+run(['tools/repair-fantasy402-sensitive-annotations.mjs']);
 if (require('fs').existsSync(fullSpec)) {
   run(['tools/validate-fantasy402-secured-openapi.mjs', fullSpec]);
 }

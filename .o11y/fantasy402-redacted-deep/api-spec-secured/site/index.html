@@ -1645,40 +1645,136 @@
       <h2>Sensitive Schemas</h2>
       <p>These schemas contain fields annotated with <code>x-sensitive: true</code>. Synthetic examples are linted so they do not contain raw credentials, live tokens, cookies, or real-looking PII.</p>
       <table>
-        <thead><tr><th>Schema</th></tr></thead>
+        <thead><tr><th>Schema</th><th>Sensitive Fields</th></tr></thead>
         <tbody>
-          <tr><td><code>AccountInfo</code></td></tr>
-<tr><td><code>AccountInfo_15</code></td></tr>
-<tr><td><code>AgentId</code></td></tr>
-<tr><td><code>AuthenticateCustomerRequest</code></td></tr>
-<tr><td><code>CommonAgentRequest</code></td></tr>
-<tr><td><code>CustomerId</code></td></tr>
-<tr><td><code>DATA_12</code></td></tr>
-<tr><td><code>Data</code></td></tr>
-<tr><td><code>GENERAL</code></td></tr>
-<tr><td><code>GetConfigWebReportsRequest</code></td></tr>
-<tr><td><code>GetPending</code></td></tr>
-<tr><td><code>GetPendingRequest</code></td></tr>
-<tr><td><code>GetScoresLiveDynamicRequest</code></td></tr>
-<tr><td><code>INFO_16</code></td></tr>
-<tr><td><code>INFO_17</code></td></tr>
-<tr><td><code>INFO_18</code></td></tr>
-<tr><td><code>INFO_19</code></td></tr>
-<tr><td><code>INFO_6</code></td></tr>
-<tr><td><code>LIST</code></td></tr>
-<tr><td><code>LIST_1</code></td></tr>
-<tr><td><code>LIST_13</code></td></tr>
-<tr><td><code>LIST_14</code></td></tr>
-<tr><td><code>LIST_2</code></td></tr>
-<tr><td><code>LIST_20</code></td></tr>
-<tr><td><code>LIST_21</code></td></tr>
-<tr><td><code>LIST_3</code></td></tr>
-<tr><td><code>LIST_4</code></td></tr>
-<tr><td><code>LIST_5</code></td></tr>
-<tr><td><code>LIST_7</code></td></tr>
-<tr><td><code>LIST_8</code></td></tr>
-<tr><td><code>PendingRequest</code></td></tr>
-<tr><td><code>TOTAL</code></td></tr>
+          <tr>
+            <td><code>AccountInfo</code></td>
+            <td><code>AgentID</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>AccountInfo_15</code></td>
+            <td><code>AgentID</code> <code>Login</code> <code>NameFirst</code> <code>NameLast</code> <code>PlayerName</code> <code>customerID</code> <code>email</code></td>
+          </tr>
+<tr>
+            <td><code>AgentId</code></td>
+            <td><code>(schema)</code></td>
+          </tr>
+<tr>
+            <td><code>AuthenticateCustomerRequest</code></td>
+            <td><code>client_id</code> <code>customerID</code> <code>password</code></td>
+          </tr>
+<tr>
+            <td><code>CommonAgentRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>CustomerId</code></td>
+            <td><code>(schema)</code></td>
+          </tr>
+<tr>
+            <td><code>Data</code></td>
+            <td><code>CustomerID</code></td>
+          </tr>
+<tr>
+            <td><code>DATA_12</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>GENERAL</code></td>
+            <td><code>AgentID</code> <code>Login</code></td>
+          </tr>
+<tr>
+            <td><code>GetConfigWebReportsRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code></td>
+          </tr>
+<tr>
+            <td><code>GetPending</code></td>
+            <td><code>AgentLogin</code> <code>Login</code> <code>NameFirst</code> <code>agentID</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>GetPendingRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>GetScoresLiveDynamicRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_16</code></td>
+            <td><code>AgentID</code> <code>adds.properties.AgentID</code> <code>showName</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_17</code></td>
+            <td><code>AgentF</code> <code>AgentID</code> <code>CustomerIDF</code> <code>NameF</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_18</code></td>
+            <td><code>AgentID</code> <code>CustomerID</code> <code>CustomerIDPrefix</code> <code>CustomerIDSufix</code> <code>EmailOffice</code> <code>MasterAgentID</code> <code>MasterLogin</code> <code>OfficeReceiveEmail</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_19</code></td>
+            <td><code>Name</code></td>
+          </tr>
+<tr>
+            <td><code>INFO_6</code></td>
+            <td><code>AgentID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST</code></td>
+            <td><code>AgentID</code> <code>CustomerID</code> <code>Login</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_1</code></td>
+            <td><code>AgentId</code> <code>Login</code> <code>MasterAgentID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_13</code></td>
+            <td><code>CustomerID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_14</code></td>
+            <td><code>AgentId</code> <code>Login</code> <code>MasterAgentID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_2</code></td>
+            <td><code>AgentID</code> <code>CustomerID</code> <code>CustomerIDPrefix</code> <code>CustomerIDSufix</code> <code>EMail</code> <code>EmailOffice</code> <code>Login</code> <code>MasterAgentID</code> <code>NameFirst</code> <code>NameLast</code> <code>NameMI</code> <code>OfficeReceiveEmail</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_20</code></td>
+            <td><code>CustomerID</code> <code>CustomerIDFix</code> <code>Login</code> <code>MasterAgentID</code> <code>Name</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_21</code></td>
+            <td><code>AgentID</code> <code>AgentLogin</code> <code>CustomerID</code> <code>PlayerLogin</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_3</code></td>
+            <td><code>Agent</code> <code>Login</code> <code>NameFirst</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_4</code></td>
+            <td><code>CustomerID</code> <code>Login</code> <code>info.properties.NameFirst</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_5</code></td>
+            <td><code>IPAddress</code> <code>LoginID</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_7</code></td>
+            <td><code>AgentID</code> <code>CustomerIDPrefix</code> <code>CustomerIDSufix</code></td>
+          </tr>
+<tr>
+            <td><code>LIST_8</code></td>
+            <td><code>AgentID</code> <code>AgentLogin</code> <code>CustomerID</code> <code>Login</code> <code>MasterAgent</code> <code>Name</code></td>
+          </tr>
+<tr>
+            <td><code>PendingRequest</code></td>
+            <td><code>agentID</code> <code>agentOwner</code> <code>customerID</code></td>
+          </tr>
+<tr>
+            <td><code>TOTAL</code></td>
+            <td><code>CustomerID</code> <code>Login</code> <code>MasterAgentID</code> <code>Name</code></td>
+          </tr>
         </tbody>
       </table>
     </section>

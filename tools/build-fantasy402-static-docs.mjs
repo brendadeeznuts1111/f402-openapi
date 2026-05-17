@@ -78,6 +78,25 @@ const sensitiveSchemas = Object.entries(spec.components?.schemas || {})
   .map(([name]) => name)
   .sort();
 
+function collectSensitivePaths(value, pathParts = [], paths = []) {
+  if (!isObject(value)) return paths;
+  if (value['x-sensitive'] === true) paths.push(pathParts.join('.') || '(schema)');
+  for (const [key, child] of Object.entries(value)) {
+    collectSensitivePaths(child, pathParts.concat(key), paths);
+  }
+  return paths;
+}
+
+const sensitiveSchemaRows = Object.entries(spec.components?.schemas || {})
+  .map(([name, schema]) => ({
+    name,
+    paths: collectSensitivePaths(schema)
+      .map((pointer) => pointer.replace(/^properties\./, ''))
+      .sort(),
+  }))
+  .filter((row) => row.paths.length)
+  .sort((a, b) => a.name.localeCompare(b.name));
+
 function securityLocation(scheme) {
   if (scheme.type === 'apiKey') return `${scheme.in || ''}${scheme.name ? `: ${scheme.name}` : ''}`;
   return scheme.scheme || scheme.in || '';
@@ -281,9 +300,12 @@ const html = `<!doctype html>
       <h2>Sensitive Schemas</h2>
       <p>These schemas contain fields annotated with <code>x-sensitive: true</code>. Synthetic examples are linted so they do not contain raw credentials, live tokens, cookies, or real-looking PII.</p>
       <table>
-        <thead><tr><th>Schema</th></tr></thead>
+        <thead><tr><th>Schema</th><th>Sensitive Fields</th></tr></thead>
         <tbody>
-          ${sensitiveSchemas.map(name => `<tr><td><code>${escapeHtml(name)}</code></td></tr>`).join('\n')}
+          ${sensitiveSchemaRows.map(row => `<tr>
+            <td><code>${escapeHtml(row.name)}</code></td>
+            <td>${row.paths.map(field => `<code>${escapeHtml(field)}</code>`).join(' ')}</td>
+          </tr>`).join('\n')}
         </tbody>
       </table>
     </section>

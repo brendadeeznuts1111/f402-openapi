@@ -3862,10 +3862,14 @@
                       "type": "object",
                       "properties": {
                         "CustomerIDPrefix": {
-                          "type": "string"
+                          "type": "string",
+                          "x-sensitive": true,
+                          "x-privacy-classification": "PII:AccountIdentifier"
                         },
                         "CustomerIDSufix": {
-                          "type": "string"
+                          "type": "string",
+                          "x-sensitive": true,
+                          "x-privacy-classification": "PII:AccountIdentifier"
                         }
                       },
                       "required": [
@@ -10128,7 +10132,9 @@
             "type": "string"
           },
           "CustomerIDPrefix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CasinoHeadCountRate": {
             "type": "integer"
@@ -10278,7 +10284,9 @@
             "type": "integer"
           },
           "CustomerIDSufix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "NotifyNewMessages": {
             "type": []
@@ -10290,10 +10298,14 @@
             "type": "string"
           },
           "OfficeReceiveEmail": {
-            "type": []
+            "type": [],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "EmailOffice": {
-            "type": []
+            "type": [],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "HideMasterSheet": {
             "type": "string"
@@ -10405,15 +10417,17 @@
           "NameLast": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "NameFirst": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "NameMI": {
-            "type": []
+            "type": [],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "Address": {
             "type": []
@@ -10433,7 +10447,7 @@
           "EMail": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "HomePhone": {
             "type": []
@@ -11764,13 +11778,15 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Agent": {
             "type": "string",
             "enum": [
               "__REDACTED__"
-            ]
+            ],
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           }
         },
         "required": [
@@ -11802,7 +11818,7 @@
               "NameFirst": {
                 "type": "string",
                 "x-sensitive": true,
-                "x-privacy-classification": "PII:AccountIdentifier"
+                "x-privacy-classification": "PII:Name"
               }
             },
             "required": [
@@ -11991,7 +12007,9 @@
             "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerIDPrefix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "AgentLevel": {
             "type": "integer"
@@ -12004,7 +12022,9 @@
             ]
           },
           "CustomerIDSufix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           }
         },
         "required": [
@@ -12019,7 +12039,9 @@
         "type": "object",
         "properties": {
           "MasterAgent": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerID": {
             "type": "string",
@@ -12057,7 +12079,7 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "CurrentBalance": {
             "type": [
@@ -13562,7 +13584,7 @@
           "email": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "CreditLimit": {
             "type": "integer"
@@ -13945,7 +13967,9 @@
             "type": "string"
           },
           "PlayerName": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "OpenDateTime": {
             "type": "string",
@@ -13981,12 +14005,12 @@
           "NameFirst": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "NameLast": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Phone": {
             "type": "string"
@@ -20255,7 +20279,9 @@
             "type": "string"
           },
           "showName": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "showSettleFigure": {
             "type": "string"
@@ -20329,10 +20355,14 @@
             "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerIDF": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "NameF": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:Name"
           },
           "TimeAcceptedF": {
             "type": "string"
@@ -20353,7 +20383,9 @@
             "type": "string"
           },
           "AgentF": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           }
         },
         "required": [
@@ -20523,7 +20555,9 @@
             "type": "string"
           },
           "CustomerIDPrefix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CasinoHeadCountRate": {
             "type": "integer"
@@ -20673,7 +20707,9 @@
             "type": "integer"
           },
           "CustomerIDSufix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "NotifyNewMessages": {
             "type": "string"
@@ -20685,10 +20721,14 @@
             "type": "string"
           },
           "OfficeReceiveEmail": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "EmailOffice": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:EmailAddress"
           },
           "HideMasterSheet": {
             "type": "string"
@@ -21144,7 +21184,7 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "TicketNumber": {
             "type": "integer"
@@ -21577,7 +21617,7 @@
           "Name": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Pending": {
             "type": "string"
@@ -21672,7 +21712,9 @@
             "x-privacy-classification": "PII:AccountIdentifier"
           },
           "CustomerIDFix": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
           },
           "MasterAgentID": {
             "type": "string",
@@ -21688,7 +21730,7 @@
               "__REDACTED__"
             ],
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Login": {
             "type": "string",
@@ -21789,7 +21831,7 @@
           "Name": {
             "type": "string",
             "x-sensitive": true,
-            "x-privacy-classification": "PII:AccountIdentifier"
+            "x-privacy-classification": "PII:Name"
           },
           "Login": {
             "type": "string",

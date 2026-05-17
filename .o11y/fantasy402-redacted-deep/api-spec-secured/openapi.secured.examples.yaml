@@ -2497,8 +2497,12 @@ paths:
                     properties:
                       CustomerIDPrefix:
                         type: string
+                        x-sensitive: true
+                        x-privacy-classification: 'PII:AccountIdentifier'
                       CustomerIDSufix:
                         type: string
+                        x-sensitive: true
+                        x-privacy-classification: 'PII:AccountIdentifier'
                     required:
                       - CustomerIDPrefix
                       - CustomerIDSufix
@@ -6602,6 +6606,8 @@ components:
           type: string
         CustomerIDPrefix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         CasinoHeadCountRate:
           type: integer
         IncludeFpLossesFlag:
@@ -6702,6 +6708,8 @@ components:
           type: integer
         CustomerIDSufix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         NotifyNewMessages:
           type: []
         ValueNotifyNewMessages:
@@ -6710,8 +6718,12 @@ components:
           type: string
         OfficeReceiveEmail:
           type: []
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         EmailOffice:
           type: []
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         HideMasterSheet:
           type: string
         ChargeCorePlusInet:
@@ -6787,13 +6799,15 @@ components:
         NameLast:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         NameFirst:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         NameMI:
           type: []
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         Address:
           type: []
         City:
@@ -6807,7 +6821,7 @@ components:
         EMail:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:EmailAddress'
         HomePhone:
           type: []
         BusinessPhone:
@@ -7835,11 +7849,13 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Agent:
           type: string
           enum:
             - __REDACTED__
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
       required:
         - Agent
         - Login
@@ -7864,7 +7880,7 @@ components:
             NameFirst:
               type: string
               x-sensitive: true
-              x-privacy-classification: 'PII:AccountIdentifier'
+              x-privacy-classification: 'PII:Name'
           required:
             - NameFirst
       required:
@@ -7999,6 +8015,8 @@ components:
           x-privacy-classification: 'PII:AccountIdentifier'
         CustomerIDPrefix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         AgentLevel:
           type: integer
         AgentType:
@@ -8008,6 +8026,8 @@ components:
             - M
         CustomerIDSufix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
       required:
         - AgentID
         - AgentLevel
@@ -8019,6 +8039,8 @@ components:
       properties:
         MasterAgent:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         CustomerID:
           type: string
           enum:
@@ -8046,7 +8068,7 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         CurrentBalance:
           type:
             - number
@@ -9150,7 +9172,7 @@ components:
         email:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:EmailAddress'
         CreditLimit:
           type: integer
         CurrentBalance:
@@ -9407,6 +9429,8 @@ components:
           type: string
         PlayerName:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         OpenDateTime:
           type: string
           format: date-time
@@ -9432,11 +9456,11 @@ components:
         NameFirst:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         NameLast:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Phone:
           type: string
         FreePlayPendingBalance:
@@ -14165,6 +14189,8 @@ components:
           type: string
         showName:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         showSettleFigure:
           type: string
         showActiveOnly:
@@ -14221,8 +14247,12 @@ components:
           x-privacy-classification: 'PII:AccountIdentifier'
         CustomerIDF:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         NameF:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:Name'
         TimeAcceptedF:
           type: string
         TimeScheduledF:
@@ -14237,6 +14267,8 @@ components:
           type: string
         AgentF:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
       required:
         - AgentF
         - AgentID
@@ -14355,6 +14387,8 @@ components:
           type: string
         CustomerIDPrefix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         CasinoHeadCountRate:
           type: integer
         IncludeFpLossesFlag:
@@ -14455,6 +14489,8 @@ components:
           type: integer
         CustomerIDSufix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         NotifyNewMessages:
           type: string
         ValueNotifyNewMessages:
@@ -14463,8 +14499,12 @@ components:
           type: string
         OfficeReceiveEmail:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         EmailOffice:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:EmailAddress'
         HideMasterSheet:
           type: string
         ChargeCorePlusInet:
@@ -14829,7 +14869,7 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         TicketNumber:
           type: integer
         PlayNumber:
@@ -15147,7 +15187,7 @@ components:
         Name:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Pending:
           type: string
         Balance:
@@ -15220,6 +15260,8 @@ components:
           x-privacy-classification: 'PII:AccountIdentifier'
         CustomerIDFix:
           type: string
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
         MasterAgentID:
           type: string
           enum:
@@ -15231,7 +15273,7 @@ components:
           enum:
             - __REDACTED__
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Login:
           type: string
           enum:
@@ -15308,7 +15350,7 @@ components:
         Name:
           type: string
           x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
+          x-privacy-classification: 'PII:Name'
         Login:
           type: string
           x-sensitive: true
@@ -15629,108 +15671,6 @@ components:
             - 1
         - type: string
       default: 1
-    AuthenticateCustomerRequest:
-      type: object
-      additionalProperties: false
-      description: Observed customer authentication form payload. Password is write-only and must never appear in responses or examples.
-      required:
-        - customerID
-        - password
-        - operation
-        - RRO
-      properties:
-        customerID:
-          '$ref': '#/components/schemas/CustomerId'
-          x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
-        state:
-          type: boolean
-          description: Static authentication flow flag observed as true. Non-sensitive; safe to hardcode or configure as a plain environment variable.
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-        password:
-          type: string
-          format: password
-          writeOnly: true
-          minLength: 1
-          maxLength: 256
-          description: Plaintext credential submitted only for authentication. Never returned by the API and intentionally redacted from examples.
-          x-sensitive: true
-          x-privacy-classification: Credential
-          x-security-review-required: true
-        multiaccount:
-          type: integer
-          description: Static authentication flow flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.
-          enum:
-            - 0
-            - 1
-          default: 1
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-        response_type:
-          type: string
-          description: Static authentication flow value observed as code. Non-sensitive; safe to hardcode or configure as a plain environment variable.
-          enum:
-            - code
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-        client_id:
-          '$ref': '#/components/schemas/AgentId'
-          x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
-        domain:
-          type: string
-          description: Static authentication flow domain. Non-sensitive; safe to hardcode or configure as a plain environment variable.
-          enum:
-            - fantasy402.com
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-        redirect_uri:
-          type: string
-          description: Static authentication flow redirect URI. Non-sensitive; safe to hardcode or configure as a plain environment variable.
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-        operation:
-          type: string
-          description: Static authentication operation discriminator. Non-sensitive; safe to hardcode.
-          const: authenticateCustomer
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-        RRO:
-          '$ref': '#/components/schemas/RROFlag'
-          description: Static request flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.
-          x-sensitive: false
-          x-auth-flow-constant: true
-          x-secret-storage-required: false
-    GetConfigWebReportsRequest:
-      type: object
-      additionalProperties: false
-      description: Observed getConfigWebReports form payload from browser traffic.
-      required:
-        - agentID
-        - operation
-        - RRO
-        - agentOwner
-      properties:
-        agentID:
-          '$ref': '#/components/schemas/AgentId'
-          x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
-        operation:
-          type: string
-          const: getConfigWebReports
-        RRO:
-          '$ref': '#/components/schemas/RROFlag'
-        agentOwner:
-          '$ref': '#/components/schemas/AgentId'
-          x-sensitive: true
-          x-privacy-classification: 'PII:AccountIdentifier'
     CommonAgentRequest:
       type: object
       additionalProperties: false
@@ -15848,12 +15788,114 @@ components:
           type: string
         msg:
           type: string
+    AuthenticateCustomerRequest:
+      type: object
+      additionalProperties: false
+      description: Observed customer authentication form payload. Password is write-only and must never appear in responses or examples.
+      required:
+        - customerID
+        - password
+        - operation
+        - RRO
+      properties:
+        customerID:
+          '$ref': '#/components/schemas/CustomerId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+        state:
+          type: boolean
+          description: 'Static authentication flow flag observed as true. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 256
+          description: Plaintext credential submitted only for authentication. Never returned by the API and intentionally redacted from examples.
+          x-sensitive: true
+          x-privacy-classification: Credential
+          x-security-review-required: true
+        multiaccount:
+          type: integer
+          enum:
+            - 0
+            - 1
+          default: 1
+          description: 'Static authentication flow flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        response_type:
+          type: string
+          enum:
+            - code
+          description: 'Static authentication flow value observed as code. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        client_id:
+          '$ref': '#/components/schemas/AgentId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+        domain:
+          type: string
+          enum:
+            - fantasy402.com
+          description: 'Static authentication flow domain. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        redirect_uri:
+          type: string
+          description: 'Static authentication flow redirect URI. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        operation:
+          type: string
+          const: authenticateCustomer
+          description: 'Static authentication operation discriminator. Non-sensitive; safe to hardcode.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+        RRO:
+          '$ref': '#/components/schemas/RROFlag'
+          description: 'Static request flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.'
+          x-sensitive: false
+          x-auth-flow-constant: true
+          x-secret-storage-required: false
+    GetConfigWebReportsRequest:
+      type: object
+      additionalProperties: false
+      description: Observed getConfigWebReports form payload from browser traffic.
+      required:
+        - agentID
+        - operation
+        - RRO
+        - agentOwner
+      properties:
+        agentID:
+          '$ref': '#/components/schemas/AgentId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
+        operation:
+          type: string
+          const: getConfigWebReports
+        RRO:
+          '$ref': '#/components/schemas/RROFlag'
+        agentOwner:
+          '$ref': '#/components/schemas/AgentId'
+          x-sensitive: true
+          x-privacy-classification: 'PII:AccountIdentifier'
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: ASP.NET_SessionId
-      description: Application session cookie observed on authenticated /cloud/api/* browser calls. Required for browser-compatible clients and must belong to the authenticated agent session.
+      description: 'Application session cookie observed on authenticated /cloud/api/* browser calls. Required for browser-compatible clients and must belong to the authenticated agent session.'
     agentToken:
       type: http
       scheme: bearer
@@ -15863,17 +15905,17 @@ components:
       type: apiKey
       in: cookie
       name: cf_clearance
-      description: Cloudflare challenge-clearance cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_CLEARANCE.
+      description: 'Cloudflare challenge-clearance cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_CLEARANCE.'
     cloudflareBotManagement:
       type: apiKey
       in: cookie
       name: __cf_bm
-      description: Cloudflare Bot Management cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_BM.
+      description: 'Cloudflare Bot Management cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_BM.'
     browserUserAgent:
       type: apiKey
       in: header
       name: User-Agent
-      description: Browser User-Agent header observed during API discovery. Used as part of the browser-compatible request context, not as an application credential.
+      description: 'Browser User-Agent header observed during API discovery. Used as part of the browser-compatible request context, not as an application credential.'
     browserAjaxHeader:
       type: apiKey
       in: header
@@ -15923,32 +15965,6 @@ components:
         format: date
       description: 'End of reporting period. Prefer this over the legacy `end` alias.'
   examples:
-    AuthenticateCustomerRequestRedacted:
-      summary: Redacted customer authentication request
-      description: Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.
-      value:
-        customerID: DEMOAGENT
-        state: true
-        password: __REDACTED_PASSWORD__
-        multiaccount: 1
-        response_type: code
-        client_id: DEMOAGENT
-        domain: fantasy402.com
-        redirect_uri: fantasy402.com
-        operation: authenticateCustomer
-        RRO: 1
-    GetAccountInfoOwnerRequestValid:
-      summary: Redacted account owner info request
-      value:
-        operation: getAccountInfoOwner
-        agentOwner: DEMOAGENT
-    GetConfigWebReportsRequestValid:
-      summary: Redacted web report config request
-      value:
-        agentID: DEMOAGENT
-        operation: getConfigWebReports
-        RRO: 1
-        agentOwner: DEMOAGENT
     CommonAgentRequestExample:
       value:
         RRO: 1
@@ -16034,6 +16050,32 @@ components:
             Name: __REDACTED__
             CurrentBalance: 0
             Login: __REDACTED__
+    AuthenticateCustomerRequestRedacted:
+      summary: Redacted customer authentication request
+      description: Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.
+      value:
+        customerID: DEMOAGENT
+        state: true
+        password: __REDACTED_PASSWORD__
+        multiaccount: 1
+        response_type: code
+        client_id: DEMOAGENT
+        domain: fantasy402.com
+        redirect_uri: fantasy402.com
+        operation: authenticateCustomer
+        RRO: 1
+    GetConfigWebReportsRequestValid:
+      summary: Redacted web report config request
+      value:
+        agentID: DEMOAGENT
+        operation: getConfigWebReports
+        RRO: 1
+        agentOwner: DEMOAGENT
+    GetAccountInfoOwnerRequestValid:
+      summary: Redacted account owner info request
+      value:
+        operation: getAccountInfoOwner
+        agentOwner: DEMOAGENT
 security:
   - sessionCookie: []
     agentToken: []
@@ -16041,6 +16083,9 @@ security:
     cloudflareBotManagement: []
     browserUserAgent: []
     browserAjaxHeader: []
+externalDocs:
+  description: Gap-analysis and report-call repair notes.
+  url: ../fantasy402-redacted-deep/gap-analysis/report-call-repair-notes.md
 x-observed-browser-headers:
   - Accept
   - Accept-Language
@@ -16053,6 +16098,12 @@ x-observed-browser-headers:
   - Sec-Fetch-Mode
   - Sec-Fetch-Site
   - Priority
-externalDocs:
-  description: Gap-analysis and report-call repair notes.
-  url: ../fantasy402-redacted-deep/gap-analysis/report-call-repair-notes.md
+x-auth-flow-constants:
+  - state
+  - multiaccount
+  - response_type
+  - domain
+  - redirect_uri
+  - operation
+  - RRO
+

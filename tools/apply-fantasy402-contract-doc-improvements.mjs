@@ -136,11 +136,20 @@ function enhanceErrorResponses(operation) {
 function enhanceDeprecatedOperation(operation, apiPath) {
   if (operation.deprecated !== true) return;
   const sunset = apiPath.includes('getWebLog') ? '2026-06-30T00:00:00Z' : '2026-06-30T00:00:00Z';
-  const migrationTarget = apiPath.includes('getTicketDetailPrint')
-    ? '/cloud/api/Report/getPendingByTicket'
-    : 'narrowed-audit-log-endpoint';
+  const isTicketPrint = apiPath.includes('getTicketDetailPrint');
+  const migrationTarget = isTicketPrint ? '/cloud/api/Report/getPendingByTicket' : null;
   operation['x-sunset'] = sunset;
   operation['x-migration-target'] = migrationTarget;
+  operation['x-migration-guidance'] = isTicketPrint
+    ? 'Likely replacement is ticket detail lookup through getPendingByTicket, with getWagerDetailTransaction or Manager/getWagaerDetailShort as supporting read-only detail views. Confirm exact print-specific replacement before removing manual-review status.'
+    : 'No like-for-like replacement has been observed. Treat 410 Gone as authoritative and keep this blocked until a narrowed audit-log endpoint is captured.';
+  if (isTicketPrint) {
+    operation['x-replacement-candidates'] ||= [
+      '/cloud/api/Report/getPendingByTicket',
+      '/cloud/api/Report/getWagerDetailTransaction',
+      '/cloud/api/Manager/getWagaerDetailShort',
+    ];
+  }
   operation.externalDocs ||= {
     description: 'Deprecation and migration guidance.',
     url: './remediation-closeout.md',
@@ -165,11 +174,13 @@ function enhanceDeprecatedOperation(operation, apiPath) {
 
 function enhanceInfo(spec) {
   spec.info ||= {};
-  spec.info.version ||= '2.0.0-secured-observed';
-  spec.info.contact ||= {
-    name: 'Fantasy402 Contract Maintainers',
+  spec.info.title = 'Fantasy402 API (Secured Observed Contract)';
+  spec.info.version = '2026-05-17-slim-v1.2';
+  spec.info.contact = {
+    name: 'BILLY666 / Sports Terminal',
+    url: 'https://factory-wager.com',
   };
-  spec.info['x-api-state'] = 'observed-secured';
+  spec.info['x-api-state'] = 'observed';
   spec.info['x-last-captured'] = '2026-05-08';
   spec.info['x-next-review'] = '2026-06-08';
   spec.info['x-ai-discovery'] = {

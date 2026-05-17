@@ -1,4 +1,5 @@
 name = "fantasy402-ingestion"
+account_id = "7a470541a704caaf91e71efccc78fd36"
 main = "src/index.ts"
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]

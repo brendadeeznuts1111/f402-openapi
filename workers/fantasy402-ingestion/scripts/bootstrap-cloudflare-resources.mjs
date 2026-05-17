@@ -13,6 +13,7 @@ if (args.has("--self-test")) {
 }
 
 const settings = {
+  accountId: "7a470541a704caaf91e71efccc78fd36",
   kvBinding: "SESSION_KV",
   kvTitle: "SESSION_KV",
   d1Name: "fantasy402-analytics",
@@ -21,19 +22,24 @@ const settings = {
 };
 
 const existing = {
+  accountId: readTomlValue(config, /account_id\s*=\s*"([^"]+)"/),
   kvId: readTomlValue(config, /binding\s*=\s*"SESSION_KV"[\s\S]*?id\s*=\s*"([^"]+)"/),
   kvPreviewId: readTomlValue(config, /binding\s*=\s*"SESSION_KV"[\s\S]*?preview_id\s*=\s*"([^"]+)"/),
   d1Id: readTomlValue(config, /database_name\s*=\s*"fantasy402-analytics"[\s\S]*?database_id\s*=\s*"([^"]+)"/),
 };
 
+if (existing.accountId && existing.accountId !== settings.accountId) {
+  throw new Error(`wrangler.toml account_id ${existing.accountId} does not match expected account ${settings.accountId}`);
+}
+
 plan.push({
   resource: "KV namespace",
-  command: `npx wrangler@latest kv namespace create ${settings.kvTitle}`,
+  command: `npx wrangler@latest kv namespace create ${settings.kvTitle} --account-id ${settings.accountId}`,
   skipped: !isPlaceholder(existing.kvId),
 });
 plan.push({
   resource: "KV preview namespace",
-  command: `npx wrangler@latest kv namespace create ${settings.kvTitle} --preview`,
+  command: `npx wrangler@latest kv namespace create ${settings.kvTitle} --preview --account-id ${settings.accountId}`,
   skipped: !isPlaceholder(existing.kvPreviewId),
 });
 plan.push({
@@ -60,11 +66,11 @@ if (!apply) {
 const replacements = {};
 
 if (isPlaceholder(existing.kvId)) {
-  replacements["<YOUR_KV_ID>"] = parseKvId(run("npx", ["wrangler@latest", "kv", "namespace", "create", settings.kvTitle]));
+  replacements["<YOUR_KV_ID>"] = parseKvId(run("npx", ["wrangler@latest", "kv", "namespace", "create", settings.kvTitle, "--account-id", settings.accountId]));
 }
 
 if (isPlaceholder(existing.kvPreviewId)) {
-  replacements["<YOUR_KV_PREVIEW_ID>"] = parseKvId(run("npx", ["wrangler@latest", "kv", "namespace", "create", settings.kvTitle, "--preview"]));
+  replacements["<YOUR_KV_PREVIEW_ID>"] = parseKvId(run("npx", ["wrangler@latest", "kv", "namespace", "create", settings.kvTitle, "--preview", "--account-id", settings.accountId]));
 }
 
 if (isPlaceholder(existing.d1Id)) {

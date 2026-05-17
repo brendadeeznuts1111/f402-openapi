@@ -59,6 +59,11 @@ The Worker also serves a lightweight operator viewer at `/archive/viewer`. The v
 
 ## Deployment
 
+Cloudflare context:
+
+- Account ID: `7a470541a704caaf91e71efccc78fd36`
+- Zone ID: `a3b7ba4bb62cb1b177b04b8675250674`
+
 Create Cloudflare resources, replace the placeholder binding IDs in `wrangler.toml`, set secrets, apply migrations, then deploy:
 
 ```bash

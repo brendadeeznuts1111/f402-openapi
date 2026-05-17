@@ -8,6 +8,10 @@ for (const token of ["<YOUR_KV_ID>", "<YOUR_KV_PREVIEW_ID>", "<YOUR_D1_ID>"]) {
   if (config.includes(token)) findings.push(`replace placeholder ${token} in wrangler.toml`);
 }
 
+if (!/account_id\s*=\s*"7a470541a704caaf91e71efccc78fd36"/.test(config)) {
+  findings.push("missing expected Cloudflare account_id 7a470541a704caaf91e71efccc78fd36");
+}
+
 if (!/binding\s*=\s*"SESSION_KV"/.test(config)) findings.push("missing SESSION_KV binding");
 if (!/binding\s*=\s*"ANALYTICS_DB"/.test(config)) findings.push("missing ANALYTICS_DB binding");
 if (!/binding\s*=\s*"RAW_ARCHIVE"/.test(config)) findings.push("missing RAW_ARCHIVE binding");

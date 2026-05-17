@@ -18,7 +18,11 @@ Use the `Fantasy402 Cloudflare Pages` workflow.
 Required repository secrets:
 
 - `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_ACCOUNT_ID` = `7a470541a704caaf91e71efccc78fd36`
+
+Cloudflare Zone ID for DNS/custom-domain work:
+
+- `a3b7ba4bb62cb1b177b04b8675250674`
 
 Default Pages project:
 

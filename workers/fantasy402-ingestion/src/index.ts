@@ -434,6 +434,9 @@ const worker = {
       if (!isHttpUrl(targetUrl)) {
         return json({ status: "failed", message: "Invalid URL" }, 400);
       }
+      if (!isAllowedScanTarget(env, targetUrl)) {
+        return json({ status: "failed", message: "Scan target host is not allowed" }, 403);
+      }
       try {
         const result = await runScheduledScan(await materializeSecretBindings(env), targetUrl);
         return json(
@@ -698,7 +701,7 @@ async function runScheduledScan(env: Env, targetUrl = "https://fantasy402.com") 
 }
 
 async function alertOnNetworkSummary(env: Env, scanId: string, scannedUrl: string, summary: HarNetworkSummary): Promise<void> {
-  const allowedHosts = allowedScanHosts(env, scannedUrl);
+  const allowedHosts = allowedScanHosts(env);
   const observedHosts = Object.keys(summary.byHost);
   const unexpectedHosts = observedHosts.filter((host) => !allowedHosts.has(host));
   const thirdPartyHosts = unexpectedHosts.filter((host) => isThirdPartyHost(host, scannedUrl));
@@ -763,18 +766,37 @@ function firstPartyRoot(scannedUrl: string): string | null {
   }
 }
 
-function allowedScanHosts(env: Env, scannedUrl: string): Set<string> {
+function allowedScanHosts(env: Env): Set<string> {
+  return configuredScanHosts(env);
+}
+
+function configuredScanHosts(env: Env): Set<string> {
   const hosts = new Set(["fantasy402.com", "www.fantasy402.com"]);
-  try {
-    hosts.add(new URL(scannedUrl).hostname);
-  } catch {
-    // Ignore invalid scanned URL here; validation happens before scan submission.
-  }
+  const configuredBaseHost = hostFromUrl(env.FANTASY402_BASE_URL);
+  if (configuredBaseHost) hosts.add(configuredBaseHost);
   for (const host of (env.FANTASY402_ALLOWED_SCAN_HOSTS ?? "").split(",")) {
-    const clean = host.trim().toLowerCase();
+    const clean = normalizeHost(host);
     if (/^[a-z0-9.-]{1,253}$/.test(clean)) hosts.add(clean);
   }
   return hosts;
+}
+
+function isAllowedScanTarget(env: Env, targetUrl: string): boolean {
+  const targetHost = hostFromUrl(targetUrl);
+  return Boolean(targetHost && configuredScanHosts(env).has(targetHost));
+}
+
+function hostFromUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    return normalizeHost(new URL(value).hostname);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeHost(host: string): string {
+  return host.trim().toLowerCase();
 }
 
 async function refreshAuth(request: Request, env: Env): Promise<Response> {
@@ -900,7 +922,7 @@ async function authenticateFantasy402(env: Env): Promise<AuthMaterial> {
   const customerId = env.FANTASY402_USERNAME.toLocaleUpperCase();
   form.set("customerID", customerId);
   form.set("state", "true");
-  form.set("password", env.FANTASY402_PASSWORD.toLocaleUpperCase());
+  form.set("password", env.FANTASY402_PASSWORD);
   form.set("sufix", "");
   form.set("prefix", "");
   form.set("multiaccount", "1");
@@ -2370,7 +2392,7 @@ function diagnostics(env: Env): Response {
       upstreamAuthShape: upstreamAuthDiagnostics(env),
       optionalSecrets: Object.fromEntries(optionalSecrets.map((name) => [name, hasEnvValue(env[name])])),
       scanPolicy: {
-        allowedHosts: [...allowedScanHosts(env, env.FANTASY402_BASE_URL || "https://fantasy402.com")],
+        allowedHosts: [...allowedScanHosts(env)],
       },
       configuredEndpoints: env.FANTASY402_INGESTION_ENDPOINTS.split(",").map((endpoint) => endpoint.trim()).filter(Boolean),
       archive: {

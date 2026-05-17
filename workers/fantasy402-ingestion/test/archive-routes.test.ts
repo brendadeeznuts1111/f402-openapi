@@ -1049,7 +1049,7 @@ test("authenticateCustomer fallback caches bearer token and app session in AUTH_
       env(new MemoryR2Bucket(), new MemoryD1Database(), {
         AUTH_CACHE: authKv,
         FANTASY402_USERNAME: "user1",
-        FANTASY402_PASSWORD: "pass1",
+        FANTASY402_PASSWORD: "paSs1",
         FANTASY402_CF_CLEARANCE: "clearance-token",
         FANTASY402_CF_BM: "bm-token",
         FANTASY402_INGESTION_ENDPOINTS: "getAgentPerformance",
@@ -1060,7 +1060,7 @@ test("authenticateCustomer fallback caches bearer token and app session in AUTH_
     assert.ok(loginRequest);
     const loginForm = new URLSearchParams(loginRequest.body);
     assert.equal(loginForm.get("customerID"), "USER1");
-    assert.equal(loginForm.get("password"), "PASS1");
+    assert.equal(loginForm.get("password"), "paSs1");
     assert.equal(loginForm.get("operation"), "authenticateCustomer");
     assert.equal(loginForm.get("RRO"), "1");
     const apiRequest = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAgentPerformance"));
@@ -1731,6 +1731,22 @@ test("manual scan trigger rejects invalid URLs before external calls", async () 
   );
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { status: "failed", message: "Invalid URL" });
+});
+
+test("manual scan trigger rejects hosts outside the configured scan policy", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/scans/trigger", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: "https://unexpected.example" }),
+    }),
+    env(new MemoryR2Bucket()),
+  );
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { status: "failed", message: "Scan target host is not allowed" });
 });
 
 test("manual scan trigger returns JSON when scanner token is missing", async () => {

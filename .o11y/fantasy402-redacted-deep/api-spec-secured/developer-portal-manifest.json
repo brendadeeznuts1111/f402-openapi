@@ -28,12 +28,100 @@
     "internal-api"
   ],
   "securityInvariants": [
-    "No credential fields in schemas or examples",
-    "First-party operations require sessionCookie or agentToken",
+    "No real credential values in schemas, examples, static docs, or manifest artifacts",
+    "First-party operations declare browser-observed authentication context: session cookie, bearer token, Cloudflare clearance cookies, and browser metadata headers where applicable",
     "First-party operations carry x-required-roles and x-rate-limit metadata",
     "High-risk financial endpoints include synthetic examples and contract tests",
+    "Authentication request schemas mark password fields as writeOnly, x-sensitive, and security-review-required",
     "Manager/getWebLog remains deprecated until replacement audit-log endpoint exists",
-    "Report/getTicketDetailPrint remains manual-review until valid backend method is observed"
+    "Report/getTicketDetailPrint remains manual-review until valid backend method is observed",
+    "Authentication flow constants are non-sensitive and must not be stored as secrets unless policy requires blanket secret storage"
   ],
-  "publishNotes": "Publish openapi.secured.examples.yaml to the developer portal. Use openapi.secured.slim.yaml for SDK generation and CI linting. The static docs can be published to Cloudflare Pages from the site directory."
+  "publishNotes": "Publish openapi.secured.examples.yaml to the developer portal. Use openapi.secured.slim.yaml for SDK generation and CI linting. The static docs can be published to Cloudflare Pages from the site directory.",
+  "workerRuntimeMatrix": {
+    "staticDocsSection": "Worker Environment And Secrets Matrix",
+    "diagnosticsEndpoint": "/diagnostics",
+    "valuePolicy": "presence-only; values must remain in Cloudflare Secrets Store or Worker secrets",
+    "requiredBindings": [
+      "SESSION_KV",
+      "AUTH_CACHE",
+      "ANALYTICS_DB",
+      "RAW_ARCHIVE"
+    ],
+    "requiredVars": [
+      "ENVIRONMENT",
+      "WORKER_NAME",
+      "CLOUDFLARE_ACCOUNT_ID",
+      "CLOUDFLARE_ZONE_ID",
+      "FANTASY402_BASE_URL",
+      "FANTASY402_INGESTION_ENDPOINTS",
+      "FANTASY402_ALLOWED_SCAN_HOSTS"
+    ],
+    "requiredSecretsStore": [
+      "FANTASY402_USERNAME",
+      "FANTASY402_PASSWORD",
+      "FANTASY402_AGENT_ID",
+      "CLOUDFLARE_API_TOKEN"
+    ],
+    "browserReplaySecrets": [
+      "FANTASY402_SESSION_COOKIE",
+      "FANTASY402_AUTHORIZATION",
+      "FANTASY402_CF_CLEARANCE",
+      "FANTASY402_CF_BM",
+      "FANTASY402_BROWSER_HEADERS_JSON"
+    ],
+    "operatorSecrets": [
+      "INGESTION_TRIGGER_TOKEN",
+      "ARCHIVE_AUTH_TOKEN"
+    ],
+    "optionalSecrets": [
+      "FANTASY402_CUSTOMER_ID",
+      "ALERT_WEBHOOK_URL"
+    ],
+    "authFlowConstants": {
+      "valuePolicy": "non-sensitive; may be hardcoded or stored as plain Worker vars, not secrets",
+      "fields": {
+        "state": "true",
+        "multiaccount": "1",
+        "response_type": "code",
+        "domain": "fantasy402.com",
+        "redirect_uri": "fantasy402.com",
+        "operation": "authenticateCustomer",
+        "RRO": "1"
+      },
+      "optionalVarNames": [
+        "FANTASY402_AUTH_STATE",
+        "FANTASY402_AUTH_MULTIACCOUNT",
+        "FANTASY402_AUTH_RESPONSE_TYPE",
+        "FANTASY402_AUTH_DOMAIN",
+        "FANTASY402_AUTH_REDIRECT_URI",
+        "FANTASY402_AUTH_RRO"
+      ]
+    },
+    "authRefresh": {
+      "endpoint": "/refresh-auth",
+      "method": "POST",
+      "auth": "Authorization: Bearer <INGESTION_TRIGGER_TOKEN or ARCHIVE_AUTH_TOKEN>",
+      "storage": "AUTH_CACHE KV namespace",
+      "precedence": "AUTH_CACHE overlay is applied before configured Fantasy402 auth secrets",
+      "ttlSeconds": {
+        "minimum": 60,
+        "default": 3600,
+        "maximum": 28800
+      },
+      "acceptedFields": [
+        "authorization",
+        "sessionCookie",
+        "cfClearance",
+        "cfBm",
+        "browserHeadersJson",
+        "browserHeaders",
+        "userAgent",
+        "referer",
+        "customerId",
+        "expiresInSeconds"
+      ],
+      "valuePolicy": "write-only; response returns accepted field names, expiresAt, and ttlSeconds only"
+    }
+  }
 }

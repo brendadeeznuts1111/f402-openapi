@@ -11,6 +11,8 @@ if (!spec.paths?.["/archive"]?.get) findings.push("missing GET /archive operatio
 if (!spec.paths?.["/archive/object"]?.get) findings.push("missing GET /archive/object operation");
 if (!spec.paths?.["/scans"]?.get) findings.push("missing GET /scans operation");
 if (!spec.paths?.["/scans/trigger"]?.post) findings.push("missing POST /scans/trigger operation");
+if (!spec.paths?.["/refresh-auth"]?.post) findings.push("missing POST /refresh-auth operation");
+if (!spec.paths?.["/ingest/local"]?.post) findings.push("missing POST /ingest/local operation");
 if (!spec.components?.securitySchemes?.triggerToken) findings.push("missing triggerToken security scheme");
 
 const triggerSecurity = spec.paths?.["/trigger"]?.post?.security ?? [];
@@ -23,6 +25,8 @@ for (const [method, operation] of [
   ["GET /archive/object", spec.paths?.["/archive/object"]?.get],
   ["GET /scans", spec.paths?.["/scans"]?.get],
   ["POST /scans/trigger", spec.paths?.["/scans/trigger"]?.post],
+  ["POST /refresh-auth", spec.paths?.["/refresh-auth"]?.post],
+  ["POST /ingest/local", spec.paths?.["/ingest/local"]?.post],
 ]) {
   if (!JSON.stringify(operation?.security ?? []).includes("triggerToken")) {
     findings.push(`${method} must require triggerToken security`);

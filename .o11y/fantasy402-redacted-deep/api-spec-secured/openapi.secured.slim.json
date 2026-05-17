@@ -83,15 +83,18 @@
         },
         "x-sample-count": 1,
         "x-observed-auth": [
-          "authorization"
+          "authorization: Bearer undefined",
+          "cf_clearance",
+          "__cf_bm",
+          "browser headers"
         ],
         "x-origin": "https://fantasy402.com",
         "security": [
           {
-            "sessionCookie": []
-          },
-          {
-            "agentToken": []
+            "cloudflareClearance": [],
+            "cloudflareBotManagement": [],
+            "browserUserAgent": [],
+            "browserAjaxHeader": []
           }
         ],
         "x-required-roles": [
@@ -113,7 +116,12 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/CommonAgentRequest"
+                "$ref": "#/components/schemas/AuthenticateCustomerRequest"
+              },
+              "examples": {
+                "redacted": {
+                  "$ref": "#/components/examples/AuthenticateCustomerRequestRedacted"
+                }
               }
             }
           }
@@ -7645,6 +7653,11 @@
                   "agentOwner",
                   "operation"
                 ]
+              },
+              "examples": {
+                "valid": {
+                  "$ref": "#/components/examples/GetAccountInfoOwnerRequestValid"
+                }
               }
             }
           }
@@ -7704,15 +7717,20 @@
         },
         "x-sample-count": 1,
         "x-observed-auth": [
-          "authorization"
+          "authorization",
+          "cf_clearance",
+          "__cf_bm",
+          "browser headers"
         ],
         "x-origin": "https://fantasy402.com",
         "security": [
           {
-            "sessionCookie": []
-          },
-          {
-            "agentToken": []
+            "sessionCookie": [],
+            "agentToken": [],
+            "cloudflareClearance": [],
+            "cloudflareBotManagement": [],
+            "browserUserAgent": [],
+            "browserAjaxHeader": []
           }
         ],
         "x-required-roles": [
@@ -7839,15 +7857,20 @@
         },
         "x-sample-count": 1,
         "x-observed-auth": [
-          "authorization"
+          "authorization",
+          "cf_clearance",
+          "__cf_bm",
+          "browser headers"
         ],
         "x-origin": "https://fantasy402.com",
         "security": [
           {
-            "sessionCookie": []
-          },
-          {
-            "agentToken": []
+            "sessionCookie": [],
+            "agentToken": [],
+            "cloudflareClearance": [],
+            "cloudflareBotManagement": [],
+            "browserUserAgent": [],
+            "browserAjaxHeader": []
           }
         ],
         "x-required-roles": [
@@ -7869,7 +7892,12 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/CommonAgentRequest"
+                "$ref": "#/components/schemas/GetConfigWebReportsRequest"
+              },
+              "examples": {
+                "valid": {
+                  "$ref": "#/components/examples/GetConfigWebReportsRequestValid"
+                }
               }
             }
           }
@@ -13849,7 +13877,10 @@
             "type": "integer"
           },
           "PasswordFix": {
-            "type": "string"
+            "type": "string",
+            "description": "Observed account configuration flag. Not a password value.",
+            "x-security-review-required": true,
+            "x-sensitive": false
           },
           "AllowPropBuilder": {
             "type": "string"
@@ -20128,7 +20159,10 @@
             "type": "string"
           },
           "showPassword": {
-            "type": "string"
+            "type": "string",
+            "description": "Observed report/UI visibility flag. Not a password value.",
+            "x-security-review-required": true,
+            "x-sensitive": false
           },
           "showBalance": {
             "type": "string"
@@ -22269,6 +22303,131 @@
             "type": "string"
           }
         }
+      },
+      "AuthenticateCustomerRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Observed customer authentication form payload. Password is write-only and must never appear in responses or examples.",
+        "required": [
+          "customerID",
+          "password",
+          "operation",
+          "RRO"
+        ],
+        "properties": {
+          "customerID": {
+            "$ref": "#/components/schemas/CustomerId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          },
+          "state": {
+            "type": "boolean",
+            "description": "Static authentication flow flag observed as true. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Plaintext credential submitted only for authentication. Never returned by the API and intentionally redacted from examples.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "multiaccount": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "default": 1,
+            "description": "Static authentication flow flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "response_type": {
+            "type": "string",
+            "enum": [
+              "code"
+            ],
+            "description": "Static authentication flow value observed as code. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "client_id": {
+            "$ref": "#/components/schemas/AgentId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "fantasy402.com"
+            ],
+            "description": "Static authentication flow domain. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "redirect_uri": {
+            "type": "string",
+            "description": "Static authentication flow redirect URI. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "operation": {
+            "type": "string",
+            "const": "authenticateCustomer",
+            "description": "Static authentication operation discriminator. Non-sensitive; safe to hardcode.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          },
+          "RRO": {
+            "$ref": "#/components/schemas/RROFlag",
+            "description": "Static request flag observed as 1. Non-sensitive; safe to hardcode or configure as a plain environment variable.",
+            "x-sensitive": false,
+            "x-auth-flow-constant": true,
+            "x-secret-storage-required": false
+          }
+        }
+      },
+      "GetConfigWebReportsRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Observed getConfigWebReports form payload from browser traffic.",
+        "required": [
+          "agentID",
+          "operation",
+          "RRO",
+          "agentOwner"
+        ],
+        "properties": {
+          "agentID": {
+            "$ref": "#/components/schemas/AgentId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          },
+          "operation": {
+            "type": "string",
+            "const": "getConfigWebReports"
+          },
+          "RRO": {
+            "$ref": "#/components/schemas/RROFlag"
+          },
+          "agentOwner": {
+            "$ref": "#/components/schemas/AgentId",
+            "x-sensitive": true,
+            "x-privacy-classification": "PII:AccountIdentifier"
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -22276,13 +22435,50 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "ASP.NET_SessionId",
-        "description": "Session cookie issued after login. Required for browser-compatible clients."
+        "description": "Application session cookie observed on authenticated /cloud/api/* browser calls. Required for browser-compatible clients and must belong to the authenticated agent session."
       },
       "agentToken": {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Recommended replacement token format carrying agent identity and hierarchy claims."
+        "description": "Observed browser Authorization bearer token carrying agent identity and hierarchy claims. The ingestion Worker stores this as FANTASY402_AUTHORIZATION."
+      },
+      "cloudflareClearance": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cf_clearance",
+        "description": "Cloudflare challenge-clearance cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_CLEARANCE."
+      },
+      "cloudflareBotManagement": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__cf_bm",
+        "description": "Cloudflare Bot Management cookie observed on successful browser traffic. Short-lived and edge-policy dependent; the ingestion Worker stores this as FANTASY402_CF_BM."
+      },
+      "browserUserAgent": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "User-Agent",
+        "description": "Browser User-Agent header observed during API discovery. Used as part of the browser-compatible request context, not as an application credential."
+      },
+      "browserAjaxHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Requested-With",
+        "description": "Observed XMLHttpRequest marker for same-origin API calls. Additional browser metadata headers are documented in x-observed-browser-headers.",
+        "x-observed-browser-headers": [
+          "Accept",
+          "Accept-Language",
+          "Origin",
+          "Referer",
+          "Sec-CH-UA",
+          "Sec-CH-UA-Mobile",
+          "Sec-CH-UA-Platform",
+          "Sec-Fetch-Dest",
+          "Sec-Fetch-Mode",
+          "Sec-Fetch-Site",
+          "Priority"
+        ]
       }
     },
     "parameters": {
@@ -22350,19 +22546,75 @@
           "status": "Failed",
           "msg": "Invalid CustomerID"
         }
+      },
+      "AuthenticateCustomerRequestRedacted": {
+        "summary": "Redacted customer authentication request",
+        "description": "Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.",
+        "value": {
+          "customerID": "DEMOAGENT",
+          "state": true,
+          "password": "__REDACTED_PASSWORD__",
+          "multiaccount": 1,
+          "response_type": "code",
+          "client_id": "DEMOAGENT",
+          "domain": "fantasy402.com",
+          "redirect_uri": "fantasy402.com",
+          "operation": "authenticateCustomer",
+          "RRO": 1
+        }
+      },
+      "GetConfigWebReportsRequestValid": {
+        "summary": "Redacted web report config request",
+        "value": {
+          "agentID": "DEMOAGENT",
+          "operation": "getConfigWebReports",
+          "RRO": 1,
+          "agentOwner": "DEMOAGENT"
+        }
+      },
+      "GetAccountInfoOwnerRequestValid": {
+        "summary": "Redacted account owner info request",
+        "value": {
+          "operation": "getAccountInfoOwner",
+          "agentOwner": "DEMOAGENT"
+        }
       }
     }
   },
   "security": [
     {
-      "sessionCookie": []
-    },
-    {
-      "agentToken": []
+      "sessionCookie": [],
+      "agentToken": [],
+      "cloudflareClearance": [],
+      "cloudflareBotManagement": [],
+      "browserUserAgent": [],
+      "browserAjaxHeader": []
     }
   ],
   "externalDocs": {
     "description": "Gap-analysis and report-call repair notes.",
     "url": "../fantasy402-redacted-deep/gap-analysis/report-call-repair-notes.md"
-  }
+  },
+  "x-observed-browser-headers": [
+    "Accept",
+    "Accept-Language",
+    "Origin",
+    "Referer",
+    "Sec-CH-UA",
+    "Sec-CH-UA-Mobile",
+    "Sec-CH-UA-Platform",
+    "Sec-Fetch-Dest",
+    "Sec-Fetch-Mode",
+    "Sec-Fetch-Site",
+    "Priority"
+  ],
+  "x-auth-flow-constants": [
+    "state",
+    "multiaccount",
+    "response_type",
+    "domain",
+    "redirect_uri",
+    "operation",
+    "RRO"
+  ]
 }

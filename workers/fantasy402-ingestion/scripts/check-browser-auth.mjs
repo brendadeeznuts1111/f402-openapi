@@ -1,0 +1,72 @@
+import fs from "node:fs";
+
+const authFile = process.env.FANTASY402_BROWSER_AUTH_FILE ?? process.argv[2] ?? "fantasy402/browser-auth.json";
+const auth = readJson(authFile);
+const findings = [];
+const warnings = [];
+
+for (const field of ["authorization", "cfClearance", "cfBm"]) {
+  const value = auth[field];
+  if (typeof value !== "string" || !value.trim()) {
+    findings.push(`${field} is missing`);
+  } else if (isPlaceholder(value)) {
+    findings.push(`${field} still looks like a placeholder`);
+  }
+}
+
+if (!auth.sessionCookie) {
+  warnings.push("sessionCookie is missing. Current observed login flow may rely on bearer token plus Cloudflare cookies, but include any non-Cloudflare browser cookies if present.");
+} else if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
+  findings.push("sessionCookie still looks like a placeholder");
+} else if (!hasNonCloudflareCookie(auth.sessionCookie)) {
+  warnings.push("sessionCookie contains only Cloudflare cookies. If the browser sends an application session cookie, include it here too.");
+}
+
+if (!auth.browserHeaders && !auth.browserHeadersJson && !auth.userAgent) {
+  findings.push("browserHeaders/browserHeadersJson or userAgent is missing");
+}
+
+if (!auth.agentId && !auth.customerId && !process.env.FANTASY402_AGENT_ID) {
+  findings.push("agentId/customerId is missing");
+}
+
+const summary = {
+  status: findings.length === 0 ? "ok" : "failed",
+  file: authFile,
+  fieldPresence: {
+    agentId: Boolean(auth.agentId || process.env.FANTASY402_AGENT_ID),
+    customerId: Boolean(auth.customerId || process.env.FANTASY402_CUSTOMER_ID),
+    authorization: Boolean(auth.authorization),
+    sessionCookie: Boolean(auth.sessionCookie),
+    cfClearance: Boolean(auth.cfClearance),
+    cfBm: Boolean(auth.cfBm),
+    browserHeaders: Boolean(auth.browserHeaders || auth.browserHeadersJson || auth.userAgent),
+  },
+  findings,
+  warnings,
+};
+
+console.log(JSON.stringify(summary, null, 2));
+if (findings.length > 0) process.exit(1);
+
+function readJson(path) {
+  try {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
+  } catch (error) {
+    console.error(JSON.stringify({ status: "failed", message: `Could not read ${path}: ${error instanceof Error ? error.message : String(error)}` }, null, 2));
+    process.exit(1);
+  }
+}
+
+function isPlaceholder(value) {
+  const trimmed = String(value).trim();
+  return trimmed === "..." || /^<.+>$/.test(trimmed) || /redacted|placeholder|changeme/i.test(trimmed);
+}
+
+function hasNonCloudflareCookie(value) {
+  return String(value)
+    .split(";")
+    .map((part) => part.trim())
+    .map((cookie) => cookie.slice(0, cookie.indexOf("=")).trim().toLowerCase())
+    .some((name) => name && name !== "cf_clearance" && name !== "__cf_bm");
+}

@@ -1,0 +1,23 @@
+{
+  "agentId": "AGENT123",
+  "customerId": "CUSTOMER123",
+  "authorization": "Bearer <redacted-browser-jwt>",
+  "sessionCookie": "app_session=<redacted-app-cookie>",
+  "cfClearance": "<redacted-cf-clearance>",
+  "cfBm": "<redacted-cf-bm>",
+  "browserHeaders": {
+    "accept": "*/*",
+    "accept-language": "en-US,en;q=0.9",
+    "origin": "https://fantasy402.com",
+    "referer": "https://fantasy402.com/manager.html",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"macOS\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
+    "user-agent": "Mozilla/5.0 (...) Chrome/... Safari/...",
+    "x-requested-with": "XMLHttpRequest"
+  },
+  "expiresInSeconds": 3600
+}

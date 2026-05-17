@@ -1,17 +1,19 @@
 name = "fantasy402-ingestion"
 account_id = "7a470541a704caaf91e71efccc78fd36"
 main = "src/index.ts"
+workers_dev = true
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
 
 kv_namespaces = [
-  { binding = "SESSION_KV", id = "<YOUR_KV_ID>", preview_id = "<YOUR_KV_PREVIEW_ID>" }
+  { binding = "SESSION_KV", id = "d287b9c651654573a6e3c8526699cd97", preview_id = "0da8489f564f429cb74e25cf0157e666" },
+  { binding = "AUTH_CACHE", id = "cf34872929b842b485fddf1063af60dd", preview_id = "f275fdbaef9548b2af3436d420a7da83" }
 ]
 
 [[d1_databases]]
 binding = "ANALYTICS_DB"
 database_name = "fantasy402-analytics"
-database_id = "<YOUR_D1_ID>"
+database_id = "d4a3fcd5-0225-48f7-a7f1-884d6adb0964"
 migrations_dir = "migrations"
 
 [[r2_buckets]]
@@ -19,11 +21,56 @@ binding = "RAW_ARCHIVE"
 bucket_name = "fantasy402-raw"
 preview_bucket_name = "fantasy402-raw-preview"
 
+[[secrets_store_secrets]]
+binding = "CLOUDFLARE_API_TOKEN"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "CLOUDFLARE_API_TOKEN"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_AGENT_ID"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_AGENT_ID"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_PASSWORD"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_PASSWORD"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_USERNAME"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_USERNAME"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_SESSION_COOKIE"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_SESSION_COOKIE"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_CF_CLEARANCE"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_CF_CLEARANCE"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_CF_BM"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_CF_BM"
+
+[[secrets_store_secrets]]
+binding = "FANTASY402_BROWSER_HEADERS_JSON"
+store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
+secret_name = "FANTASY402_BROWSER_HEADERS_JSON"
+
 [triggers]
 crons = ["*/15 * * * *", "0 */6 * * *"]
 
 [vars]
 ENVIRONMENT = "production"
+WORKER_NAME = "fantasy402-ingestion"
 CLOUDFLARE_ACCOUNT_ID = "7a470541a704caaf91e71efccc78fd36"
+CLOUDFLARE_ZONE_ID = "a3b7ba4bb62cb1b177b04b8675250674"
 FANTASY402_BASE_URL = "https://fantasy402.com"
-FANTASY402_INGESTION_ENDPOINTS = "getAgentPerformance,getAgentBilling,getEnterTransactions"
+FANTASY402_INGESTION_ENDPOINTS = "getAgentPerformance,getAgentBilling,getEnterTransactions,getPlayers,getAddedInfo,getLineTypes,getHeriarchy"
+FANTASY402_ALLOWED_SCAN_HOSTS = "fantasy402.com,www.fantasy402.com"
+FANTASY402_REFERER = "https://fantasy402.com/manager.html"
+FANTASY402_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"

@@ -9,6 +9,8 @@ const specPath = path.resolve(workerRoot, manifest.spec);
 const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
 const wrangler = fs.readFileSync(path.join(workerRoot, "wrangler.toml"), "utf8");
 const source = fs.readFileSync(path.join(workerRoot, "src/index.ts"), "utf8");
+const dryRunScript = fs.readFileSync(path.join(workerRoot, "scripts/ingestion-dry-run.mjs"), "utf8");
+const localBrowserIngestScript = fs.readFileSync(path.join(workerRoot, "scripts/local-browser-ingest.mjs"), "utf8");
 const findings = [];
 
 const configuredKeys = parseConfiguredEndpointKeys(wrangler);
@@ -73,6 +75,12 @@ for (const endpoint of manifest.endpoints) {
   }
   if (!source.includes(`key: "${endpoint.key}"`) || !source.includes(`path: "${endpoint.path}"`)) {
     findings.push(`${endpoint.key} manifest entry is not mirrored in src/index.ts`);
+  }
+  if (!dryRunScript.includes(`${endpoint.key}:`) || !dryRunScript.includes(`path: "${endpoint.path}"`)) {
+    findings.push(`${endpoint.key} manifest entry is not mirrored in scripts/ingestion-dry-run.mjs`);
+  }
+  if (!localBrowserIngestScript.includes(`${endpoint.key}:`) || !localBrowserIngestScript.includes(`path: "${endpoint.path}"`)) {
+    findings.push(`${endpoint.key} manifest entry is not mirrored in scripts/local-browser-ingest.mjs`);
   }
 }
 

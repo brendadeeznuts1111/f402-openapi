@@ -19,6 +19,8 @@ const endpoints = {
   getLineTypes: { path: "/cloud/api/Manager/getLineTypes", operation: "getLineTypes", contentType: "form" },
   getHeriarchy: { path: "/cloud/api/Manager/getHeriarchy", operation: "getHeriarchy", contentType: "form" },
   getPending: { path: "/cloud/api/Manager/getPending", operation: "getPending", contentType: "json", requiresCustomerId: true },
+  Pending: { path: "/cloud/api/Report/Pending", operation: "Pending", contentType: "form", requiresCustomerId: true },
+  getCommunicationMessages: { path: "/cloud/api/Customer/getCommunicationMessages", operation: "getCommunicationMessages", contentType: "form", requiresCustomerId: true },
 };
 const endpointsByPath = new Map(Object.entries(endpoints).map(([key, endpoint]) => [endpoint.path, key]));
 
@@ -202,7 +204,7 @@ function requestBody(endpoint, now) {
     };
   }
   const date = now.toISOString().slice(0, 10);
-  return {
+  const body = {
     RRO: 1,
     agentID: agentId,
     agentOwner: agentId,
@@ -212,6 +214,8 @@ function requestBody(endpoint, now) {
     end: date,
     operation: endpoint.operation,
   };
+  if (endpoint.requiresCustomerId) body.customerID = customerId;
+  return body;
 }
 
 function encodeBody(endpoint, body) {

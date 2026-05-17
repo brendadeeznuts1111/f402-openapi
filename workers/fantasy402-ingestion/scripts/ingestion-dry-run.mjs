@@ -100,7 +100,7 @@ function requestBody(endpoint, now) {
     };
   }
   const date = now.toISOString().slice(0, 10);
-  return {
+  const body = {
     RRO: 1,
     agentID: agentId,
     agentOwner: agentId,
@@ -110,6 +110,8 @@ function requestBody(endpoint, now) {
     end: date,
     operation: endpoint.operation,
   };
+  if (endpoint.requiresCustomerId) body.customerID = customerId;
+  return body;
 }
 
 function authDiagnostics(payload) {

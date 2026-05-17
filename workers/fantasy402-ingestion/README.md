@@ -305,6 +305,8 @@ The script posts the auth overlay to `/refresh-auth`, uses the local machine for
 
 `/ingest/local` is storage-only: it archives the supplied response bodies to R2 and records D1 snapshots without making upstream calls from Cloudflare. Use it when Worker egress is blocked by the upstream edge.
 
+The local browser ingest script supports the same endpoint catalog tracked in `upstream-endpoints.json`. Customer-scoped endpoints such as `getPending`, `Pending`, and `getCommunicationMessages` require `FANTASY402_CUSTOMER_ID` or `customerId` in `fantasy402/browser-auth.json`; form-encoded customer-scoped calls include `customerID` in the replay body.
+
 You can also generate `fantasy402/browser-auth.json` from a browser Network request copied as cURL:
 
 ```bash
@@ -346,6 +348,8 @@ npm run ingest:dry-run
 ```
 
 The dry-run prints one sanitized entry per endpoint with `bodyKeys`, `hasRRO`, `hasAgentID`, `hasAgentOwner`, `hasCustomerID`, and auth booleans such as `hasSessionCookie`, `hasCfClearance`, and `hasCfBm`. It exits non-zero for missing required bearer/Cloudflare auth or if a customer-scoped endpoint lacks `customerId`; missing non-Cloudflare app cookies are warnings.
+
+`npm run validate:upstream-contract` checks that every manifest endpoint is mirrored by the Worker runtime, dry-run script, and local browser ingest script. Run it after adding or changing any Fantasy402 ingestion endpoint.
 
 Or run the full local flow from the copied cURL in one step:
 

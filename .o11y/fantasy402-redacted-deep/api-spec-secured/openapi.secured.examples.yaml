@@ -15968,15 +15968,15 @@ components:
     CommonAgentRequestExample:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
         operation: getPlayers
     PendingRequestValid:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
-        customerID: DEMOCUST
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
+        customerID: __REDACTED__
         startDate: 2026-05-17
         endDate: 2026-05-17
         operation: Pending
@@ -15988,8 +15988,8 @@ components:
       summary: Invalid customerID
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        customerID: UNKNOWN
+        agentID: __REDACTED__
+        customerID: __REDACTED__
         operation: Pending
     PendingResponseValid:
       value:
@@ -16016,8 +16016,8 @@ components:
     AgentBillingRequestValid:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
         operation: getAgentBilling
     GetAgentBillingResponseValid:
       value:
@@ -16035,8 +16035,8 @@ components:
     EnterTransactionsRequestValid:
       value:
         RRO: 1
-        agentID: DEMOAGENT
-        agentOwner: DEMOAGENT
+        agentID: __REDACTED__
+        agentOwner: __REDACTED__
         operation: getEnterTransactions
     GetEnterTransactionsResponseValid:
       value:
@@ -16054,12 +16054,12 @@ components:
       summary: Redacted customer authentication request
       description: Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.
       value:
-        customerID: DEMOAGENT
+        customerID: __REDACTED__
         state: true
         password: __REDACTED_PASSWORD__
         multiaccount: 1
         response_type: code
-        client_id: DEMOAGENT
+        client_id: __REDACTED__
         domain: fantasy402.com
         redirect_uri: fantasy402.com
         operation: authenticateCustomer
@@ -16067,15 +16067,15 @@ components:
     GetConfigWebReportsRequestValid:
       summary: Redacted web report config request
       value:
-        agentID: DEMOAGENT
+        agentID: __REDACTED__
         operation: getConfigWebReports
         RRO: 1
-        agentOwner: DEMOAGENT
+        agentOwner: __REDACTED__
     GetAccountInfoOwnerRequestValid:
       summary: Redacted account owner info request
       value:
         operation: getAccountInfoOwner
-        agentOwner: DEMOAGENT
+        agentOwner: __REDACTED__
 security:
   - sessionCookie: []
     agentToken: []

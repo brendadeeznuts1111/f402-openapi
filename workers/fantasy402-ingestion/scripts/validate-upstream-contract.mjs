@@ -77,6 +77,7 @@ for (const endpoint of manifest.endpoints) {
 }
 
 findings.push(...credentialFieldFindings(spec));
+findings.push(...sensitiveExampleFindings(spec));
 
 if (findings.length > 0) {
   console.error(JSON.stringify({ status: "failed", spec: path.relative(workerRoot, specPath), findings }, null, 2));
@@ -100,6 +101,96 @@ function credentialFieldFindings(openapi) {
   const schemaFindings = [];
   walkSchema(openapi.components?.schemas ?? {}, ["components", "schemas"], schemaFindings);
   return schemaFindings;
+}
+
+function sensitiveExampleFindings(openapi) {
+  const exampleFindings = [];
+  for (const [apiPath, pathItem] of Object.entries(openapi.paths ?? {})) {
+    for (const [method, operation] of Object.entries(pathItem ?? {})) {
+      for (const [contentType, content] of Object.entries(operation.requestBody?.content ?? {})) {
+        for (const [exampleName, example] of Object.entries(content.examples ?? {})) {
+          const value = resolveExample(example);
+          validateSensitiveExampleValues(
+            content.schema,
+            value,
+            `paths.${apiPath}.${method}.requestBody.${contentType}.examples.${exampleName}`,
+            exampleFindings,
+          );
+        }
+      }
+
+      for (const [status, response] of Object.entries(operation.responses ?? {})) {
+        for (const [contentType, content] of Object.entries(response.content ?? {})) {
+          for (const [exampleName, example] of Object.entries(content.examples ?? {})) {
+            const value = resolveExample(example);
+            validateSensitiveExampleValues(
+              content.schema,
+              value,
+              `paths.${apiPath}.${method}.responses.${status}.${contentType}.examples.${exampleName}`,
+              exampleFindings,
+            );
+          }
+        }
+      }
+    }
+  }
+  return exampleFindings;
+}
+
+function validateSensitiveExampleValues(schema, value, pointer, exampleFindings, seen = new Set()) {
+  if (!schema || value === undefined) return;
+  if (schema.$ref) {
+    if (seen.has(schema.$ref)) return;
+    seen.add(schema.$ref);
+    validateSensitiveExampleValues(resolveSchemaRef(schema.$ref), value, pointer, exampleFindings, seen);
+    return;
+  }
+  for (const key of ["allOf", "oneOf", "anyOf"]) {
+    if (Array.isArray(schema[key])) {
+      for (const item of schema[key]) {
+        validateSensitiveExampleValues(item, value, pointer, exampleFindings, new Set(seen));
+      }
+    }
+  }
+
+  if (schema["x-sensitive"] === true && (value === null || typeof value !== "object")) {
+    if (!isRedactedSensitiveExampleValue(value)) {
+      exampleFindings.push(`${pointer} is x-sensitive and must be omitted or redacted in examples`);
+    }
+    return;
+  }
+
+  if (Array.isArray(value) && schema.items) {
+    value.forEach((item, index) => {
+      validateSensitiveExampleValues(schema.items, item, `${pointer}.${index}`, exampleFindings, new Set(seen));
+    });
+    return;
+  }
+
+  if (value && typeof value === "object" && !Array.isArray(value) && schema.properties) {
+    for (const [fieldName, childSchema] of Object.entries(schema.properties)) {
+      if (fieldName in value) {
+        validateSensitiveExampleValues(childSchema, value[fieldName], `${pointer}.${fieldName}`, exampleFindings, new Set(seen));
+      }
+    }
+  }
+}
+
+function isRedactedSensitiveExampleValue(value) {
+  return typeof value === "string" && (/^__REDACTED/.test(value) || value === "<redacted>");
+}
+
+function resolveSchemaRef(ref) {
+  if (!ref?.startsWith("#/")) return null;
+  const parts = ref.slice(2).split("/").map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"));
+  let current = spec;
+  for (const part of parts) current = current?.[part];
+  return current ?? null;
+}
+
+function resolveExample(example) {
+  if (example?.$ref) return resolveExample(resolveSchemaRef(example.$ref));
+  return example?.value;
 }
 
 function walkSchema(value, pathParts, schemaFindings) {

@@ -240,7 +240,7 @@ app_session=<redacted>; cf_clearance=<redacted>; __cf_bm=<redacted>
 
 The observed legacy login flow primarily uses the bearer token plus Cloudflare cookies. If a future browser capture includes a non-Cloudflare application cookie, include it in `sessionCookie`; diagnostics reports only cookie names and booleans, never values.
 
-The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints.json`. Run `npm run validate:upstream-contract` after changing ingestion endpoints; it verifies each path against the secured examples spec and checks auth, role, and rate-limit annotations.
+The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints.json`. Run `npm run validate:upstream-contract` after changing ingestion endpoints; it verifies each path against the secured examples spec and checks auth, role, rate-limit annotations, and redaction of every example value mapped to an `x-sensitive: true` schema field.
 
 The secured static docs include an `Operation Request Parameters` section generated from `openapi.secured.examples.json`. The validator fails if any non-GET upstream operation loses its request body schema or required parameter list.
 

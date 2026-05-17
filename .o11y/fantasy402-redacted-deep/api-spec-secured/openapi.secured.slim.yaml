@@ -15941,12 +15941,12 @@ components:
       summary: Redacted customer authentication request
       description: Synthetic structure based on observed browser traffic. The password value is intentionally redacted and must not be used as a real credential.
       value:
-        customerID: DEMOAGENT
+        customerID: __REDACTED__
         state: true
         password: __REDACTED_PASSWORD__
         multiaccount: 1
         response_type: code
-        client_id: DEMOAGENT
+        client_id: __REDACTED__
         domain: fantasy402.com
         redirect_uri: fantasy402.com
         operation: authenticateCustomer
@@ -15954,15 +15954,15 @@ components:
     GetConfigWebReportsRequestValid:
       summary: Redacted web report config request
       value:
-        agentID: DEMOAGENT
+        agentID: __REDACTED__
         operation: getConfigWebReports
         RRO: 1
-        agentOwner: DEMOAGENT
+        agentOwner: __REDACTED__
     GetAccountInfoOwnerRequestValid:
       summary: Redacted account owner info request
       value:
         operation: getAccountInfoOwner
-        agentOwner: DEMOAGENT
+        agentOwner: __REDACTED__
 security:
   - sessionCookie: []
     agentToken: []

@@ -847,11 +847,12 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   }
 
   const body = payload as Record<string, unknown>;
-  if (body.sessionCookie !== undefined && !hasNonCloudflareCookieHeader(String(body.sessionCookie))) {
+  applyCookieHeaderAuthAliases(body);
+  if (!hasNonCloudflareCookieHeader(String(body.sessionCookie ?? ""))) {
     return json(
       {
         status: "failed",
-        message: "sessionCookie must include a non-Cloudflare application session cookie; cf_clearance and __cf_bm alone cause upstream 403/1106",
+        message: "sessionCookie is required and must include a non-Cloudflare application session cookie such as ASP.NET_SessionId; bearer plus cf_clearance and __cf_bm alone causes upstream 403/1106",
       },
       400,
     );
@@ -893,6 +894,45 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
     },
     200,
   );
+}
+
+function applyCookieHeaderAuthAliases(body: Record<string, unknown>): void {
+  const cookieHeader = firstString(body.cookieHeader, body.cookie, body.cookies);
+  if (!cookieHeader) return;
+  if (body.sessionCookie === undefined) {
+    const sessionCookie = cookieHeaderWithoutCloudflare(cookieHeader);
+    if (sessionCookie) body.sessionCookie = sessionCookie;
+  }
+  if (body.cfClearance === undefined) {
+    const cfClearance = cookieHeaderCookie(cookieHeader, "cf_clearance");
+    if (cfClearance) body.cfClearance = cfClearance;
+  }
+  if (body.cfBm === undefined) {
+    const cfBm = cookieHeaderCookie(cookieHeader, "__cf_bm");
+    if (cfBm) body.cfBm = cfBm;
+  }
+}
+
+function firstString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function cookieHeaderWithoutCloudflare(value: string): string {
+  return splitCookieHeader(value)
+    .filter((cookie) => {
+      const name = cookieName(cookie);
+      return Boolean(name && !isCloudflareCookieName(name));
+    })
+    .join("; ");
+}
+
+function cookieHeaderCookie(value: string, wantedName: string): string {
+  return splitCookieHeader(value).find((cookie) => cookieName(cookie)?.toLowerCase() === wantedName.toLowerCase()) ?? "";
 }
 
 function authCacheTtlSeconds(value: unknown): number {
@@ -2493,10 +2533,12 @@ function diagnostics(env: Env): Response {
   ] as const;
   const presentRequiredSecrets = requiredSecrets.filter((name) => hasEnvValue(env[name]));
   const missingRequiredSecrets = requiredSecrets.filter((name) => !hasEnvValue(env[name]));
+  const upstreamAuthShape = upstreamAuthDiagnostics(env);
+  const upstreamReady = (upstreamAuthShape.ingestionReadiness as { status?: string } | undefined)?.status === "ready";
 
   return json(
     {
-      status: missingRequiredSecrets.length === 0 && authReady ? "ready" : "degraded",
+      status: missingRequiredSecrets.length === 0 && authReady && upstreamReady ? "ready" : "degraded",
       environment: env.ENVIRONMENT,
       workerName: env.WORKER_NAME,
       cloudflare: {
@@ -2518,7 +2560,7 @@ function diagnostics(env: Env): Response {
         acceptedSecrets: ["INGESTION_TRIGGER_TOKEN", "ARCHIVE_AUTH_TOKEN"],
         preferredSecret: "INGESTION_TRIGGER_TOKEN",
       },
-      upstreamAuthShape: upstreamAuthDiagnostics(env),
+      upstreamAuthShape,
       optionalSecrets: Object.fromEntries(optionalSecrets.map((name) => [name, hasEnvValue(env[name])])),
       scanPolicy: {
         allowedHosts: [...allowedScanHosts(env)],
@@ -2542,7 +2584,6 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
   const hasAuthorization = Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION));
   const hasCfClearance = hasCookieName("cf_clearance");
   const hasCfBm = hasCookieName("__cf_bm");
-  const bearerCloudflareReady = hasAuthorization && hasCfClearance && hasCfBm;
   return {
     hasAuthorization,
     hasCookie: cookieNames.length > 0,
@@ -2552,8 +2593,8 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     cookieNames,
     browserHeaderCount: observedBrowserHeaderCount(env.FANTASY402_BROWSER_HEADERS_JSON),
     ingestionReadiness: {
-      status: hasSessionCookie || bearerCloudflareReady ? "ready" : "blocked",
-      blocker: hasSessionCookie || bearerCloudflareReady ? null : "missing non-Cloudflare app session cookie or bearer plus Cloudflare cookies",
+      status: hasSessionCookie ? "ready" : "blocked",
+      blocker: hasSessionCookie ? null : "missing non-Cloudflare application session cookie such as ASP.NET_SessionId",
     },
   };
 }

@@ -2143,7 +2143,7 @@
       },
       "IngestionRun": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "started_at": { "type": "string" },
@@ -2169,7 +2169,7 @@
       },
       "RunEndpointSnapshot": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "endpoint_key": { "type": "string" },
@@ -2188,7 +2188,7 @@
       },
       "RunEndpointFailure": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "endpoint_key": { "type": "string" },
@@ -3339,6 +3339,12 @@
         "type": "object",
         "additionalProperties": false,
         "minProperties": 1,
+        "anyOf": [
+          { "required": [ "sessionCookie" ] },
+          { "required": [ "cookieHeader" ] },
+          { "required": [ "cookie" ] },
+          { "required": [ "cookies" ] }
+        ],
         "properties": {
           "authorization": {
             "type": "string",
@@ -3353,7 +3359,34 @@
             "type": "string",
             "maxLength": 8192,
             "writeOnly": true,
-            "description": "Browser-observed non-Cloudflare application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies; required for ingestion readiness because Cloudflare cookies alone can still yield upstream 403/1106.",
+            "description": "Browser-observed non-Cloudflare application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies. Required for refresh readiness because bearer plus Cloudflare cookies alone yields upstream 403/1106.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "cookieHeader": {
+            "type": "string",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "description": "Full browser Cookie header. The Worker extracts non-Cloudflare application cookies into sessionCookie and Cloudflare cookies into their dedicated fields without echoing values.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "cookie": {
+            "type": "string",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "description": "Alias for cookieHeader.",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential",
+            "x-security-review-required": true
+          },
+          "cookies": {
+            "type": "string",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "description": "Alias for cookieHeader.",
             "x-sensitive": true,
             "x-privacy-classification": "Credential",
             "x-security-review-required": true

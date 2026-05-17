@@ -87,10 +87,10 @@ test("runs list returns ingestion run rows", async () => {
   ]);
   const response = await worker.fetch(authorized("/runs?limit=5"), env(db));
   assert.equal(response.status, 200);
-  const body = await response.json();
+  const body = await response.json() as { limit: number; runs: Array<{ id: string }> };
   assert.equal(body.limit, 5);
   assert.equal(body.runs.length, 1);
-  assert.equal(body.runs[0].id, runId);
+  assert.equal(body.runs.at(0)?.id, runId);
 });
 
 test("run endpoints requires runId", async () => {
@@ -134,9 +134,8 @@ test("run endpoints returns snapshots and failures", async () => {
   );
   const response = await worker.fetch(authorized(`/runs/endpoints?runId=${runId}`), env(db));
   assert.equal(response.status, 200);
-  const body = await response.json();
+  const body = await response.json() as { runId: string; snapshots: unknown[]; failures: unknown[] };
   assert.equal(body.runId, runId);
   assert.equal(body.snapshots.length, 1);
   assert.equal(body.failures.length, 1);
 });
-

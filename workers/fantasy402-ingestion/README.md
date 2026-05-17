@@ -55,6 +55,8 @@ curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" "http://localhost:8787/
 curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" "http://localhost:8787/archive/object?key=fantasy402/getAgentPerformance/2026-05-17/example.json"
 ```
 
+The Worker also serves a lightweight operator viewer at `/archive/viewer`. The viewer does not embed or persist the token; paste the bearer token into the page to call the protected archive APIs.
+
 ## Deployment
 
 Create Cloudflare resources, replace the placeholder binding IDs in `wrangler.toml`, set secrets, apply migrations, then deploy:

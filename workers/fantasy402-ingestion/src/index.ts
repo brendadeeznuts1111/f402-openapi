@@ -159,6 +159,10 @@ const worker = {
       return json({ status: "ok", environment: env.ENVIRONMENT }, 200);
     }
 
+    if (url.pathname === "/archive/viewer" && request.method === "GET") {
+      return archiveViewer();
+    }
+
     if (url.pathname === "/trigger" && request.method === "POST") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -732,6 +736,141 @@ function clampInteger(value: number, min: number, max: number): number {
 
 function isAuthorized(request: Request, env: Env): boolean {
   return request.headers.get("Authorization") === `Bearer ${env.INGESTION_TRIGGER_TOKEN}`;
+}
+
+function archiveViewer(): Response {
+  return new Response(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fantasy402 Archive Viewer</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f8fafc; color: #111827; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    h1 { font-size: 24px; margin: 0; }
+    .controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 320px) 92px 104px; gap: 8px; margin-bottom: 16px; }
+    input, button, textarea { font: inherit; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 10px; background: #fff; color: #111827; }
+    button { cursor: pointer; background: #0f172a; color: white; border-color: #0f172a; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
+    th { background: #eef2f7; color: #334155; font-weight: 650; }
+    tr:hover td { background: #f8fafc; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); gap: 16px; align-items: start; }
+    .panel { border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; overflow: hidden; }
+    .panel h2 { font-size: 14px; margin: 0; padding: 10px 12px; background: #eef2f7; border-bottom: 1px solid #e2e8f0; }
+    pre { margin: 0; padding: 12px; min-height: 460px; max-height: 720px; overflow: auto; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
+    .status { min-height: 20px; font-size: 13px; color: #475569; }
+    .error { color: #b91c1c; }
+    @media (max-width: 900px) { .controls, .layout { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b1020; color: #e5e7eb; }
+      input, textarea, table, .panel { background: #111827; color: #e5e7eb; border-color: #334155; }
+      th, .panel h2 { background: #1f2937; color: #e5e7eb; border-color: #334155; }
+      tr:hover td { background: #172033; }
+      td, th { border-color: #334155; }
+      button { background: #e5e7eb; color: #111827; border-color: #e5e7eb; }
+      .status { color: #cbd5e1; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Fantasy402 Archive Viewer</h1>
+      <div class="status" id="status">Enter a bearer token to list archived R2 objects.</div>
+    </header>
+    <section class="controls">
+      <input id="prefix" value="fantasy402/" aria-label="Archive prefix">
+      <input id="token" type="password" autocomplete="off" placeholder="Bearer token" aria-label="Bearer token">
+      <input id="limit" type="number" min="1" max="1000" value="50" aria-label="Limit">
+      <button id="list">List</button>
+    </section>
+    <section class="layout">
+      <div class="panel">
+        <h2>Objects</h2>
+        <table>
+          <thead><tr><th>Key</th><th>Size</th><th>Uploaded</th><th>Class</th></tr></thead>
+          <tbody id="objects"></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Preview</h2>
+        <pre id="preview"></pre>
+      </div>
+    </section>
+  </main>
+  <script>
+    const statusEl = document.querySelector("#status");
+    const objectsEl = document.querySelector("#objects");
+    const previewEl = document.querySelector("#preview");
+
+    document.querySelector("#list").addEventListener("click", listObjects);
+
+    async function listObjects() {
+      const prefix = document.querySelector("#prefix").value || "fantasy402/";
+      const limit = document.querySelector("#limit").value || "50";
+      const token = document.querySelector("#token").value;
+      if (!token) return setStatus("Missing bearer token.", true);
+      setStatus("Loading archive objects...");
+      previewEl.textContent = "";
+      objectsEl.textContent = "";
+      const response = await fetch("/archive?prefix=" + encodeURIComponent(prefix) + "&limit=" + encodeURIComponent(limit), {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const body = await response.json();
+      if (!response.ok) return setStatus(body.message || "Archive list failed.", true);
+      for (const object of body.objects) {
+        const row = document.createElement("tr");
+        row.innerHTML = "<td><button data-key=" + JSON.stringify(object.key) + ">Open</button> <code></code></td><td></td><td></td><td></td>";
+        row.querySelector("code").textContent = object.key;
+        row.children[1].textContent = String(object.size);
+        row.children[2].textContent = object.uploaded;
+        row.children[3].textContent = object.storageClass;
+        row.querySelector("button").addEventListener("click", () => openObject(object.key));
+        objectsEl.append(row);
+      }
+      setStatus("Loaded " + body.objects.length + " object(s)." + (body.truncated ? " More results are available with cursor paging." : ""));
+    }
+
+    async function openObject(key) {
+      const token = document.querySelector("#token").value;
+      if (!token) return setStatus("Missing bearer token.", true);
+      setStatus("Loading " + key + "...");
+      const response = await fetch("/archive/object?key=" + encodeURIComponent(key), {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const text = await response.text();
+      if (!response.ok) {
+        setStatus("Archive object load failed.", true);
+        previewEl.textContent = text;
+        return;
+      }
+      setStatus("Loaded " + key + ".");
+      try {
+        previewEl.textContent = JSON.stringify(JSON.parse(text), null, 2);
+      } catch {
+        previewEl.textContent = text;
+      }
+    }
+
+    function setStatus(message, error = false) {
+      statusEl.textContent = message;
+      statusEl.className = error ? "status error" : "status";
+    }
+  </script>
+</body>
+</html>`, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
+    },
+  });
 }
 
 function isRetryableError(error: unknown): boolean {

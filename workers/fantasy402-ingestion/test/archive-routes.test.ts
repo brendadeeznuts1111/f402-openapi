@@ -107,6 +107,18 @@ test("archive list requires bearer auth", async () => {
   assert.deepEqual(await response.json(), { status: "failed", message: "Unauthorized" });
 });
 
+test("archive viewer serves operator UI without exposing data", async () => {
+  const response = await worker.fetch(new Request("https://worker.test/archive/viewer"), env(new MemoryR2Bucket()));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Content-Type"), "text/html; charset=utf-8");
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.match(response.headers.get("Content-Security-Policy") ?? "", /connect-src 'self'/);
+  const html = await response.text();
+  assert.match(html, /Fantasy402 Archive Viewer/);
+  assert.match(html, /Bearer token/);
+  assert.doesNotMatch(html, /test-token/);
+});
+
 test("archive list returns R2 object metadata", async () => {
   const bucket = new MemoryR2Bucket();
   bucket.seed("fantasy402/getAgentPerformance/2026-05-17/archive-a.json", "{\"ok\":true}", {
@@ -163,4 +175,14 @@ test("archive object rejects non-archive keys", async () => {
   const response = await worker.fetch(authorized("/archive/object?key=other/private.json"), env(new MemoryR2Bucket()));
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { status: "failed", message: "Invalid key prefix" });
+});
+
+test("archive viewer route does not bypass archive API auth", async () => {
+  const bucket = new MemoryR2Bucket();
+  bucket.seed("fantasy402/getAgentPerformance/2026-05-17/archive-a.json", "{\"ok\":true}");
+
+  await worker.fetch(new Request("https://worker.test/archive/viewer"), env(bucket));
+  const response = await worker.fetch(new Request("https://worker.test/archive?prefix=fantasy402/"), env(bucket));
+
+  assert.equal(response.status, 401);
 });

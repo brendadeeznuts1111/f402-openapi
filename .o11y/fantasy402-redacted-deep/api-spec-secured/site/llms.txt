@@ -1,0 +1,28 @@
+# Fantasy402 API (Secured Observed Contract) - Slim + Minimal Examples
+> Secured observed contract for Fantasy402 pay-per-head sportsbook operations.
+
+## Overview
+- Operations: 90
+- Schemas: 65
+- Sensitive schemas: 32
+- Deprecated operations: 2
+- Authentication: session cookie or bearer token plus browser-derived Cloudflare/application cookies where required.
+- Primary roles: ROLE_AGENT, ROLE_MASTER, ROLE_SUB_AGENT.
+
+## Key Workflows
+1. authenticateCustomer -> cached bearer/session auth for ingestion.
+2. getPlayers -> Pending -> getWagerDetailTransaction for player and wager workflows.
+3. getAgentPositionList -> getAgentPositionData for risk-management workflows.
+4. URL Scanner evidence -> scan verdicts, screenshots, HAR summaries, and alert metadata.
+
+## Artifacts
+- Stable OpenAPI JSON: ./openapi.json
+- Stable OpenAPI YAML: ./openapi.yaml
+- Versioned examples spec: ./openapi.secured.examples.json
+- HTML reference: ./index.html
+
+## Safety Notes
+- Credential fields are removed from response schemas and examples.
+- Account identifiers, login names, emails, names, and IP-like fields carry x-sensitive metadata.
+- Error responses document application/problem+json and rate-limit retry headers.
+- Deprecated endpoints carry Deprecation, Sunset, and Link header contracts.

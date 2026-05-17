@@ -11,6 +11,7 @@ This repository contains the hardened Fantasy402 OpenAPI contract, generated sta
 | `workers/fantasy402-ingestion/` | Cloudflare Worker for Fantasy402 ingestion, R2 archives, D1 analytics, scan verdicts, alerts, and operator routes. |
 | `.github/workflows/` | CI workflows for secured contract validation, Cloudflare Pages docs, and Worker validation/deployment. |
 | `docs/` | Operator docs for the API contract and Cloudflare Pages publication. |
+| `llms.txt` | Compact AI-agent discovery map for the repo, specs, docs, and safety constraints. |
 
 Do not publish or commit raw browser traces, live cookies, bearer tokens, local auth captures, or failure archives. The Worker subdirectory has its own `.gitignore` for local auth files.
 
@@ -21,9 +22,13 @@ Use these as the source of truth:
 - Developer reference: `.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.yaml`
 - Codegen reference: `.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.slim.yaml`
 - Static portal: `.o11y/fantasy402-redacted-deep/api-spec-secured/site/index.html`
+- Static machine-readable aliases: `/openapi.json` and `/openapi.yaml` via the generated Cloudflare Pages `_redirects` file
+- AI-agent discovery: `.o11y/fantasy402-redacted-deep/api-spec-secured/site/llms.txt` and root `llms.txt`
 - Portal manifest: `.o11y/fantasy402-redacted-deep/api-spec-secured/developer-portal-manifest.json`
 
 The examples contract is intentionally safe for client teams. It keeps request/response structure, security annotations, role metadata, rate limits, and redacted examples without carrying raw trace data.
+
+Error responses document `application/problem+json` alongside observed legacy JSON shapes where available. Rate-limited responses include `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`.
 
 ## Prerequisites
 

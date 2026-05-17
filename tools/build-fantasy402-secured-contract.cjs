@@ -27,6 +27,7 @@ if (require('fs').existsSync(sourceObservedSpec)) {
   }, null, 2));
 }
 run(['tools/repair-fantasy402-sensitive-annotations.mjs']);
+run(['tools/apply-fantasy402-contract-doc-improvements.mjs']);
 if (require('fs').existsSync(fullSpec)) {
   run(['tools/validate-fantasy402-secured-openapi.mjs', fullSpec]);
 }

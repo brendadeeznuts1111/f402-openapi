@@ -63,6 +63,8 @@ This intentionally fails while `wrangler.toml` still contains placeholder KV or 
 
 The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract.
 
+The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints.json`. Run `npm run validate:upstream-contract` after changing ingestion endpoints; it verifies each path against the secured examples spec and checks auth, role, and rate-limit annotations.
+
 ## Worker API Contract
 
 The Worker's own operational API is documented in `openapi.worker.json`.

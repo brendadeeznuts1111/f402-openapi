@@ -1,0 +1,67 @@
+{
+  "spec": "../../.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json",
+  "endpoints": [
+    {
+      "key": "getAgentPerformance",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentPerformance",
+      "operationId": "post_cloud_api_Manager_getAgentPerformance"
+    },
+    {
+      "key": "getAgentBilling",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentBilling",
+      "operationId": "post_cloud_api_Manager_getAgentBilling"
+    },
+    {
+      "key": "getEnterTransactions",
+      "method": "post",
+      "path": "/cloud/api/Manager/getEnterTransactions",
+      "operationId": "post_cloud_api_Manager_getEnterTransactions"
+    },
+    {
+      "key": "getPending",
+      "method": "post",
+      "path": "/cloud/api/Manager/getPending",
+      "operationId": "post_cloud_api_Manager_getPending"
+    },
+    {
+      "key": "Pending",
+      "method": "post",
+      "path": "/cloud/api/Report/Pending",
+      "operationId": "post_cloud_api_Report_Pending",
+      "requiresCustomerId": true
+    },
+    {
+      "key": "getPlayers",
+      "method": "post",
+      "path": "/cloud/api/Manager/getPlayers",
+      "operationId": "post_cloud_api_Manager_getPlayers"
+    },
+    {
+      "key": "getAddedInfo",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAddedInfo",
+      "operationId": "post_cloud_api_Manager_getAddedInfo"
+    },
+    {
+      "key": "getCommunicationMessages",
+      "method": "post",
+      "path": "/cloud/api/Customer/getCommunicationMessages",
+      "operationId": "post_cloud_api_Customer_getCommunicationMessages",
+      "requiresCustomerId": true
+    },
+    {
+      "key": "getLineTypes",
+      "method": "post",
+      "path": "/cloud/api/Manager/getLineTypes",
+      "operationId": "post_cloud_api_Manager_getLineTypes"
+    },
+    {
+      "key": "getHeriarchy",
+      "method": "post",
+      "path": "/cloud/api/Manager/getHeriarchy",
+      "operationId": "post_cloud_api_Manager_getHeriarchy"
+    }
+  ]
+}

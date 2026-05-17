@@ -61,6 +61,13 @@
       "contentType": "application/x-www-form-urlencoded"
     },
     {
+      "key": "getListAgenstByAgent",
+      "method": "post",
+      "path": "/cloud/api/Manager/getListAgenstByAgent",
+      "operationId": "post_cloud_api_Manager_getListAgenstByAgent",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
       "key": "getLineTypes",
       "method": "post",
       "path": "/cloud/api/Manager/getLineTypes",

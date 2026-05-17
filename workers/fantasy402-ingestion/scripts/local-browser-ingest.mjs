@@ -16,6 +16,7 @@ const endpoints = {
   getEnterTransactions: { path: "/cloud/api/Manager/getEnterTransactions", operation: "getEnterTransactions", contentType: "form" },
   getPlayers: { path: "/cloud/api/Manager/getPlayers", operation: "getPlayers", contentType: "form" },
   getAddedInfo: { path: "/cloud/api/Manager/getAddedInfo", operation: "getAddedInfo", contentType: "form" },
+  getListAgenstByAgent: { path: "/cloud/api/Manager/getListAgenstByAgent", operation: "getListAgenstByAgent", contentType: "form", agentType: "M", omitDateRange: true },
   getLineTypes: { path: "/cloud/api/Manager/getLineTypes", operation: "getLineTypes", contentType: "form" },
   getHeriarchy: { path: "/cloud/api/Manager/getHeriarchy", operation: "getHeriarchy", contentType: "form" },
   getPending: { path: "/cloud/api/Manager/getPending", operation: "getPending", contentType: "json", requiresCustomerId: true },
@@ -202,16 +203,20 @@ function requestBody(endpoint, now) {
     };
   }
   const date = now.toISOString().slice(0, 10);
-  return {
+  const body = {
     RRO: 1,
     agentID: agentId,
     agentOwner: agentId,
-    startDate: date,
-    endDate: date,
-    start: date,
-    end: date,
     operation: endpoint.operation,
+    ...(endpoint.agentType ? { agentType: endpoint.agentType } : {}),
   };
+  if (!endpoint.omitDateRange) {
+    body.startDate = date;
+    body.endDate = date;
+    body.start = date;
+    body.end = date;
+  }
+  return body;
 }
 
 function encodeBody(endpoint, body) {
@@ -399,11 +404,13 @@ function validateBrowserAuthPayload(payload, path) {
     if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
   }
   if (!payload.sessionCookie) {
-    findings.push("sessionCookie is missing");
+    if (!hasBearerCloudflareAuth(payload)) findings.push("sessionCookie is missing");
   } else if (payload.sessionCookie && isPlaceholderToken(payload.sessionCookie)) {
     findings.push("sessionCookie still looks like a placeholder");
   } else if (!hasNonCloudflareCookie(payload.sessionCookie)) {
-    findings.push("sessionCookie contains only Cloudflare cookies; include the app session cookie such as ASP.NET_SessionId");
+    if (!hasBearerCloudflareAuth(payload)) {
+      findings.push("sessionCookie contains only Cloudflare cookies; include bearer auth plus Cloudflare cookies, or the app session cookie such as ASP.NET_SessionId when present");
+    }
   }
   if (!payload.browserHeaders && !payload.browserHeadersJson && !payload.userAgent) {
     findings.push("browserHeaders/browserHeadersJson or userAgent is missing");
@@ -411,6 +418,14 @@ function validateBrowserAuthPayload(payload, path) {
   if (findings.length > 0) {
     fail(`${path} is not ready for local ingestion: ${findings.join("; ")}. Paste fresh values from an authenticated browser Network request.`);
   }
+}
+
+function hasBearerCloudflareAuth(payload) {
+  return Boolean(
+    normalizeAuthorization(payload.authorization) &&
+      normalizeCookieValue("cf_clearance", payload.cfClearance) &&
+      normalizeCookieValue("__cf_bm", payload.cfBm),
+  );
 }
 
 function parseJson(text) {

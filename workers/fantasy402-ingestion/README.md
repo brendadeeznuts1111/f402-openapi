@@ -289,7 +289,7 @@ curl -X POST "https://fantasy402-ingestion.utahj4754.workers.dev/refresh-auth" \
 
 The cached overlay takes precedence over configured Fantasy402 auth secrets and expires automatically. If the overlay includes `sessionCookie`, it replaces the configured session-cookie value for the overlay lifetime. The endpoint rejects `sessionCookie` values that contain only `cf_clearance` and `__cf_bm`, because accepting that payload would poison scheduled runs into the known upstream 403/1106 state. The endpoint returns only accepted field names plus expiry metadata.
 
-`sessionCookie` must include at least one non-Cloudflare application cookie from the successful browser request, such as `ASP.NET_SessionId` or the current equivalent. `cf_clearance` and `__cf_bm` prove browser clearance but are not enough for ingestion; if diagnostics reports `upstreamAuthShape.ingestionReadiness.status = "blocked"` with `missing non-Cloudflare app session cookie`, scheduled ingestion will continue to fail upstream with 403/1106 until a fresh app session cookie is pushed.
+When the browser request includes a non-Cloudflare application cookie, put it in `sessionCookie` so the upstream `Cookie` header has the full app-session shape. Current Fantasy402 captures can also succeed with bearer authorization plus `cf_clearance` and `__cf_bm` only; diagnostics treats that shape as ready and reports the cookie names without values. If diagnostics reports `upstreamAuthShape.ingestionReadiness.status = "blocked"`, refresh the browser request so it includes either bearer plus both Cloudflare cookies or a non-Cloudflare app session cookie.
 
 For a one-command operator run from the browser machine, create a local untracked auth file from the template:
 

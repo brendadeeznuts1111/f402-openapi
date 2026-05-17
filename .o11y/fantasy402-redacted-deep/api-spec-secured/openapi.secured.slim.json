@@ -10249,26 +10249,15 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "GENERAL": {
+                    "LIST": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/GENERAL"
+                        "$ref": "#/components/schemas/LIST_14"
                       }
-                    },
-                    "PLAYERS": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/LIST_3"
-                      }
-                    },
-                    "EXTRA": {
-                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "EXTRA",
-                    "GENERAL",
-                    "PLAYERS"
+                    "LIST"
                   ]
                 }
               }
@@ -10369,7 +10358,11 @@
               }
             }
           }
-        }
+        },
+        "description": "Observed Manager endpoint for listing agents by agent. The upstream operation name is spelled getListAgenstByAgent in browser traffic.",
+        "tags": [
+          "Manager"
+        ]
       }
     },
     "/cloud/api/Manager/getWeeklyFigureByAgent": {

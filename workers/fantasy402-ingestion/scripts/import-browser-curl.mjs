@@ -24,7 +24,7 @@ console.log(JSON.stringify({
 
 function parseBrowserCurl(text) {
   const headers = {};
-  const headerMatches = text.matchAll(/(?:^|\s)-H\s+(["'])(.*?)\1/gms);
+  const headerMatches = text.matchAll(/(?:^|\s)(?:-H|--header)\s+(["'])(.*?)\1/gms);
   for (const match of headerMatches) {
     const raw = unescapeShell(match[2]).trim();
     const index = raw.indexOf(":");
@@ -56,7 +56,7 @@ function parseBrowserCurl(text) {
     if (headers[name]) browserHeaders[name] = headers[name];
   }
 
-const result = {
+  const result = {
     sourcePath: parseCurlUrl(text)?.pathname || "",
     sourceOperation: form.operation || "",
     sourceContentType: headers["content-type"] || "",
@@ -89,12 +89,12 @@ function parseCurlUrl(text) {
 }
 
 function parseCookieFlag(text) {
-  const match = text.match(/(?:^|\s)-b\s+(["'])(.*?)\1/ms) || text.match(/(?:^|\s)--cookie\s+(["'])(.*?)\1/ms);
+  const match = text.match(/(?:^|\s)(?:-b|--cookie)\s+(["'])(.*?)\1/ms);
   return match ? unescapeShell(match[2]).trim() : "";
 }
 
 function parseDataRaw(text) {
-  const match = text.match(/(?:^|\s)--data-raw\s+(["'])(.*?)\1/ms) || text.match(/(?:^|\s)--data\s+(["'])(.*?)\1/ms);
+  const match = text.match(/(?:^|\s)(?:--data-raw|--data)\s+(["'])(.*?)\1/ms);
   return match ? unescapeShell(match[2]).trim() : "";
 }
 

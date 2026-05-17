@@ -899,7 +899,7 @@ test("ingestion keeps configured session cookie when appending Cloudflare cookie
   }
 });
 
-test("ingestion uses authenticateCustomer fallback when bearer plus Cloudflare cookies lack app session cookie", async () => {
+test("ingestion uses browser bearer plus Cloudflare cookies when app session cookie is absent", async () => {
   const originalFetch = globalThis.fetch;
   const seen: Array<{ url: string; authorization: string | null; cookie: string | null }> = [];
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -910,10 +910,7 @@ test("ingestion uses authenticateCustomer fallback when bearer plus Cloudflare c
       cookie: headers.get("Cookie"),
     });
     if (String(input).endsWith("/cloud/api/System/authenticateCustomer")) {
-      return Response.json(
-        { tokenauth: "login-token" },
-        { headers: { "Set-Cookie": "app_session=login-session; Path=/; HttpOnly" } },
-      );
+      return Response.json({ status: "unexpected" }, { status: 500 });
     }
     if (String(input).endsWith("/cloud/api/Manager/getAgentPerformance")) {
       return Response.json({ performance: [] });
@@ -936,10 +933,10 @@ test("ingestion uses authenticateCustomer fallback when bearer plus Cloudflare c
     );
     assert.equal(response.status, 202);
     assert.equal(seen.some((request) => request.url.endsWith("/cloud/api/Auth/login")), false);
-    assert.equal(seen.some((request) => request.url.endsWith("/cloud/api/System/authenticateCustomer")), true);
+    assert.equal(seen.some((request) => request.url.endsWith("/cloud/api/System/authenticateCustomer")), false);
     const apiRequest = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAgentPerformance"));
-    assert.equal(apiRequest?.authorization, "Bearer login-token");
-    assert.equal(apiRequest?.cookie, "app_session=login-session; cf_clearance=clearance-token; __cf_bm=bm-token");
+    assert.equal(apiRequest?.authorization, "Bearer browser-token");
+    assert.equal(apiRequest?.cookie, "cf_clearance=clearance-token; __cf_bm=bm-token");
   } finally {
     globalThis.fetch = originalFetch;
   }

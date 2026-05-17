@@ -6642,20 +6642,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  GENERAL:
+                  LIST:
                     type: array
                     items:
-                      '$ref': '#/components/schemas/GENERAL'
-                  PLAYERS:
-                    type: array
-                    items:
-                      '$ref': '#/components/schemas/LIST_3'
-                  EXTRA:
-                    type: boolean
+                      '$ref': '#/components/schemas/LIST_14'
                 required:
-                  - EXTRA
-                  - GENERAL
-                  - PLAYERS
+                  - LIST
         '429':
           description: Too Many Requests
           headers:
@@ -6718,6 +6710,9 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               '$ref': '#/components/schemas/CommonAgentRequest'
+      description: Observed Manager endpoint for listing agents by agent. The upstream operation name is spelled getListAgenstByAgent in browser traffic.
+      tags:
+        - Manager
   /cloud/api/Manager/getWeeklyFigureByAgent:
     post:
       summary: POST /cloud/api/Manager/getWeeklyFigureByAgent

@@ -147,7 +147,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
   },
 };
 
-export default {
+const worker = {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runIngestion(env));
   },
@@ -185,6 +185,8 @@ export default {
     return json({ status: "failed", message: "Not Found" }, 404);
   },
 };
+
+export default worker;
 
 async function runIngestion(env: Env): Promise<RunResult> {
   const runId = crypto.randomUUID();

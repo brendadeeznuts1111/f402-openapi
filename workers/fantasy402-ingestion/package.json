@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
     "audit": "npm audit --audit-level=moderate",
     "validate:deploy-config": "node scripts/validate-deploy-config.mjs",
     "validate:openapi": "node scripts/validate-worker-openapi.mjs",
     "validate:upstream-contract": "node scripts/validate-upstream-contract.mjs",
-    "verify": "npm run typecheck && npm run audit && npm run validate:openapi && npm run validate:upstream-contract",
+    "verify": "npm run typecheck && npm run test && npm run audit && npm run validate:openapi && npm run validate:upstream-contract",
     "deploy": "npx wrangler@latest deploy",
     "dev": "npx wrangler@latest dev",
     "migrate:local": "npx wrangler@latest d1 migrations apply fantasy402-analytics --local",
@@ -17,6 +18,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260118.0",
+    "@types/node": "^25.1.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }

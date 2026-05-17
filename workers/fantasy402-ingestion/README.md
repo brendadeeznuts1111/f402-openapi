@@ -8,6 +8,8 @@ Cloudflare Worker for scheduled ingestion from the secured Fantasy402 read-only 
 - `ANALYTICS_DB`: D1 database for run metadata, raw snapshot pointers, and normalized metrics.
 - `RAW_ARCHIVE`: R2 bucket for raw JSON response archives.
 
+Endpoint calls retry up to three times for transient upstream failures. Final endpoint failures are written to the `endpoint_failures` D1 table for operator review.
+
 ## Required Secrets
 
 Set these with `wrangler secret put`:

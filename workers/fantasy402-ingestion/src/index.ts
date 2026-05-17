@@ -40,6 +40,7 @@ interface EndpointConfig {
 interface ApiResult {
   endpoint: EndpointConfig;
   status: number;
+  attempts: number;
   data: unknown;
   r2Key: string;
   responseHash: string;
@@ -56,6 +57,25 @@ interface RunResult {
 const SESSION_KEY = "fantasy402:session";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 4;
 const REQUEST_TIMEOUT_MS = 20_000;
+const MAX_ENDPOINT_ATTEMPTS = 3;
+
+class UpstreamHttpError extends Error {
+  readonly retryable: boolean;
+
+  constructor(endpoint: EndpointConfig, status: number) {
+    super(`Fantasy402 API error HTTP ${status} on ${endpoint.key}`);
+    this.retryable = status === 429 || status >= 500;
+  }
+}
+
+class EndpointAttemptError extends Error {
+  readonly attempts: number;
+
+  constructor(error: unknown, attempts: number) {
+    super(errorMessage(error));
+    this.attempts = attempts;
+  }
+}
 
 const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
   getAgentPerformance: {
@@ -178,6 +198,7 @@ async function runIngestion(env: Env): Promise<RunResult> {
         endpointsSucceeded += 1;
       } catch (error) {
         endpointsFailed += 1;
+        await storeEndpointFailure(env, runId, endpoint, error);
         console.error("endpoint ingestion failed", safeError(error, { endpoint: endpoint.key, runId }));
       }
     }
@@ -240,8 +261,8 @@ async function fetchAndArchiveEndpoint(
   sessionCookie: string,
   now: Date,
 ): Promise<ApiResult> {
-  const response = await postFantasy402(env, endpoint, sessionCookie, now);
-  const data = await response.json<unknown>();
+  const attempted = await withRetries(() => postFantasy402(env, endpoint, sessionCookie, now), MAX_ENDPOINT_ATTEMPTS);
+  const data = await attempted.response.json<unknown>();
   const serialized = JSON.stringify(redactResponse(data));
   const responseHash = await sha256Hex(serialized);
   const snapshotId = crypto.randomUUID();
@@ -260,12 +281,18 @@ async function fetchAndArchiveEndpoint(
 
   return {
     endpoint,
-    status: response.status,
+    status: attempted.response.status,
+    attempts: attempted.attempts,
     data,
     r2Key,
     responseHash,
     snapshotId,
   };
+}
+
+interface AttemptedResponse {
+  response: Response;
+  attempts: number;
 }
 
 async function postFantasy402(env: Env, endpoint: EndpointConfig, sessionCookie: string, now: Date): Promise<Response> {
@@ -285,10 +312,29 @@ async function postFantasy402(env: Env, endpoint: EndpointConfig, sessionCookie:
   });
 
   if (!response.ok) {
-    throw new Error(`Fantasy402 API error HTTP ${response.status} on ${endpoint.key}`);
+    throw new UpstreamHttpError(endpoint, response.status);
   }
 
   return response;
+}
+
+async function withRetries(request: () => Promise<Response>, maxAttempts: number): Promise<AttemptedResponse> {
+  let lastError: unknown;
+  let attempts = 0;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    attempts = attempt;
+    try {
+      const response = await request();
+      return { response, attempts: attempt };
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxAttempts || !isRetryableError(error)) break;
+      await sleep(250 * attempt);
+    }
+  }
+
+  throw new EndpointAttemptError(lastError, attempts);
 }
 
 async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promise<void> {
@@ -307,6 +353,24 @@ async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promis
       result.r2Key,
       result.responseHash,
       countItems(result.data),
+    )
+    .run();
+}
+
+async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointConfig, error: unknown): Promise<void> {
+  await env.ANALYTICS_DB.prepare(
+    `INSERT INTO endpoint_failures
+       (id, run_id, endpoint_key, path, failed_at, attempts, error_message)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      crypto.randomUUID(),
+      runId,
+      endpoint.key,
+      endpoint.path,
+      new Date().toISOString(),
+      error instanceof EndpointAttemptError ? error.attempts : 1,
+      errorMessage(error).slice(0, 1000),
     )
     .run();
 }
@@ -510,6 +574,15 @@ function numberField(record: Record<string, unknown>, keys: string[], fallback: 
 
 function baseUrl(env: Env): string {
   return env.FANTASY402_BASE_URL.replace(/\/+$/, "");
+}
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof UpstreamHttpError) return error.retryable;
+  return true;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function json(body: unknown, status: number): Response {

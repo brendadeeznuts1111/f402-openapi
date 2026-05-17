@@ -252,6 +252,8 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `POST /refresh-auth` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>` and writes short-lived browser-derived upstream auth to `AUTH_CACHE` without echoing secret values.
 - `POST /ingest/local` requires the same bearer token and stores locally fetched Fantasy402 responses into R2/D1 without upstream Worker fetches.
 - `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
+- `GET /runs?limit=<n>` lists recent ingestion runs (D1) including success/failure totals.
+- `GET /runs/endpoints?runId=<uuid>` lists per-endpoint snapshots and failures for a run, including `trace_id` and `duration_ms` when available.
 - `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.
 - `GET /scans/screenshot?scanId=<uuid>` streams the archived scan screenshot from R2 with no-store cache headers.
 - `GET /scans/har?scanId=<uuid>` streams the archived HAR network evidence from R2 with no-store cache headers.

@@ -598,6 +598,106 @@
         }
       }
     },
+    "/runs": {
+      "get": {
+        "operationId": "listIngestionRuns",
+        "summary": "List recent ingestion runs",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent ingestion runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/endpoints": {
+      "get": {
+        "operationId": "listIngestionRunEndpoints",
+        "summary": "List per-endpoint snapshots and failures for a run",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-endpoint results for the run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEndpointsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing runId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scanner/diagnostics": {
       "get": {
         "operationId": "getScannerDiagnostics",
@@ -2038,6 +2138,85 @@
           "endpointsFailed": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "IngestionRun": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "started_at": { "type": "string" },
+          "finished_at": { "type": [ "string", "null" ] },
+          "status": { "type": "string" },
+          "endpoints_requested": { "type": "string" },
+          "endpoints_succeeded": { "type": "integer" },
+          "endpoints_failed": { "type": "integer" },
+          "error_message": { "type": [ "string", "null" ] }
+        }
+      },
+      "RunsListResponse": {
+        "type": "object",
+        "required": [ "limit", "runs" ],
+        "additionalProperties": false,
+        "properties": {
+          "limit": { "type": "integer", "minimum": 1 },
+          "runs": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/IngestionRun" }
+          }
+        }
+      },
+      "RunEndpointSnapshot": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "endpoint_key": { "type": "string" },
+          "path": { "type": "string" },
+          "captured_at": { "type": "string" },
+          "http_status": { "type": "integer" },
+          "item_count": { "type": [ "integer", "null" ] },
+          "attempts": { "type": "integer" },
+          "r2_key": { "type": "string" },
+          "r2_etag": { "type": [ "string", "null" ] },
+          "r2_size": { "type": [ "integer", "null" ] },
+          "r2_storage_class": { "type": [ "string", "null" ] },
+          "trace_id": { "type": [ "string", "null" ] },
+          "duration_ms": { "type": [ "integer", "null" ] }
+        }
+      },
+      "RunEndpointFailure": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "endpoint_key": { "type": "string" },
+          "path": { "type": "string" },
+          "failed_at": { "type": "string" },
+          "attempts": { "type": "integer" },
+          "error_message": { "type": "string" },
+          "r2_key": { "type": [ "string", "null" ] },
+          "r2_etag": { "type": [ "string", "null" ] },
+          "r2_size": { "type": [ "integer", "null" ] },
+          "r2_storage_class": { "type": [ "string", "null" ] },
+          "trace_id": { "type": [ "string", "null" ] },
+          "duration_ms": { "type": [ "integer", "null" ] }
+        }
+      },
+      "RunEndpointsResponse": {
+        "type": "object",
+        "required": [ "runId", "snapshots", "failures" ],
+        "additionalProperties": false,
+        "properties": {
+          "runId": { "type": "string", "format": "uuid" },
+          "snapshots": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RunEndpointSnapshot" }
+          },
+          "failures": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RunEndpointFailure" }
           }
         }
       },

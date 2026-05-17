@@ -1,0 +1,56 @@
+name: Fantasy402 Ingestion Worker
+
+on:
+  pull_request:
+    paths:
+      - "workers/fantasy402-ingestion/**"
+      - ".github/workflows/fantasy402-ingestion-worker.yml"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy the ingestion Worker"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fantasy402-ingestion-worker
+  cancel-in-progress: true
+
+jobs:
+  validate-and-optionally-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/fantasy402-ingestion
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/fantasy402-ingestion/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck Worker
+        run: npm run typecheck
+
+      - name: Deploy Worker
+        if: ${{ inputs.deploy == 'true' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/fantasy402-ingestion
+          command: deploy

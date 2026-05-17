@@ -1,0 +1,17 @@
+{
+  "name": "fantasy402-ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "deploy": "npx wrangler@latest deploy",
+    "dev": "npx wrangler@latest dev",
+    "migrate:local": "npx wrangler@latest d1 migrations apply fantasy402-analytics --local",
+    "migrate:remote": "npx wrangler@latest d1 migrations apply fantasy402-analytics --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260118.0",
+    "typescript": "^5.9.3"
+  }
+}

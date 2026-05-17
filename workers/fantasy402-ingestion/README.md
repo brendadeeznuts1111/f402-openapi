@@ -1,0 +1,56 @@
+# Fantasy402 Ingestion Worker
+
+Cloudflare Worker for scheduled ingestion from the secured Fantasy402 read-only API surface into D1, with raw responses archived to R2.
+
+## Bindings
+
+- `SESSION_KV`: cached authenticated session cookie.
+- `ANALYTICS_DB`: D1 database for run metadata, raw snapshot pointers, and normalized metrics.
+- `RAW_ARCHIVE`: R2 bucket for raw JSON response archives.
+
+## Required Secrets
+
+Set these with `wrangler secret put`:
+
+- `FANTASY402_USERNAME`
+- `FANTASY402_PASSWORD`
+- `FANTASY402_AGENT_ID`
+- `INGESTION_TRIGGER_TOKEN`
+
+Optional:
+
+- `FANTASY402_CUSTOMER_ID`
+- `ALERT_WEBHOOK_URL`
+
+## Local Setup
+
+```bash
+npm install
+npm run typecheck
+npm run migrate:local
+npm run dev
+```
+
+Manual ingestion is protected:
+
+```bash
+curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" http://localhost:8787/trigger
+```
+
+## Deployment
+
+Create Cloudflare resources, replace the placeholder binding IDs in `wrangler.toml`, set secrets, apply migrations, then deploy:
+
+```bash
+wrangler kv:namespace create SESSION_KV
+wrangler d1 create fantasy402-analytics
+wrangler r2 bucket create fantasy402-raw
+wrangler secret put FANTASY402_USERNAME
+wrangler secret put FANTASY402_PASSWORD
+wrangler secret put FANTASY402_AGENT_ID
+wrangler secret put INGESTION_TRIGGER_TOKEN
+npm run migrate:remote
+npm run deploy
+```
+
+The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract.

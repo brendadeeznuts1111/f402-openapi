@@ -17,6 +17,7 @@
 *.tgz
 *.zip
 .DS_Store
+node_modules/
 
 # Local discovery/probing utilities and copied skill internals are not part of
 # the secured contract release.

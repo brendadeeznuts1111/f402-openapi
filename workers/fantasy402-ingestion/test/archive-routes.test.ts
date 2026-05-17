@@ -87,11 +87,24 @@ class MemoryR2Bucket {
   }
 }
 
-function env(bucket: MemoryR2Bucket) {
+class MemoryD1Database {
+  constructor(private readonly scanRows: Record<string, unknown>[] = []) {}
+
+  prepare() {
+    return {
+      bind: () => ({
+        all: async () => ({ results: this.scanRows }),
+      }),
+    };
+  }
+}
+
+function env(bucket: MemoryR2Bucket, db = new MemoryD1Database()) {
   return {
     ENVIRONMENT: "test",
     INGESTION_TRIGGER_TOKEN: "test-token",
     RAW_ARCHIVE: bucket,
+    ANALYTICS_DB: db,
   } as any;
 }
 
@@ -116,6 +129,7 @@ test("archive viewer serves operator UI without exposing data", async () => {
   const html = await response.text();
   assert.match(html, /Fantasy402 Archive Viewer/);
   assert.match(html, /Bearer token/);
+  assert.match(html, /Load Scans/);
   assert.doesNotMatch(html, /test-token/);
 });
 
@@ -185,4 +199,53 @@ test("archive viewer route does not bypass archive API auth", async () => {
   const response = await worker.fetch(new Request("https://worker.test/archive?prefix=fantasy402/"), env(bucket));
 
   assert.equal(response.status, 401);
+});
+
+test("scan verdict list requires bearer auth", async () => {
+  const response = await worker.fetch(new Request("https://worker.test/scans"), env(new MemoryR2Bucket()));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { status: "failed", message: "Unauthorized" });
+});
+
+test("scan verdict list returns D1 rows", async () => {
+  const rows = [
+    {
+      scan_id: "scan-123",
+      timestamp: "2026-05-17T00:00:00.000Z",
+      url: "https://fantasy402.com",
+      malicious: 0,
+      tls_valid_days: 42,
+      agent_readiness_level: 1,
+      scan_r2_key: "fantasy402/scans/2026-05-17/scan-123.json",
+      screenshot_r2_key: "fantasy402/screenshots/scan-123_desktop.png",
+      har_r2_key: "fantasy402/hars/scan-123.har",
+    },
+  ];
+  const response = await worker.fetch(authorized("/scans?limit=5"), env(new MemoryR2Bucket(), new MemoryD1Database(rows)));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { results: rows });
+});
+
+test("manual scan trigger requires bearer auth", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/scans/trigger", { method: "POST" }),
+    env(new MemoryR2Bucket()),
+  );
+  assert.equal(response.status, 401);
+});
+
+test("manual scan trigger rejects invalid URLs before external calls", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/scans/trigger", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: "not-a-url" }),
+    }),
+    env(new MemoryR2Bucket()),
+  );
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { status: "failed", message: "Invalid URL" });
 });

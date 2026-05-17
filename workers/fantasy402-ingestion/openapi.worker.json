@@ -280,6 +280,151 @@
           }
         }
       }
+    },
+    "/scans": {
+      "get": {
+        "operationId": "listScanVerdicts",
+        "summary": "List recent Cloudflare URL Scanner verdicts",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent scan verdict rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanListResponse"
+                },
+                "examples": {
+                  "recent": {
+                    "value": {
+                      "results": [
+                        {
+                          "scan_id": "00000000-0000-4000-8000-000000000000",
+                          "timestamp": "2026-05-17T00:00:00.000Z",
+                          "url": "https://fantasy402.com",
+                          "malicious": 0,
+                          "tls_valid_days": 42,
+                          "agent_readiness_level": 1,
+                          "scan_r2_key": "fantasy402/scans/2026-05-17/00000000-0000-4000-8000-000000000000.json",
+                          "screenshot_r2_key": "fantasy402/screenshots/00000000-0000-4000-8000-000000000000_desktop.png",
+                          "har_r2_key": "fantasy402/hars/00000000-0000-4000-8000-000000000000.har"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/trigger": {
+      "post": {
+        "operationId": "triggerUrlScan",
+        "summary": "Trigger a Cloudflare URL Scanner run",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanTriggerRequest"
+              },
+              "examples": {
+                "defaultTarget": {
+                  "value": {
+                    "url": "https://fantasy402.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Scan completed and verdict was stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanTriggerResponse"
+                },
+                "examples": {
+                  "accepted": {
+                    "value": {
+                      "scanId": "00000000-0000-4000-8000-000000000000",
+                      "url": "https://fantasy402.com",
+                      "malicious": false,
+                      "tlsValidDays": 42
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid scan target URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Scan failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -418,6 +563,125 @@
           "cursor": {
             "type": [
               "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ScanVerdict": {
+        "type": "object",
+        "required": [
+          "scan_id",
+          "timestamp",
+          "url",
+          "malicious",
+          "tls_valid_days",
+          "agent_readiness_level",
+          "scan_r2_key",
+          "screenshot_r2_key",
+          "har_r2_key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "scan_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "malicious": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "tls_valid_days": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "agent_readiness_level": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scan_r2_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "screenshot_r2_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "har_r2_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ScanListResponse": {
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanVerdict"
+            }
+          }
+        }
+      },
+      "ScanTriggerRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "default": "https://fantasy402.com"
+          }
+        }
+      },
+      "ScanTriggerResponse": {
+        "type": "object",
+        "required": [
+          "scanId",
+          "url",
+          "malicious",
+          "tlsValidDays"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "scanId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "malicious": {
+            "type": "boolean"
+          },
+          "tlsValidDays": {
+            "type": [
+              "integer",
               "null"
             ]
           }

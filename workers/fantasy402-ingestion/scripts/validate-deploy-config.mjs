@@ -15,7 +15,11 @@ if (!/account_id\s*=\s*"7a470541a704caaf91e71efccc78fd36"/.test(config)) {
 if (!/binding\s*=\s*"SESSION_KV"/.test(config)) findings.push("missing SESSION_KV binding");
 if (!/binding\s*=\s*"ANALYTICS_DB"/.test(config)) findings.push("missing ANALYTICS_DB binding");
 if (!/binding\s*=\s*"RAW_ARCHIVE"/.test(config)) findings.push("missing RAW_ARCHIVE binding");
-if (!/crons\s*=\s*\["\*\/15 \* \* \* \*"\]/.test(config)) findings.push("missing 15-minute cron trigger");
+if (!/crons\s*=\s*\[[^\]]*"\*\/15 \* \* \* \*"/.test(config)) findings.push("missing 15-minute cron trigger");
+if (!/crons\s*=\s*\[[^\]]*"0 \*\/6 \* \* \*"/.test(config)) findings.push("missing six-hour URL Scanner cron trigger");
+if (!/CLOUDFLARE_ACCOUNT_ID\s*=\s*"7a470541a704caaf91e71efccc78fd36"/.test(config)) {
+  findings.push("missing CLOUDFLARE_ACCOUNT_ID Worker var");
+}
 
 if (findings.length > 0) {
   console.error(JSON.stringify({ status: "failed", findings }, null, 2));

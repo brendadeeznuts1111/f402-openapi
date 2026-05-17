@@ -9,6 +9,8 @@ if (!spec.paths?.["/health"]?.get) findings.push("missing GET /health operation"
 if (!spec.paths?.["/trigger"]?.post) findings.push("missing POST /trigger operation");
 if (!spec.paths?.["/archive"]?.get) findings.push("missing GET /archive operation");
 if (!spec.paths?.["/archive/object"]?.get) findings.push("missing GET /archive/object operation");
+if (!spec.paths?.["/scans"]?.get) findings.push("missing GET /scans operation");
+if (!spec.paths?.["/scans/trigger"]?.post) findings.push("missing POST /scans/trigger operation");
 if (!spec.components?.securitySchemes?.triggerToken) findings.push("missing triggerToken security scheme");
 
 const triggerSecurity = spec.paths?.["/trigger"]?.post?.security ?? [];
@@ -19,6 +21,8 @@ if (!JSON.stringify(triggerSecurity).includes("triggerToken")) {
 for (const [method, operation] of [
   ["GET /archive", spec.paths?.["/archive"]?.get],
   ["GET /archive/object", spec.paths?.["/archive/object"]?.get],
+  ["GET /scans", spec.paths?.["/scans"]?.get],
+  ["POST /scans/trigger", spec.paths?.["/scans/trigger"]?.post],
 ]) {
   if (!JSON.stringify(operation?.security ?? []).includes("triggerToken")) {
     findings.push(`${method} must require triggerToken security`);

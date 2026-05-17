@@ -1,8 +1,12 @@
-interface Env {
+import { submitAndWait } from "./url-scanner";
+
+export interface Env {
   SESSION_KV: KVNamespace;
   ANALYTICS_DB: D1Database;
   RAW_ARCHIVE: R2Bucket;
   ENVIRONMENT: string;
+  CLOUDFLARE_ACCOUNT_ID: string;
+  CLOUDFLARE_API_TOKEN: string;
   FANTASY402_BASE_URL: string;
   FANTASY402_INGESTION_ENDPOINTS: string;
   FANTASY402_USERNAME: string;
@@ -148,7 +152,12 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
 };
 
 const worker = {
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (event.cron === "0 */6 * * *") {
+      ctx.waitUntil(runScheduledScan(env));
+      return;
+    }
+
     ctx.waitUntil(runIngestion(env));
   },
 
@@ -184,6 +193,34 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return getArchiveObject(url, env);
+    }
+
+    if (url.pathname === "/scans" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listScanVerdicts(url, env);
+    }
+
+    if (url.pathname === "/scans/trigger" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      const body = await safeJson(request);
+      const targetUrl = typeof body?.url === "string" && body.url.length > 0 ? body.url : "https://fantasy402.com";
+      if (!isHttpUrl(targetUrl)) {
+        return json({ status: "failed", message: "Invalid URL" }, 400);
+      }
+      const result = await runScheduledScan(env, targetUrl);
+      return json(
+        {
+          scanId: result.task.uuid,
+          url: result.task.url,
+          malicious: Boolean(result.verdicts?.overall?.malicious),
+          tlsValidDays: result.page?.tlsValidDays ?? null,
+        },
+        202,
+      );
     }
 
     return json({ status: "failed", message: "Not Found" }, 404);
@@ -238,6 +275,29 @@ async function runIngestion(env: Env): Promise<RunResult> {
   } catch (error) {
     await finishRun(env, runId, "failed", endpointsSucceeded, endpointsFailed, errorMessage(error));
     await sendFailureAlert(env, `Fantasy402 ingestion run ${runId} failed: ${errorMessage(error)}`);
+    throw error;
+  }
+}
+
+async function runScheduledScan(env: Env, targetUrl = "https://fantasy402.com") {
+  try {
+    const result = await submitAndWait(targetUrl, env, {
+      agentReadiness: true,
+      screenshots: ["desktop", "mobile"],
+    });
+
+    if (result.verdicts?.overall?.malicious) {
+      await sendFailureAlert(env, `URL Scanner malicious verdict for ${result.task.url}. Scan ID: ${result.task.uuid}`);
+    }
+
+    const tlsValidDays = result.page?.tlsValidDays;
+    if (typeof tlsValidDays === "number" && tlsValidDays < 7) {
+      await sendFailureAlert(env, `URL Scanner TLS warning for ${result.task.url}: certificate expires in ${tlsValidDays} day(s).`);
+    }
+
+    return result;
+  } catch (error) {
+    await sendFailureAlert(env, `URL Scanner failed for ${targetUrl}: ${errorMessage(error)}`);
     throw error;
   }
 }
@@ -719,6 +779,21 @@ async function getArchiveObject(url: URL, env: Env): Promise<Response> {
   return new Response(object.body, { headers });
 }
 
+async function listScanVerdicts(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 100);
+  const result = await env.ANALYTICS_DB.prepare(
+    `SELECT scan_id, timestamp, url, malicious, tls_valid_days, agent_readiness_level,
+            scan_r2_key, screenshot_r2_key, har_r2_key
+     FROM scans_verdicts
+     ORDER BY timestamp DESC
+     LIMIT ?`,
+  )
+    .bind(limit)
+    .all();
+
+  return json({ results: result.results ?? [] }, 200);
+}
+
 function archiveKey(endpointSegment: string, date: string, id: string): string {
   return `${R2_ARCHIVE_PREFIX}/${endpointSegment}/${date}/${id}.json`;
 }
@@ -736,6 +811,23 @@ function clampInteger(value: number, min: number, max: number): number {
 
 function isAuthorized(request: Request, env: Env): boolean {
   return request.headers.get("Authorization") === `Bearer ${env.INGESTION_TRIGGER_TOKEN}`;
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+async function safeJson(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    return await request.json<Record<string, unknown>>();
+  } catch {
+    return null;
+  }
 }
 
 function archiveViewer(): Response {
@@ -803,13 +895,25 @@ function archiveViewer(): Response {
         <pre id="preview"></pre>
       </div>
     </section>
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Scan Verdicts</h2>
+      <div class="controls" style="grid-template-columns: minmax(180px, 220px) 140px 1fr; margin: 12px;">
+        <input id="scanLimit" type="number" min="1" max="100" value="20" aria-label="Scan limit">
+        <button id="loadScans">Load Scans</button>
+        <div class="status" id="scanStatus"></div>
+      </div>
+      <pre id="scans"></pre>
+    </section>
   </main>
   <script>
     const statusEl = document.querySelector("#status");
     const objectsEl = document.querySelector("#objects");
     const previewEl = document.querySelector("#preview");
+    const scanStatusEl = document.querySelector("#scanStatus");
+    const scansEl = document.querySelector("#scans");
 
     document.querySelector("#list").addEventListener("click", listObjects);
+    document.querySelector("#loadScans").addEventListener("click", listScans);
 
     async function listObjects() {
       const prefix = document.querySelector("#prefix").value || "fantasy402/";
@@ -858,9 +962,37 @@ function archiveViewer(): Response {
       }
     }
 
+    async function listScans() {
+      const token = document.querySelector("#token").value;
+      const limit = document.querySelector("#scanLimit").value || "20";
+      if (!token) return setScanStatus("Missing bearer token.", true);
+      setScanStatus("Loading scan verdicts...");
+      scansEl.textContent = "";
+      const response = await fetch("/scans?limit=" + encodeURIComponent(limit), {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const text = await response.text();
+      if (!response.ok) {
+        setScanStatus("Scan list failed.", true);
+        scansEl.textContent = text;
+        return;
+      }
+      setScanStatus("Loaded scan verdicts.");
+      try {
+        scansEl.textContent = JSON.stringify(JSON.parse(text), null, 2);
+      } catch {
+        scansEl.textContent = text;
+      }
+    }
+
     function setStatus(message, error = false) {
       statusEl.textContent = message;
       statusEl.className = error ? "status error" : "status";
+    }
+
+    function setScanStatus(message, error = false) {
+      scanStatusEl.textContent = message;
+      scanStatusEl.className = error ? "status error" : "status";
     }
   </script>
 </body>

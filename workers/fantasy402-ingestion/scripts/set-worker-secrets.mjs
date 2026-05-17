@@ -8,6 +8,7 @@ const required = [
   "FANTASY402_PASSWORD",
   "FANTASY402_AGENT_ID",
   "INGESTION_TRIGGER_TOKEN",
+  "CLOUDFLARE_API_TOKEN",
 ];
 const optional = ["FANTASY402_CUSTOMER_ID", "ALERT_WEBHOOK_URL"];
 const args = new Set(process.argv.slice(2));
@@ -16,11 +17,6 @@ const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
   console.error(JSON.stringify({ status: "failed", missing }, null, 2));
-  process.exit(1);
-}
-
-if (!process.env.CLOUDFLARE_API_TOKEN) {
-  console.error(JSON.stringify({ status: "failed", missing: ["CLOUDFLARE_API_TOKEN"] }, null, 2));
   process.exit(1);
 }
 

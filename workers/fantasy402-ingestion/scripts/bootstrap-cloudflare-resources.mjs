@@ -103,6 +103,7 @@ console.log(
         "wrangler secret put FANTASY402_PASSWORD",
         "wrangler secret put FANTASY402_AGENT_ID",
         "wrangler secret put INGESTION_TRIGGER_TOKEN",
+        "wrangler secret put CLOUDFLARE_API_TOKEN",
         "npm run deploy",
       ],
     },

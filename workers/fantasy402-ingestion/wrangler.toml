@@ -20,9 +20,10 @@ bucket_name = "fantasy402-raw"
 preview_bucket_name = "fantasy402-raw-preview"
 
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/15 * * * *", "0 */6 * * *"]
 
 [vars]
 ENVIRONMENT = "production"
+CLOUDFLARE_ACCOUNT_ID = "7a470541a704caaf91e71efccc78fd36"
 FANTASY402_BASE_URL = "https://fantasy402.com"
 FANTASY402_INGESTION_ENDPOINTS = "getAgentPerformance,getAgentBilling,getEnterTransactions"

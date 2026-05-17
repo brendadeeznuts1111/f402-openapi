@@ -15,9 +15,14 @@ R2 objects use date-partitioned keys:
 ```text
 fantasy402/{endpoint}/{YYYY-MM-DD}/{uuid}.json
 fantasy402/{endpoint}/failures/{YYYY-MM-DD}/{uuid}.json
+fantasy402/scans/{YYYY-MM-DD}/{scan_id}.json
+fantasy402/screenshots/{scan_id}_{resolution}.png
+fantasy402/hars/{scan_id}.har
 ```
 
 Archive objects are written with JSON content type, `Cache-Control: no-store`, rich custom metadata, and the `InfrequentAccess` storage class. D1 stores the R2 key, ETag, size, and storage class for queryable observability.
+
+The Worker also runs a Cloudflare URL Scanner check for `https://fantasy402.com` every six hours. Scan JSON, screenshots, and HAR files are archived to R2, and the latest verdicts are queryable from D1.
 
 ## Required Secrets
 
@@ -27,6 +32,7 @@ Set these with `wrangler secret put`:
 - `FANTASY402_PASSWORD`
 - `FANTASY402_AGENT_ID`
 - `INGESTION_TRIGGER_TOKEN`
+- `CLOUDFLARE_API_TOKEN`
 
 Optional:
 
@@ -57,6 +63,14 @@ curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" "http://localhost:8787/
 
 The Worker also serves a lightweight operator viewer at `/archive/viewer`. The viewer does not embed or persist the token; paste the bearer token into the page to call the protected archive APIs.
 
+URL Scanner verdict readback and manual scans use the same bearer token:
+
+```bash
+curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" "http://localhost:8787/scans?limit=20"
+curl -X POST -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" -H "Content-Type: application/json" \
+  -d '{"url":"https://fantasy402.com"}' http://localhost:8787/scans/trigger
+```
+
 ## Deployment
 
 Cloudflare context:
@@ -73,6 +87,7 @@ wrangler secret put FANTASY402_USERNAME
 wrangler secret put FANTASY402_PASSWORD
 wrangler secret put FANTASY402_AGENT_ID
 wrangler secret put INGESTION_TRIGGER_TOKEN
+wrangler secret put CLOUDFLARE_API_TOKEN
 npm run migrate:remote
 npm run deploy
 ```
@@ -109,5 +124,7 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 
 - `GET /health` is unauthenticated and returns runtime health.
 - `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
+- `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.
+- `POST /scans/trigger` runs a protected manual URL scan.
 
 Run `npm run validate:openapi` before publishing API docs for this Worker.

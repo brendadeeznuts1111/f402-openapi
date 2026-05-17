@@ -13,6 +13,8 @@
     "bootstrap:cloudflare": "node scripts/bootstrap-cloudflare-resources.mjs",
     "bootstrap:cloudflare:apply": "node scripts/bootstrap-cloudflare-resources.mjs --apply",
     "bootstrap:cloudflare:self-test": "node scripts/bootstrap-cloudflare-resources.mjs --self-test",
+    "secrets:worker": "node scripts/set-worker-secrets.mjs",
+    "secrets:worker:apply": "node scripts/set-worker-secrets.mjs --apply",
     "verify": "npm run typecheck && npm run test && npm run bootstrap:cloudflare:self-test && npm run audit && npm run validate:openapi && npm run validate:upstream-contract",
     "deploy": "npx wrangler@latest deploy",
     "dev": "npx wrangler@latest dev",

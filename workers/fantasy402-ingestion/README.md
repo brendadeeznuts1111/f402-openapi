@@ -77,6 +77,20 @@ npm run migrate:remote
 npm run deploy
 ```
 
+To set all Worker runtime secrets in one non-interactive call, export the values and run:
+
+```bash
+export CLOUDFLARE_API_TOKEN="..."
+export FANTASY402_USERNAME="..."
+export FANTASY402_PASSWORD="..."
+export FANTASY402_AGENT_ID="..."
+export INGESTION_TRIGGER_TOKEN="..."
+npm run secrets:worker
+npm run secrets:worker:apply
+```
+
+The helper writes a temporary JSON file for `wrangler secret bulk` and deletes it after upload. Do not commit `.env`, `.dev.vars`, or generated secret payloads.
+
 Before a production deploy, run:
 
 ```bash

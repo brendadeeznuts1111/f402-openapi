@@ -1818,7 +1818,7 @@
       "post": {
         "operationId": "refreshFantasy402Auth",
         "summary": "Refresh browser-derived upstream auth without changing Worker secrets",
-        "description": "Stores short-lived browser-derived Fantasy402 authorization material in AUTH_CACHE. Values are never echoed in responses or diagnostics. The cached overlay takes effect before configured secrets and expires automatically.",
+        "description": "Stores short-lived browser-derived Fantasy402 authorization material in AUTH_CACHE. Values are never echoed in responses or diagnostics. The cached overlay takes effect before configured secrets and expires automatically. sessionCookie values that contain only Cloudflare cookies are rejected because they leave ingestion blocked by upstream 403/1106.",
         "security": [
           {
             "triggerToken": []
@@ -1881,7 +1881,7 @@
             }
           },
           "400": {
-            "description": "Invalid JSON body or no supported auth fields",
+            "description": "Invalid JSON body, no supported auth fields, or Cloudflare-only sessionCookie",
             "content": {
               "application/json": {
                 "schema": {

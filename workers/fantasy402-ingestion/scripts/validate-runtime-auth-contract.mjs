@@ -50,10 +50,13 @@ requireOrdered(
 requireText(contents.source, "cookieName(existing)?.toLowerCase() === name.toLowerCase()", "source must dedupe cookies by cookie name");
 requireText(contents.source, "if (cached.sessionCookie) overlaid.FANTASY402_SESSION_COOKIE = cached.sessionCookie;", "AUTH_CACHE sessionCookie overlay must override configured secret");
 requireText(contents.source, '"FANTASY402_SESSION_COOKIE"', "Secrets Store materialization must include FANTASY402_SESSION_COOKIE");
+requireText(contents.source, "hasNonCloudflareCookieHeader", "source must distinguish app session cookies from Cloudflare-only cookies");
+requireText(contents.source, "cf_clearance and __cf_bm alone cause upstream 403/1106", "refresh-auth must reject Cloudflare-only session cookie payloads");
 
 requireText(contents.tests, "ingestion keeps configured session cookie when appending Cloudflare cookies", "tests must cover configured session cookie plus Cloudflare cookies");
-requireText(contents.tests, "ingestion uses bearer plus Cloudflare cookies without requiring app session cookie", "tests must cover bearer plus Cloudflare-cookie-only auth shape");
-requireText(contents.tests, "/cloud/api/System/authenticateCustomer", "tests must assert obsolete login fallback is not used when browser auth is present");
+requireText(contents.tests, "ingestion uses authenticateCustomer fallback when bearer plus Cloudflare cookies lack app session cookie", "tests must cover Cloudflare-cookie-only auth recovery");
+requireText(contents.tests, "refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH_CACHE", "tests must reject bad browser cURL refresh payloads");
+requireText(contents.tests, "/cloud/api/System/authenticateCustomer", "tests must assert app-session fallback is used when browser auth lacks an app session");
 requireText(contents.tests, "authenticateCustomer fallback caches bearer token and app session in AUTH_CACHE", "tests must cover authenticateCustomer fallback cache writes");
 requireText(contents.tests, "ingestion renews near-expired cached token before upstream calls", "tests must cover renewToken before upstream calls");
 requireText(contents.tests, "ingestion keeps near-expired cached session when renewToken fails", "tests must cover renewToken failure fallback");

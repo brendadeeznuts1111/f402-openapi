@@ -811,6 +811,16 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   }
 
   const body = payload as Record<string, unknown>;
+  if (body.sessionCookie !== undefined && !hasNonCloudflareCookieHeader(String(body.sessionCookie))) {
+    return json(
+      {
+        status: "failed",
+        message: "sessionCookie must include a non-Cloudflare application session cookie; cf_clearance and __cf_bm alone cause upstream 403/1106",
+      },
+      400,
+    );
+  }
+
   const record: AuthCacheRecord = {
     updatedAt: new Date().toISOString(),
     expiresAt: Date.now() + authCacheTtlSeconds(body.expiresInSeconds) * 1000,
@@ -889,21 +899,23 @@ function normalizeBrowserHeadersInput(value: unknown): string | null {
 async function getOrRefreshSession(env: Env): Promise<string> {
   const configuredSessionCookie = env.FANTASY402_SESSION_COOKIE;
   const configuredSession = typeof configuredSessionCookie === "string" ? configuredSessionCookie.trim() : "";
+  const configuredAppSession = hasNonCloudflareCookieHeader(configuredSession);
 
   const cachedAuth = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
   if (cachedAuth && cachedAuth.expiresAt > Date.now() + 5 * 60_000) {
     applyAuthRecord(env, cachedAuth);
-    return cachedAuth.sessionCookie ?? configuredSession;
+    const cachedSession = cachedAuth.sessionCookie ?? configuredSession;
+    if (hasNonCloudflareCookieHeader(cachedSession)) return cachedSession;
   }
 
-  if (cachedAuth?.authorization && (cachedAuth.sessionCookie || configuredSession)) {
+  if (cachedAuth?.authorization && (hasNonCloudflareCookieHeader(cachedAuth.sessionCookie ?? "") || configuredAppSession)) {
     applyAuthRecord(env, cachedAuth);
     const renewed = await tryRenewFantasy402Token(env, cachedAuth.sessionCookie ?? configuredSession);
     if (renewed) return renewed.sessionCookie;
   }
 
-  if (normalizeAuthorization(env.FANTASY402_AUTHORIZATION)) {
-    return env.FANTASY402_SESSION_COOKIE ?? configuredSession;
+  if (normalizeAuthorization(env.FANTASY402_AUTHORIZATION) && configuredAppSession) {
+    return configuredSession;
   }
 
   const cached = await env.SESSION_KV.get<SessionRecord>(SESSION_KEY, "json");
@@ -2428,6 +2440,12 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
 function isCloudflareCookieName(name: string): boolean {
   const normalized = name.toLowerCase();
   return normalized === "cf_clearance" || normalized === "__cf_bm";
+}
+
+function hasNonCloudflareCookieHeader(value: string | undefined): boolean {
+  return splitCookieHeader(value ?? "")
+    .map((cookie) => cookieName(cookie))
+    .some((name) => Boolean(name && !isCloudflareCookieName(name)));
 }
 
 function observedBrowserHeaderCount(rawJson: string | undefined): number {

@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "audit": "npm audit --audit-level=moderate",
+    "validate:deploy-config": "node scripts/validate-deploy-config.mjs",
+    "validate:openapi": "node scripts/validate-worker-openapi.mjs",
+    "verify": "npm run typecheck && npm run audit && npm run validate:openapi",
     "deploy": "npx wrangler@latest deploy",
     "dev": "npx wrangler@latest dev",
     "migrate:local": "npx wrangler@latest d1 migrations apply fantasy402-analytics --local",

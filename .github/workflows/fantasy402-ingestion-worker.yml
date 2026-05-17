@@ -44,7 +44,11 @@ jobs:
         run: npm ci
 
       - name: Typecheck Worker
-        run: npm run typecheck
+        run: npm run verify
+
+      - name: Validate deploy configuration
+        if: ${{ inputs.deploy == 'true' }}
+        run: npm run validate:deploy-config
 
       - name: Deploy Worker
         if: ${{ inputs.deploy == 'true' }}

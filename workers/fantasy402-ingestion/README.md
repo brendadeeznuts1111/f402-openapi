@@ -26,7 +26,7 @@ Optional:
 
 ```bash
 npm install
-npm run typecheck
+npm run verify
 npm run migrate:local
 npm run dev
 ```
@@ -53,4 +53,21 @@ npm run migrate:remote
 npm run deploy
 ```
 
+Before a production deploy, run:
+
+```bash
+npm run validate:deploy-config
+```
+
+This intentionally fails while `wrangler.toml` still contains placeholder KV or D1 IDs.
+
 The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract.
+
+## Worker API Contract
+
+The Worker's own operational API is documented in `openapi.worker.json`.
+
+- `GET /health` is unauthenticated and returns runtime health.
+- `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
+
+Run `npm run validate:openapi` before publishing API docs for this Worker.

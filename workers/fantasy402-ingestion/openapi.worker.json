@@ -1,0 +1,171 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fantasy402 Ingestion Worker API",
+    "version": "0.1.0",
+    "description": "Operational API exposed by the Cloudflare Worker that ingests read-only Fantasy402 data into D1 and R2."
+  },
+  "servers": [
+    {
+      "url": "https://fantasy402-ingestion.{account}.workers.dev",
+      "description": "Cloudflare Workers deployment",
+      "variables": {
+        "account": {
+          "default": "example"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Check Worker health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Worker is responding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "examples": {
+                  "ok": {
+                    "value": {
+                      "status": "ok",
+                      "environment": "production"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trigger": {
+      "post": {
+        "operationId": "triggerIngestion",
+        "summary": "Trigger an ingestion run",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Ingestion completed or partially completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerResponse"
+                },
+                "examples": {
+                  "accepted": {
+                    "value": {
+                      "runId": "00000000-0000-4000-8000-000000000000",
+                      "status": "success",
+                      "endpointsSucceeded": 3,
+                      "endpointsFailed": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthorized": {
+                    "value": {
+                      "status": "failed",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ingestion failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "triggerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Manual ingestion trigger token stored as INGESTION_TRIGGER_TOKEN."
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "environment"],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "environment": {
+            "type": "string"
+          }
+        }
+      },
+      "TriggerResponse": {
+        "type": "object",
+        "required": ["runId", "status", "endpointsSucceeded", "endpointsFailed"],
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "failed"]
+          },
+          "endpointsSucceeded": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "endpointsFailed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["status", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

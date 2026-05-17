@@ -2144,14 +2144,15 @@
       "IngestionRun": {
         "type": "object",
         "additionalProperties": false,
+        "required": [ "id", "started_at", "finished_at", "status", "endpoints_requested", "endpoints_succeeded", "endpoints_failed", "error_message" ],
         "properties": {
-          "id": { "type": "string" },
-          "started_at": { "type": "string" },
-          "finished_at": { "type": [ "string", "null" ] },
-          "status": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "finished_at": { "type": [ "string", "null" ], "format": "date-time" },
+          "status": { "type": "string", "enum": [ "running", "success", "failed" ] },
           "endpoints_requested": { "type": "string" },
-          "endpoints_succeeded": { "type": "integer" },
-          "endpoints_failed": { "type": "integer" },
+          "endpoints_succeeded": { "type": "integer", "minimum": 0 },
+          "endpoints_failed": { "type": "integer", "minimum": 0 },
           "error_message": { "type": [ "string", "null" ] }
         }
       },
@@ -2170,14 +2171,15 @@
       "RunEndpointSnapshot": {
         "type": "object",
         "additionalProperties": false,
+        "required": [ "id", "endpoint_key", "path", "captured_at", "http_status", "item_count", "attempts", "r2_key", "r2_etag", "r2_size", "r2_storage_class", "trace_id", "duration_ms" ],
         "properties": {
-          "id": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
           "endpoint_key": { "type": "string" },
           "path": { "type": "string" },
-          "captured_at": { "type": "string" },
-          "http_status": { "type": "integer" },
+          "captured_at": { "type": "string", "format": "date-time" },
+          "http_status": { "type": "integer", "minimum": 100, "maximum": 599 },
           "item_count": { "type": [ "integer", "null" ] },
-          "attempts": { "type": "integer" },
+          "attempts": { "type": "integer", "minimum": 1 },
           "r2_key": { "type": "string" },
           "r2_etag": { "type": [ "string", "null" ] },
           "r2_size": { "type": [ "integer", "null" ] },
@@ -2189,12 +2191,13 @@
       "RunEndpointFailure": {
         "type": "object",
         "additionalProperties": false,
+        "required": [ "id", "endpoint_key", "path", "failed_at", "attempts", "error_message", "r2_key", "r2_etag", "r2_size", "r2_storage_class", "trace_id", "duration_ms" ],
         "properties": {
-          "id": { "type": "string" },
+          "id": { "type": "string", "format": "uuid" },
           "endpoint_key": { "type": "string" },
           "path": { "type": "string" },
-          "failed_at": { "type": "string" },
-          "attempts": { "type": "integer" },
+          "failed_at": { "type": "string", "format": "date-time" },
+          "attempts": { "type": "integer", "minimum": 1 },
           "error_message": { "type": "string" },
           "r2_key": { "type": [ "string", "null" ] },
           "r2_etag": { "type": [ "string", "null" ] },

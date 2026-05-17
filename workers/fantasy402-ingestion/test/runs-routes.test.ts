@@ -99,6 +99,12 @@ test("run endpoints requires runId", async () => {
   assert.deepEqual(await response.json(), { status: "failed", message: "runId is required" });
 });
 
+test("run endpoints rejects invalid runId", async () => {
+  const response = await worker.fetch(authorized("/runs/endpoints?runId=not-a-run"), env(new MemoryD1Database()));
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { status: "failed", message: "runId must be a valid UUID" });
+});
+
 test("run endpoints returns snapshots and failures", async () => {
   const runId = "00000000-0000-4000-8000-000000000000";
   const db = new MemoryD1Database(

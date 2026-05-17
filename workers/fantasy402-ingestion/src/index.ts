@@ -95,6 +95,7 @@ interface UpstreamRequestDiagnostics {
 
 interface ApiResult {
   endpoint: EndpointConfig;
+  capturedAt: string;
   traceId: string;
   durationMs: number;
   status: number;
@@ -662,6 +663,7 @@ async function archiveLocalIngestItem(env: Env, runId: string, endpoint: Endpoin
 
   return {
     endpoint,
+    capturedAt: capturedAt.toISOString(),
     traceId,
     durationMs: 0,
     status: item.httpStatus,
@@ -1161,6 +1163,7 @@ async function fetchAndArchiveEndpoint(
 
   return {
     endpoint,
+    capturedAt: now.toISOString(),
     traceId,
     durationMs,
     status: attempted.response.status,
@@ -1435,7 +1438,7 @@ async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promis
       runId,
       result.endpoint.key,
       result.endpoint.path,
-      new Date().toISOString(),
+      result.capturedAt,
       result.status,
       result.r2Key,
       result.responseHash,
@@ -1621,6 +1624,7 @@ async function listIngestionRuns(url: URL, env: Env): Promise<Response> {
 async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> {
   const runId = String(url.searchParams.get("runId") ?? "").trim();
   if (!runId) return json({ status: "failed", message: "runId is required" }, 400);
+  if (!isUuid(runId)) return json({ status: "failed", message: "runId must be a valid UUID" }, 400);
 
   const snapshots = await env.ANALYTICS_DB.prepare(
     `SELECT id, endpoint_key, path, captured_at, http_status, item_count, attempts,

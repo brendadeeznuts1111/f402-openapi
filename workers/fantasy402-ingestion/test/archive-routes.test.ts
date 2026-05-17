@@ -1204,6 +1204,7 @@ test("local ingestion upload stores browser-fetched endpoint responses", async (
   assert.equal(body.endpointsSucceeded, 1);
   assert.equal(body.stored[0].endpointKey, "getAgentPerformance");
   assert.match(body.stored[0].r2Key, /^fantasy402\/getAgentPerformance\/2026-05-17\//);
+  assert.equal(db.runs.some((bindings) => bindings[4] === "2026-05-17T12:00:00.000Z"), true);
   assert.equal(db.runs.length >= 4, true);
 });
 

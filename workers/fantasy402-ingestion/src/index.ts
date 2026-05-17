@@ -43,6 +43,7 @@ type EndpointKey =
   | "getPlayers"
   | "getAddedInfo"
   | "getCommunicationMessages"
+  | "getListAgenstByAgent"
   | "getLineTypes"
   | "getHeriarchy";
 
@@ -240,6 +241,17 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
         customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
         operation: "getCommunicationMessages",
       }),
+  },
+  getListAgenstByAgent: {
+    key: "getListAgenstByAgent",
+    path: "/cloud/api/Manager/getListAgenstByAgent",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentType: "M",
+      operation: "getListAgenstByAgent",
+      RRO: "1",
+      agentOwner: env.FANTASY402_AGENT_ID,
+    }),
   },
   getLineTypes: {
     key: "getLineTypes",
@@ -906,6 +918,7 @@ async function getOrRefreshSession(env: Env): Promise<string> {
     applyAuthRecord(env, cachedAuth);
     const cachedSession = cachedAuth.sessionCookie ?? configuredSession;
     if (hasNonCloudflareCookieHeader(cachedSession)) return cachedSession;
+    if (hasBearerCloudflareAuth(env)) return cachedSession;
   }
 
   if (cachedAuth?.authorization && (hasNonCloudflareCookieHeader(cachedAuth.sessionCookie ?? "") || configuredAppSession)) {
@@ -915,6 +928,9 @@ async function getOrRefreshSession(env: Env): Promise<string> {
   }
 
   if (normalizeAuthorization(env.FANTASY402_AUTHORIZATION) && configuredAppSession) {
+    return configuredSession;
+  }
+  if (hasBearerCloudflareAuth(env)) {
     return configuredSession;
   }
 
@@ -2422,19 +2438,38 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     .filter((name): name is string => Boolean(name));
   const hasCookieName = (name: string) => cookieNames.some((cookie) => cookie.toLowerCase() === name.toLowerCase());
   const hasSessionCookie = cookieNames.some((name) => !isCloudflareCookieName(name));
+  const hasAuthorization = Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION));
+  const hasCfClearance = hasCookieName("cf_clearance");
+  const hasCfBm = hasCookieName("__cf_bm");
+  const bearerCloudflareReady = hasAuthorization && hasCfClearance && hasCfBm;
   return {
-    hasAuthorization: Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION)),
+    hasAuthorization,
     hasCookie: cookieNames.length > 0,
     hasSessionCookie,
-    hasCfClearance: hasCookieName("cf_clearance"),
-    hasCfBm: hasCookieName("__cf_bm"),
+    hasCfClearance,
+    hasCfBm,
     cookieNames,
     browserHeaderCount: observedBrowserHeaderCount(env.FANTASY402_BROWSER_HEADERS_JSON),
     ingestionReadiness: {
-      status: hasSessionCookie ? "ready" : "blocked",
-      blocker: hasSessionCookie ? null : "missing non-Cloudflare app session cookie",
+      status: hasSessionCookie || bearerCloudflareReady ? "ready" : "blocked",
+      blocker: hasSessionCookie || bearerCloudflareReady ? null : "missing non-Cloudflare app session cookie or bearer plus Cloudflare cookies",
     },
   };
+}
+
+function hasBearerCloudflareAuth(env: Env): boolean {
+  const cookieHeader = fantasy402CookieHeader(env, "");
+  return Boolean(
+    normalizeAuthorization(env.FANTASY402_AUTHORIZATION) &&
+      cookieHeaderHasName(cookieHeader, "cf_clearance") &&
+      cookieHeaderHasName(cookieHeader, "__cf_bm"),
+  );
+}
+
+function cookieHeaderHasName(value: string, name: string): boolean {
+  return splitCookieHeader(value)
+    .map((cookie) => cookieName(cookie))
+    .some((cookie) => cookie?.toLowerCase() === name.toLowerCase());
 }
 
 function isCloudflareCookieName(name: string): boolean {
@@ -2777,12 +2812,21 @@ function archiveViewer(): Response {
       if (!response.ok) return setStatus(body.message || "Archive list failed.", true);
       for (const object of body.objects) {
         const row = document.createElement("tr");
-        row.innerHTML = "<td><button data-key=" + JSON.stringify(object.key) + ">Open</button> <code></code></td><td></td><td></td><td></td>";
-        row.querySelector("code").textContent = object.key;
-        row.children[1].textContent = String(object.size);
-        row.children[2].textContent = object.uploaded;
-        row.children[3].textContent = object.storageClass;
-        row.querySelector("button").addEventListener("click", () => openObject(object.key));
+        const keyCell = document.createElement("td");
+        const openButton = document.createElement("button");
+        const keyCode = document.createElement("code");
+        openButton.dataset.key = object.key;
+        openButton.textContent = "Open";
+        openButton.addEventListener("click", () => openObject(object.key));
+        keyCode.textContent = object.key;
+        keyCell.append(openButton, " ", keyCode);
+        const sizeCell = document.createElement("td");
+        const uploadedCell = document.createElement("td");
+        const storageClassCell = document.createElement("td");
+        sizeCell.textContent = String(object.size);
+        uploadedCell.textContent = object.uploaded;
+        storageClassCell.textContent = object.storageClass;
+        row.append(keyCell, sizeCell, uploadedCell, storageClassCell);
         objectsEl.append(row);
       }
       setStatus("Loaded " + body.objects.length + " object(s)." + (body.truncated ? " More results are available with cursor paging." : ""));
@@ -2887,17 +2931,22 @@ function archiveViewer(): Response {
       authStateCardEl.textContent = "";
       for (const [label, value] of items) {
         const item = document.createElement("div");
+        const labelEl = document.createElement("b");
+        const valueEl = document.createElement("span");
         item.className = "metric";
-        item.innerHTML = "<b></b><span></span>";
-        item.querySelector("b").textContent = label;
-        item.querySelector("span").textContent = value;
+        labelEl.textContent = label;
+        valueEl.textContent = value;
+        item.append(labelEl, valueEl);
         authStateCardEl.appendChild(item);
       }
       if (readiness.blocker) {
         const item = document.createElement("div");
+        const labelEl = document.createElement("b");
+        const valueEl = document.createElement("span");
         item.className = "metric";
-        item.innerHTML = "<b>Blocker</b><span></span>";
-        item.querySelector("span").textContent = readiness.blocker;
+        labelEl.textContent = "Blocker";
+        valueEl.textContent = readiness.blocker;
+        item.append(labelEl, valueEl);
         authStateCardEl.appendChild(item);
       }
       authStateCardEl.hidden = false;
@@ -3142,10 +3191,12 @@ function archiveViewer(): Response {
       ];
       for (const card of cards) {
         const el = document.createElement("div");
+        const labelEl = document.createElement("b");
+        const valueEl = document.createElement("span");
         el.className = "metric";
-        el.innerHTML = "<b></b><span></span>";
-        el.querySelector("b").textContent = card[0];
-        el.querySelector("span").textContent = card[1];
+        labelEl.textContent = card[0];
+        valueEl.textContent = card[1];
+        el.append(labelEl, valueEl);
         scanNetworkCardEl.append(el);
       }
       scanNetworkCardEl.hidden = false;

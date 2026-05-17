@@ -22,8 +22,8 @@ if (token) {
       if (Array.isArray(body.requiredSecrets?.missing) && body.requiredSecrets.missing.length > 0) {
         findings.push(`missing required secrets: ${body.requiredSecrets.missing.join(", ")}`);
       }
-      if (body.upstreamAuthShape?.hasSessionCookie !== true) {
-        findings.push("upstream auth is missing a non-Cloudflare app session cookie");
+      if (body.upstreamAuthShape?.ingestionReadiness?.status !== "ready") {
+        findings.push(`upstream auth is not ingestion-ready: ${body.upstreamAuthShape?.ingestionReadiness?.blocker ?? "unknown blocker"}`);
       }
       for (const [binding, present] of Object.entries(body.bindings ?? {})) {
         if (present !== true) findings.push(`missing binding ${binding}`);

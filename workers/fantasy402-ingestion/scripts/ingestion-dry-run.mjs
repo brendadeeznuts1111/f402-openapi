@@ -12,6 +12,7 @@ const endpoints = {
   getEnterTransactions: { path: "/cloud/api/Manager/getEnterTransactions", operation: "getEnterTransactions", contentType: "form" },
   getPlayers: { path: "/cloud/api/Manager/getPlayers", operation: "getPlayers", contentType: "form" },
   getAddedInfo: { path: "/cloud/api/Manager/getAddedInfo", operation: "getAddedInfo", contentType: "form" },
+  getListAgenstByAgent: { path: "/cloud/api/Manager/getListAgenstByAgent", operation: "getListAgenstByAgent", contentType: "form", agentType: "M", omitDateRange: true },
   getLineTypes: { path: "/cloud/api/Manager/getLineTypes", operation: "getLineTypes", contentType: "form" },
   getHeriarchy: { path: "/cloud/api/Manager/getHeriarchy", operation: "getHeriarchy", contentType: "form" },
   getPending: { path: "/cloud/api/Manager/getPending", operation: "getPending", contentType: "json", requiresCustomerId: true },
@@ -33,9 +34,17 @@ if (!auth.authorization || isPlaceholder(auth.authorization)) findings.push("aut
 if (!auth.cfClearance || isPlaceholder(auth.cfClearance)) findings.push("cfClearance is missing or placeholder");
 if (!auth.cfBm || isPlaceholder(auth.cfBm)) findings.push("cfBm is missing or placeholder");
 if (!auth.sessionCookie || isPlaceholder(auth.sessionCookie)) {
-  findings.push("sessionCookie is missing or placeholder");
+  if (authShape.hasBearerCloudflareAuth) {
+    warnings.push("sessionCookie is missing; dry-run will use observed bearer auth plus Cloudflare cookies");
+  } else {
+    findings.push("sessionCookie is missing or placeholder");
+  }
 } else if (!authShape.hasSessionCookie) {
-  findings.push("sessionCookie contains only Cloudflare cookie names; include the app session cookie such as ASP.NET_SessionId");
+  if (authShape.hasBearerCloudflareAuth) {
+    warnings.push("sessionCookie contains only Cloudflare cookie names; dry-run will use observed bearer auth plus Cloudflare cookies");
+  } else {
+    findings.push("sessionCookie contains only Cloudflare cookie names; include bearer auth plus Cloudflare cookies, or the app session cookie such as ASP.NET_SessionId when present");
+  }
 }
 if (browserHeaderCount === 0) findings.push("browser headers/userAgent are missing");
 
@@ -76,8 +85,8 @@ const output = {
   endpointCount: endpointsOut.length,
   authShape,
   ingestionReadiness: {
-    status: authShape.hasAuthorization && authShape.hasCfClearance && authShape.hasCfBm && authShape.hasSessionCookie ? "ready" : "blocked",
-    blocker: authShape.hasSessionCookie ? null : "missing non-Cloudflare app session cookie",
+    status: authShape.hasSessionCookie || authShape.hasBearerCloudflareAuth ? "ready" : "blocked",
+    blocker: authShape.hasSessionCookie || authShape.hasBearerCloudflareAuth ? null : "missing non-Cloudflare app session cookie or bearer plus Cloudflare cookies",
   },
   browserHeaderCount,
   findings: allFindings,
@@ -104,16 +113,20 @@ function requestBody(endpoint, now) {
     };
   }
   const date = now.toISOString().slice(0, 10);
-  return {
+  const body = {
     RRO: 1,
     agentID: agentId,
     agentOwner: agentId,
-    startDate: date,
-    endDate: date,
-    start: date,
-    end: date,
     operation: endpoint.operation,
+    ...(endpoint.agentType ? { agentType: endpoint.agentType } : {}),
   };
+  if (!endpoint.omitDateRange) {
+    body.startDate = date;
+    body.endDate = date;
+    body.start = date;
+    body.end = date;
+  }
+  return body;
 }
 
 function authDiagnostics(payload) {
@@ -123,12 +136,16 @@ function authDiagnostics(payload) {
     .map(cookieName)
     .filter(Boolean);
   const hasCookieName = (name) => cookieNames.some((cookie) => cookie.toLowerCase() === name.toLowerCase());
+  const hasAuthorization = Boolean(payload.authorization && !isPlaceholder(payload.authorization));
+  const hasCfClearance = hasCookieName("cf_clearance");
+  const hasCfBm = hasCookieName("__cf_bm");
   return {
-    hasAuthorization: Boolean(payload.authorization && !isPlaceholder(payload.authorization)),
+    hasAuthorization,
     hasCookie: cookieNames.length > 0,
     hasSessionCookie: cookieNames.some((name) => !isCloudflareCookieName(name)),
-    hasCfClearance: hasCookieName("cf_clearance"),
-    hasCfBm: hasCookieName("__cf_bm"),
+    hasCfClearance,
+    hasCfBm,
+    hasBearerCloudflareAuth: hasAuthorization && hasCfClearance && hasCfBm,
     cookieNames,
   };
 }

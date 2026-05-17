@@ -1202,7 +1202,7 @@
             <td><code>AgentID</code> <code>AgentType</code> <code>AmigoTechRate</code> <code>CasinoHeadCountRateM</code> <code>CrashRate</code> <code>ExtPropsRate</code> <code>FantasyRate</code> <code>FlashBetsRate</code> <code>HeadCountRateM</code> <code>InetHeadCountRateM</code> <code>Level</code> <code>LiveBetting2RateM</code> <code>LiveBettingRateM</code> <code>LiveCasinoRateM</code> <code>Login</code> <code>PropBuilderRateM</code> <code>SeqNumber</code></td>
             <td><span class="tag">2</span></td>
             <td>7</td>
-            <td>1</td>
+            <td>0</td>
           </tr>
 <tr>
             <td><a href="#schema-GetAccountInfoOwner"><code>GetAccountInfoOwner</code></a></td>
@@ -1418,7 +1418,7 @@
             <td><code>AgentId</code> <code>AgentType</code> <code>Level</code> <code>Login</code> <code>MasterAgentID</code></td>
             <td><span class="tag">3</span></td>
             <td>4</td>
-            <td>1</td>
+            <td>2</td>
           </tr>
 <tr>
             <td><a href="#schema-LIST_2"><code>LIST_2</code></a></td>
@@ -1458,7 +1458,7 @@
             <td><code>Agent</code> <code>Login</code> <code>NameFirst</code> <code>customerID</code></td>
             <td><span class="tag">4</span></td>
             <td>4</td>
-            <td>2</td>
+            <td>1</td>
           </tr>
 <tr>
             <td><a href="#schema-LIST_4"><code>LIST_4</code></a></td>
@@ -3112,12 +3112,12 @@
           </table>
         </div>
       </details>
-<details class="schema" id="schema-GENERAL" data-schema-name="general" data-schema-category="response" data-schema-sensitive="true" data-schema-search="general object response agentid agenttype amigotechrate casinoheadcountratem crashrate extpropsrate fantasyrate flashbetsrate headcountratem inetheadcountratem level livebetting2ratem livebettingratem livecasinoratem login propbuilderratem seqnumber post /cloud/api/manager/getlistagenstbyagent properties.agentid properties.login type: &quot;object&quot; object agentid seqnumber level agenttype login headcountratem inetheadcountratem casinoheadcountratem livebettingratem livebetting2ratem livecasinoratem propbuilderratem flashbetsrate extpropsrate crashrate fantasyrate amigotechrate string pii:accountidentifier __redacted__ integer a m 0 10 12 2 3">
-        <summary><span class="schema-summary"><span class="schema-title"><code>GENERAL</code></span><span class="tag">object</span><span class="tag">response</span><span class="tag">2 sensitive</span><span class="tag">1 ops</span></span></summary>
+<details class="schema" id="schema-GENERAL" data-schema-name="general" data-schema-category="primitive" data-schema-sensitive="true" data-schema-search="general object primitive agentid agenttype amigotechrate casinoheadcountratem crashrate extpropsrate fantasyrate flashbetsrate headcountratem inetheadcountratem level livebetting2ratem livebettingratem livecasinoratem login propbuilderratem seqnumber  properties.agentid properties.login type: &quot;object&quot; object agentid seqnumber level agenttype login headcountratem inetheadcountratem casinoheadcountratem livebettingratem livebetting2ratem livecasinoratem propbuilderratem flashbetsrate extpropsrate crashrate fantasyrate amigotechrate string pii:accountidentifier __redacted__ integer a m 0 10 12 2 3">
+        <summary><span class="schema-summary"><span class="schema-title"><code>GENERAL</code></span><span class="tag">object</span><span class="tag">primitive</span><span class="tag">2 sensitive</span><span class="tag">0 ops</span></span></summary>
         <div class="schema-body">
           <p>No schema description.</p>
           <p class="schema-meta-line"><strong>Required:</strong> <code>AgentID</code> <code>AgentType</code> <code>AmigoTechRate</code> <code>CasinoHeadCountRateM</code> <code>CrashRate</code> <code>ExtPropsRate</code> <code>FantasyRate</code> <code>FlashBetsRate</code> <code>HeadCountRateM</code> <code>InetHeadCountRateM</code> <code>Level</code> <code>LiveBetting2RateM</code> <code>LiveBettingRateM</code> <code>LiveCasinoRateM</code> <code>Login</code> <code>PropBuilderRateM</code> <code>SeqNumber</code> <strong>Enums:</strong> 7 <strong>Sensitive fields:</strong> 2</p>
-          <p><strong>Used by:</strong> <code>POST /cloud/api/Manager/getListAgenstByAgent</code></p>
+          <p><strong>Used by:</strong> <span class="tag">not directly referenced by operations</span></p>
           <table>
             <thead><tr><th>Field</th><th>Required</th><th>Constraints / Reference</th></tr></thead>
             <tbody><tr>
@@ -5829,12 +5829,12 @@
           </table>
         </div>
       </details>
-<details class="schema" id="schema-LIST_14" data-schema-name="list_14" data-schema-category="response" data-schema-sensitive="true" data-schema-search="list_14 object response agentid agenttype level login masteragentid post /cloud/api/manager/getheriarchy properties.agentid properties.masteragentid properties.login type: &quot;object&quot; object agentid level agenttype masteragentid login string pii:accountidentifier __redacted__ integer a m">
-        <summary><span class="schema-summary"><span class="schema-title"><code>LIST_14</code></span><span class="tag">object</span><span class="tag">response</span><span class="tag">3 sensitive</span><span class="tag">1 ops</span></span></summary>
+<details class="schema" id="schema-LIST_14" data-schema-name="list_14" data-schema-category="response" data-schema-sensitive="true" data-schema-search="list_14 object response agentid agenttype level login masteragentid post /cloud/api/manager/getheriarchy post /cloud/api/manager/getlistagenstbyagent properties.agentid properties.masteragentid properties.login type: &quot;object&quot; object agentid level agenttype masteragentid login string pii:accountidentifier __redacted__ integer a m">
+        <summary><span class="schema-summary"><span class="schema-title"><code>LIST_14</code></span><span class="tag">object</span><span class="tag">response</span><span class="tag">3 sensitive</span><span class="tag">2 ops</span></span></summary>
         <div class="schema-body">
           <p>No schema description.</p>
           <p class="schema-meta-line"><strong>Required:</strong> <code>AgentId</code> <code>AgentType</code> <code>Level</code> <code>Login</code> <code>MasterAgentID</code> <strong>Enums:</strong> 4 <strong>Sensitive fields:</strong> 3</p>
-          <p><strong>Used by:</strong> <code>POST /cloud/api/Manager/getHeriarchy</code></p>
+          <p><strong>Used by:</strong> <code>POST /cloud/api/Manager/getHeriarchy</code> <code>POST /cloud/api/Manager/getListAgenstByAgent</code></p>
           <table>
             <thead><tr><th>Field</th><th>Required</th><th>Constraints / Reference</th></tr></thead>
             <tbody><tr>
@@ -8174,12 +8174,12 @@
           </table>
         </div>
       </details>
-<details class="schema" id="schema-LIST_3" data-schema-name="list_3" data-schema-category="response" data-schema-sensitive="true" data-schema-search="list_3 object response agent login namefirst customerid post /cloud/api/manager/getlistagenstbyagent post /cloud/api/manager/getplayers properties.customerid properties.login properties.namefirst properties.agent type: &quot;object&quot; object customerid login namefirst agent string pii:accountidentifier __redacted__ pii:name">
-        <summary><span class="schema-summary"><span class="schema-title"><code>LIST_3</code></span><span class="tag">object</span><span class="tag">response</span><span class="tag">4 sensitive</span><span class="tag">2 ops</span></span></summary>
+<details class="schema" id="schema-LIST_3" data-schema-name="list_3" data-schema-category="response" data-schema-sensitive="true" data-schema-search="list_3 object response agent login namefirst customerid post /cloud/api/manager/getplayers properties.customerid properties.login properties.namefirst properties.agent type: &quot;object&quot; object customerid login namefirst agent string pii:accountidentifier __redacted__ pii:name">
+        <summary><span class="schema-summary"><span class="schema-title"><code>LIST_3</code></span><span class="tag">object</span><span class="tag">response</span><span class="tag">4 sensitive</span><span class="tag">1 ops</span></span></summary>
         <div class="schema-body">
           <p>No schema description.</p>
           <p class="schema-meta-line"><strong>Required:</strong> <code>Agent</code> <code>Login</code> <code>NameFirst</code> <code>customerID</code> <strong>Enums:</strong> 4 <strong>Sensitive fields:</strong> 4</p>
-          <p><strong>Used by:</strong> <code>POST /cloud/api/Manager/getListAgenstByAgent</code> <code>POST /cloud/api/Manager/getPlayers</code></p>
+          <p><strong>Used by:</strong> <code>POST /cloud/api/Manager/getPlayers</code></p>
           <table>
             <thead><tr><th>Field</th><th>Required</th><th>Constraints / Reference</th></tr></thead>
             <tbody><tr>
@@ -17700,7 +17700,7 @@
           <tr><td>4</td><td><code>FANTASY402_CF_BM</code> or <code>AUTH_CACHE.cfBm</code></td><td>Cloudflare Bot Management cookie, normalized to <code>__cf_bm=...</code> if only the value is supplied.</td></tr>
         </tbody>
       </table>
-      <p>Expected sanitized shape when an app cookie exists: <code>app_session=&lt;redacted&gt;; cf_clearance=&lt;redacted&gt;; __cf_bm=&lt;redacted&gt;</code>. Current captures may only show Cloudflare cookies; diagnostics reports names, not values.</p>
+      <p>Expected sanitized shape when an app cookie exists: <code>app_session=&lt;redacted&gt;; cf_clearance=&lt;redacted&gt;; __cf_bm=&lt;redacted&gt;</code>. Current captures may only show bearer auth plus Cloudflare cookies; diagnostics reports names and readiness, not values.</p>
     </section>
 
     <section class="section">

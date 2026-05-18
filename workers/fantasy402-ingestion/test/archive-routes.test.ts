@@ -965,6 +965,45 @@ test("ingestion can use browser-observed auth headers without login", async () =
   }
 });
 
+test("ingestion uses configured Fantasy402 production base URL exactly", async () => {
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; origin: string | null; referer: string | null }> = [];
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push({
+      url: String(input),
+      origin: headers.get("Origin"),
+      referer: headers.get("Referer"),
+    });
+    return Response.json({ performance: [] });
+  };
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://worker.test/trigger", {
+        method: "POST",
+        headers: { Authorization: "Bearer test-token" },
+      }),
+      env(new MemoryR2Bucket(), new MemoryD1Database(), {
+        FANTASY402_BASE_URL: "https://fantasy402.com",
+        FANTASY402_REFERER: "",
+        FANTASY402_SESSION_COOKIE: "app_session=from-browser-session",
+        FANTASY402_AUTHORIZATION: "browser-token",
+        FANTASY402_INGESTION_ENDPOINTS: "getAgentPerformance",
+      }),
+    );
+    assert.equal(response.status, 202);
+
+    assert.deepEqual(seen.map((request) => request.url), [
+      "https://fantasy402.com/cloud/api/Manager/getAgentPerformance",
+    ]);
+    assert.equal(seen[0]?.origin, "https://fantasy402.com");
+    assert.equal(seen[0]?.referer, "https://fantasy402.com/manager.html");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("ingestion keeps configured session cookie when appending Cloudflare cookies", async () => {
   const originalFetch = globalThis.fetch;
   const seen: string[] = [];

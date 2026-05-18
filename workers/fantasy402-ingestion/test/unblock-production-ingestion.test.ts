@@ -23,12 +23,40 @@ const bearerCloudflareCurl = [
   "  --data-raw '{\"operation\":\"getAccountInfoOwner\",\"agentOwner\":\"agent-1\"}'",
 ].join(" \\\n");
 
+const authorizationsCurl = [
+  "curl 'https://fantasy402.com/cloud/api/Manager/getAuthorizations'",
+  "  --header 'accept: */*'",
+  "  --header 'authorization: Bearer browser-token-secret'",
+  "  --header 'content-type: application/x-www-form-urlencoded; charset=UTF-8'",
+  "  --header 'origin: https://fantasy402.com'",
+  "  --header 'referer: https://fantasy402.com/manager.html?v=123'",
+  "  --header 'sec-fetch-site: same-origin'",
+  "  --header 'user-agent: Browser/1.0'",
+  "  --header 'x-requested-with: XMLHttpRequest'",
+  "  --cookie 'cf_clearance=clearance-secret; __cf_bm=bm-secret'",
+  "  --data-raw 'agentID=agent-1&agentOwner=agent-1&operation=getAuthorizations&RRO=1'",
+].join(" \\\n");
+
 test("unblock auth validation accepts bearer plus Cloudflare-cookie captures without app session cookies", () => {
   const auth = parseBrowserCurl(bearerCloudflareCurl);
   assert.doesNotThrow(() => validateBrowserAuthPayload(auth, "test capture"));
   assert.equal(auth.sessionCookie, undefined);
   assert.equal(auth.cfClearance, "clearance-secret");
   assert.equal(auth.cfBm, "bm-secret");
+});
+
+test("unblock auth validation accepts observed getAuthorizations browser cURL shape", () => {
+  const auth = parseBrowserCurl(authorizationsCurl);
+  assert.doesNotThrow(() => validateBrowserAuthPayload(auth, "test capture"));
+  assert.equal(auth.sourcePath, "/cloud/api/Manager/getAuthorizations");
+  assert.equal(auth.sourceOperation, "getAuthorizations");
+  assert.equal(auth.sourceContentType, "application/x-www-form-urlencoded; charset=UTF-8");
+  assert.equal(auth.agentId, "agent-1");
+  assert.equal(auth.sessionCookie, undefined);
+  assert.equal(auth.cfClearance, "clearance-secret");
+  assert.equal(auth.cfBm, "bm-secret");
+  assert.equal(auth.browserHeaders.referer, "https://fantasy402.com/manager.html?v=123");
+  assert.equal(auth.browserHeaders["x-requested-with"], "XMLHttpRequest");
 });
 
 test("unblock auth validation rejects explicit Cloudflare-only sessionCookie fields", () => {

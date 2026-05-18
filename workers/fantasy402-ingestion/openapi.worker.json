@@ -2637,6 +2637,7 @@
             "additionalProperties": false,
             "required": [
               "hasAuthorization",
+              "authorizationExpiry",
               "hasCookie",
               "hasSessionCookie",
               "hasCfClearance",
@@ -2649,6 +2650,40 @@
             "properties": {
               "hasAuthorization": {
                 "type": "boolean"
+              },
+              "authorizationExpiry": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "status",
+                  "expiresAt",
+                  "secondsRemaining"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "valid",
+                      "expiring",
+                      "expired",
+                      "unknown"
+                    ],
+                    "description": "Decoded bearer JWT expiry state when the upstream authorization value is a JWT; does not include token claims or token text."
+                  },
+                  "expiresAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "secondsRemaining": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
               },
               "hasCookie": {
                 "type": "boolean"
@@ -2727,7 +2762,7 @@
                       "string",
                       "null"
                     ],
-                    "description": "Present only when scheduled upstream ingestion is blocked by missing browser auth material."
+                    "description": "Present only when scheduled upstream ingestion is blocked by missing browser auth material or an expired bearer JWT."
                   }
                 }
               }

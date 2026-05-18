@@ -963,6 +963,16 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
 
   const body = payload as Record<string, unknown>;
   applyCookieHeaderAuthAliases(body);
+  const authorizationExpiry = authorizationExpiryDiagnostics(firstString(body.authorization));
+  if (authorizationExpiry.status === "expired") {
+    return json(
+      {
+        status: "failed",
+        message: `authorization JWT expired at ${authorizationExpiry.expiresAt}`,
+      },
+      400,
+    );
+  }
   if (
     body.sessionCookie !== undefined &&
     !hasNonCloudflareCookieHeader(String(body.sessionCookie ?? ""))
@@ -1480,6 +1490,38 @@ function normalizeAuthorization(value: string | undefined): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
   return /^Bearer\s+/i.test(trimmed) ? trimmed : `Bearer ${trimmed}`;
+}
+
+interface AuthorizationExpiryDiagnostics {
+  status: "valid" | "expiring" | "expired" | "unknown";
+  expiresAt: string | null;
+  secondsRemaining: number | null;
+}
+
+function authorizationExpiryDiagnostics(value: string | undefined, nowMs = Date.now()): AuthorizationExpiryDiagnostics {
+  const token = normalizeAuthorization(value)?.replace(/^Bearer\s+/i, "") ?? "";
+  const payload = decodeJwtPayload(token);
+  const exp = typeof payload?.exp === "number" && Number.isFinite(payload.exp) ? payload.exp : null;
+  if (!exp) return { status: "unknown", expiresAt: null, secondsRemaining: null };
+
+  const secondsRemaining = Math.floor(exp - nowMs / 1000);
+  const expiresAt = new Date(exp * 1000).toISOString();
+  if (secondsRemaining <= 0) return { status: "expired", expiresAt, secondsRemaining };
+  if (secondsRemaining <= 300) return { status: "expiring", expiresAt, secondsRemaining };
+  return { status: "valid", expiresAt, secondsRemaining };
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = JSON.parse(globalThis.atob(padded));
+    return decoded && typeof decoded === "object" && !Array.isArray(decoded) ? decoded as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
 }
 
 function encodeRequestBody(endpoint: EndpointConfig, body: Record<string, string | number>): { body: string | URLSearchParams; contentType: string } {
@@ -2778,11 +2820,14 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
   const hasCookieName = (name: string) => cookieNames.some((cookie) => cookie.toLowerCase() === name.toLowerCase());
   const hasSessionCookie = cookieNames.some((name) => !isCloudflareCookieName(name));
   const hasAuthorization = Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION));
+  const authorizationExpiry = authorizationExpiryDiagnostics(env.FANTASY402_AUTHORIZATION);
+  const hasUsableAuthorization = hasAuthorization && authorizationExpiry.status !== "expired";
   const hasCfClearance = hasCookieName("cf_clearance");
   const hasCfBm = hasCookieName("__cf_bm");
-  const ready = hasAuthorization && hasCfClearance && hasCfBm;
+  const ready = hasUsableAuthorization && hasCfClearance && hasCfBm;
   return {
     hasAuthorization,
+    authorizationExpiry,
     hasCookie: cookieNames.length > 0,
     hasSessionCookie,
     hasCfClearance,
@@ -2792,15 +2837,21 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     browserHeaders: observedBrowserHeaderPresence(env.FANTASY402_BROWSER_HEADERS_JSON, optionalHeaderFallback(env)),
     ingestionReadiness: {
       status: ready ? "ready" : "blocked",
-      blocker: ready ? null : "missing bearer authorization plus cf_clearance and __cf_bm",
+      blocker: ready
+        ? null
+        : authorizationExpiry.status === "expired"
+          ? `authorization JWT expired at ${authorizationExpiry.expiresAt}`
+          : "missing bearer authorization plus cf_clearance and __cf_bm; bearer must be unexpired",
     },
   };
 }
 
 function hasBearerCloudflareAuth(env: Env): boolean {
   const cookieHeader = fantasy402CookieHeader(env, "");
+  const authorization = normalizeAuthorization(env.FANTASY402_AUTHORIZATION) ?? undefined;
   return Boolean(
-    normalizeAuthorization(env.FANTASY402_AUTHORIZATION) &&
+    authorization &&
+      authorizationExpiryDiagnostics(authorization).status !== "expired" &&
       cookieHeaderHasName(cookieHeader, "cf_clearance") &&
       cookieHeaderHasName(cookieHeader, "__cf_bm"),
   );

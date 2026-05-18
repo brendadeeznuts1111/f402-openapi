@@ -201,6 +201,11 @@ function authorized(path: string): Request {
   });
 }
 
+function fakeJwt(exp: number): string {
+  const encode = (value: Record<string, unknown>) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp })}.signature`;
+}
+
 test("archive list requires bearer auth", async () => {
   const response = await worker.fetch(new Request("https://worker.test/archive"), env(new MemoryR2Bucket()));
   assert.equal(response.status, 401);
@@ -376,16 +381,36 @@ test("diagnostics is ready when bearer and Cloudflare cookies lack an app sessio
     env(new MemoryR2Bucket(), new MemoryD1Database(), {
       FANTASY402_CF_CLEARANCE: "clearance-token",
       FANTASY402_CF_BM: "bm-token",
-      FANTASY402_AUTHORIZATION: "browser-token",
+      FANTASY402_AUTHORIZATION: fakeJwt(Math.floor(Date.now() / 1000) + 3600),
     }),
   );
   assert.equal(response.status, 200);
   const body = await response.json() as any;
   assert.equal(body.status, "ready");
   assert.equal(body.upstreamAuthShape.hasAuthorization, true);
+  assert.equal(body.upstreamAuthShape.authorizationExpiry.status, "valid");
   assert.equal(body.upstreamAuthShape.hasSessionCookie, false);
   assert.equal(body.upstreamAuthShape.ingestionReadiness.status, "ready");
   assert.equal(body.upstreamAuthShape.ingestionReadiness.blocker, null);
+});
+
+test("diagnostics blocks expired bearer plus Cloudflare cookies before ingestion", async () => {
+  const response = await worker.fetch(
+    authorized("/diagnostics"),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), {
+      FANTASY402_CF_CLEARANCE: "clearance-token",
+      FANTASY402_CF_BM: "bm-token",
+      FANTASY402_AUTHORIZATION: fakeJwt(Math.floor(Date.now() / 1000) - 60),
+    }),
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json() as any;
+  assert.equal(body.status, "degraded");
+  assert.equal(body.upstreamAuthShape.hasAuthorization, true);
+  assert.equal(body.upstreamAuthShape.authorizationExpiry.status, "expired");
+  assert.equal(body.upstreamAuthShape.ingestionReadiness.status, "blocked");
+  assert.match(body.upstreamAuthShape.ingestionReadiness.blocker, /authorization JWT expired/);
+  assert.equal(JSON.stringify(body).includes(".signature"), false);
 });
 
 test("diagnostics resolves account-level Secrets Store bindings", async () => {
@@ -1195,6 +1220,30 @@ test("refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH
   const body = await response.json() as { status: string; message: string };
   assert.equal(body.status, "failed");
   assert.match(body.message, /non-Cloudflare application cookie/);
+  assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
+});
+
+test("refresh-auth rejects expired bearer before poisoning AUTH_CACHE", async () => {
+  const authKv = new MemoryKVNamespace();
+  const response = await worker.fetch(
+    new Request("https://worker.test/refresh-auth", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        authorization: fakeJwt(Math.floor(Date.now() / 1000) - 60),
+        cfClearance: "clearance-token",
+        cfBm: "bm-token",
+      }),
+    }),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), { AUTH_CACHE: authKv }),
+  );
+  assert.equal(response.status, 400);
+  const body = await response.json() as { status: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.match(body.message, /authorization JWT expired/);
   assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
 });
 

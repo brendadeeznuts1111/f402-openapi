@@ -365,7 +365,7 @@ test("diagnostics reports readiness and sanitized upstream auth shape without le
   assert.equal(JSON.stringify(body).includes("browser-token"), false);
 });
 
-test("diagnostics degrades when bearer and Cloudflare cookies lack an app session", async () => {
+test("diagnostics is ready when bearer and Cloudflare cookies lack an app session", async () => {
   const response = await worker.fetch(
     authorized("/diagnostics"),
     env(new MemoryR2Bucket(), new MemoryD1Database(), {
@@ -376,11 +376,11 @@ test("diagnostics degrades when bearer and Cloudflare cookies lack an app sessio
   );
   assert.equal(response.status, 200);
   const body = await response.json() as any;
-  assert.equal(body.status, "degraded");
+  assert.equal(body.status, "ready");
   assert.equal(body.upstreamAuthShape.hasAuthorization, true);
   assert.equal(body.upstreamAuthShape.hasSessionCookie, false);
-  assert.equal(body.upstreamAuthShape.ingestionReadiness.status, "blocked");
-  assert.match(body.upstreamAuthShape.ingestionReadiness.blocker, /ASP\.NET_SessionId/);
+  assert.equal(body.upstreamAuthShape.ingestionReadiness.status, "ready");
+  assert.equal(body.upstreamAuthShape.ingestionReadiness.blocker, null);
 });
 
 test("diagnostics resolves account-level Secrets Store bindings", async () => {
@@ -393,6 +393,9 @@ test("diagnostics resolves account-level Secrets Store bindings", async () => {
       FANTASY402_AGENT_ID: { get: async () => "store-agent" },
       CLOUDFLARE_API_TOKEN: { get: async () => "store-cf-token" },
       FANTASY402_SESSION_COOKIE: { get: async () => "ASP.NET_SessionId=store-session" },
+      FANTASY402_AUTHORIZATION: "Bearer store-browser-token",
+      FANTASY402_CF_CLEARANCE: "store-clearance",
+      FANTASY402_CF_BM: "store-bm",
     },
   );
   assert.equal(response.status, 200);
@@ -1058,11 +1061,11 @@ test("refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH
   assert.equal(response.status, 400);
   const body = await response.json() as { status: string; message: string };
   assert.equal(body.status, "failed");
-  assert.match(body.message, /non-Cloudflare application session cookie/);
+  assert.match(body.message, /non-Cloudflare application cookie/);
   assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
 });
 
-test("refresh-auth rejects missing session cookies before poisoning AUTH_CACHE", async () => {
+test("refresh-auth accepts bearer plus Cloudflare cookies without sessionCookie", async () => {
   const authKv = new MemoryKVNamespace();
   const response = await worker.fetch(
     new Request("https://worker.test/refresh-auth", {
@@ -1079,11 +1082,13 @@ test("refresh-auth rejects missing session cookies before poisoning AUTH_CACHE",
     }),
     env(new MemoryR2Bucket(), new MemoryD1Database(), { AUTH_CACHE: authKv }),
   );
-  assert.equal(response.status, 400);
-  const body = await response.json() as { status: string; message: string };
-  assert.equal(body.status, "failed");
-  assert.match(body.message, /sessionCookie is required/);
-  assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
+  assert.equal(response.status, 200);
+  const body = await response.json() as { status: string; accepted: string[] };
+  assert.equal(body.status, "ok");
+  assert.deepEqual(body.accepted.sort(), ["authorization", "cfBm", "cfClearance"].sort());
+  const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
+  assert.equal(stored.authorization, "Bearer refreshed-token");
+  assert.equal(stored.sessionCookie, undefined);
 });
 
 test("refresh-auth extracts auth fields from full Cookie header aliases", async () => {

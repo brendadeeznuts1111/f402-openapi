@@ -850,11 +850,14 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
 
   const body = payload as Record<string, unknown>;
   applyCookieHeaderAuthAliases(body);
-  if (!hasNonCloudflareCookieHeader(String(body.sessionCookie ?? ""))) {
+  if (
+    body.sessionCookie !== undefined &&
+    !hasNonCloudflareCookieHeader(String(body.sessionCookie ?? ""))
+  ) {
     return json(
       {
         status: "failed",
-        message: "sessionCookie is required and must include a non-Cloudflare application session cookie such as ASP.NET_SessionId; bearer plus cf_clearance and __cf_bm alone causes upstream 403/1106",
+        message: "sessionCookie must include a non-Cloudflare application cookie when provided; omit it for bearer plus cf_clearance and __cf_bm browser auth",
       },
       400,
     );
@@ -2588,6 +2591,7 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
   const hasAuthorization = Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION));
   const hasCfClearance = hasCookieName("cf_clearance");
   const hasCfBm = hasCookieName("__cf_bm");
+  const ready = hasAuthorization && hasCfClearance && hasCfBm;
   return {
     hasAuthorization,
     hasCookie: cookieNames.length > 0,
@@ -2597,8 +2601,8 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     cookieNames,
     browserHeaderCount: observedBrowserHeaderCount(env.FANTASY402_BROWSER_HEADERS_JSON),
     ingestionReadiness: {
-      status: hasSessionCookie ? "ready" : "blocked",
-      blocker: hasSessionCookie ? null : "missing non-Cloudflare application session cookie such as ASP.NET_SessionId",
+      status: ready ? "ready" : "blocked",
+      blocker: ready ? null : "missing bearer authorization plus cf_clearance and __cf_bm",
     },
   };
 }

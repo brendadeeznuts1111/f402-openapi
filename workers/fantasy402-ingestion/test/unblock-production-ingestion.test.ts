@@ -14,17 +14,35 @@ const fullCurl = [
   "  --data-raw 'operation=getAgentPerformance&agentID=agent-1&customerID=cust-1'",
 ].join(" \\\n");
 
-test("unblock auth validation rejects Cloudflare-only cookies", () => {
+const bearerCloudflareCurl = [
+  "curl 'https://fantasy402.com/cloud/api/Manager/getAccountInfoOwner'",
+  "  --header 'authorization: Bearer browser-token-secret'",
+  "  --header 'content-type: application/json'",
+  "  --header 'user-agent: Browser/1.0'",
+  "  --cookie 'cf_clearance=clearance-secret; __cf_bm=bm-secret'",
+  "  --data-raw '{\"operation\":\"getAccountInfoOwner\",\"agentOwner\":\"agent-1\"}'",
+].join(" \\\n");
+
+test("unblock auth validation accepts bearer plus Cloudflare-cookie captures without app session cookies", () => {
+  const auth = parseBrowserCurl(bearerCloudflareCurl);
+  assert.doesNotThrow(() => validateBrowserAuthPayload(auth, "test capture"));
+  assert.equal(auth.sessionCookie, undefined);
+  assert.equal(auth.cfClearance, "clearance-secret");
+  assert.equal(auth.cfBm, "bm-secret");
+});
+
+test("unblock auth validation rejects explicit Cloudflare-only sessionCookie fields", () => {
   const auth = parseBrowserCurl([
     "curl 'https://fantasy402.com/cloud/api/Manager/getAgentPerformance'",
     "  --header 'authorization: Bearer browser-token-secret'",
     "  --header 'user-agent: Browser/1.0'",
     "  --cookie 'cf_clearance=clearance-secret; __cf_bm=bm-secret'",
   ].join(" \\\n"));
+  auth.sessionCookie = "cf_clearance=clearance-secret; __cf_bm=bm-secret";
 
   assert.throws(
     () => validateBrowserAuthPayload(auth, "test capture"),
-    /sessionCookie is missing|sessionCookie contains only Cloudflare cookies/,
+    /sessionCookie contains only Cloudflare cookies/,
   );
 });
 
@@ -95,7 +113,7 @@ function mockFetch(calls: string[], overrides: Record<string, unknown> = {}) {
     const route = `${init.method ?? "GET"} ${url.pathname}`;
     calls.push(route);
     if (route === "POST /refresh-auth") {
-      return jsonResponse(200, { status: "ok", accepted: ["authorization", "sessionCookie", "cfClearance", "cfBm"], ttlSeconds: 3600 });
+      return jsonResponse(200, { status: "ok", accepted: ["authorization", "cfClearance", "cfBm"], ttlSeconds: 3600 });
     }
     if (route === "GET /diagnostics") {
       return jsonResponse(200, overrides.diagnostics ?? {

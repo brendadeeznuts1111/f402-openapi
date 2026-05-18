@@ -28,7 +28,7 @@ requireText(contents.source, "function isCloudflareCookieName", "source must cla
 requireText(contents.source, "const upstreamAuthShape = upstreamAuthDiagnostics(env);", "diagnostics must expose sanitized upstream auth shape");
 requireText(contents.source, "function upstreamAuthDiagnostics", "source must define sanitized upstream auth diagnostics");
 requireText(contents.source, "ingestionReadiness", "diagnostics must expose ingestion readiness derived from auth shape");
-requireText(contents.source, "missing non-Cloudflare application session cookie", "diagnostics must name usable upstream auth requirements");
+requireText(contents.source, "missing bearer authorization plus cf_clearance and __cf_bm", "diagnostics must name usable upstream auth requirements");
 requireText(contents.source, 'normalizeAuthorization(env.FANTASY402_AUTHORIZATION)', "source must skip fallback login when browser bearer auth is configured");
 requireText(contents.source, "function hasBearerCloudflareAuth", "source must allow observed bearer plus Cloudflare-cookie browser auth");
 requireText(contents.source, '/cloud/api/System/authenticateCustomer', "source must use browser-observed authenticateCustomer fallback");
@@ -52,11 +52,11 @@ requireText(contents.source, "cookieName(existing)?.toLowerCase() === name.toLow
 requireText(contents.source, "if (cached.sessionCookie) overlaid.FANTASY402_SESSION_COOKIE = cached.sessionCookie;", "AUTH_CACHE sessionCookie overlay must override configured secret");
 requireText(contents.source, '"FANTASY402_SESSION_COOKIE"', "Secrets Store materialization must include FANTASY402_SESSION_COOKIE");
 requireText(contents.source, "hasNonCloudflareCookieHeader", "source must distinguish app session cookies from Cloudflare-only cookies");
-requireText(contents.source, "bearer plus cf_clearance and __cf_bm alone causes upstream 403/1106", "refresh-auth must reject Cloudflare-only session cookie payloads");
+requireText(contents.source, "omit it for bearer plus cf_clearance and __cf_bm browser auth", "refresh-auth must allow observed bearer plus Cloudflare-cookie browser auth");
 
 requireText(contents.tests, "ingestion keeps configured session cookie when appending Cloudflare cookies", "tests must cover configured session cookie plus Cloudflare cookies");
 requireText(contents.tests, "ingestion uses browser bearer plus Cloudflare cookies when app session cookie is absent", "tests must cover observed bearer plus Cloudflare-cookie auth");
-requireText(contents.tests, "refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH_CACHE", "tests must reject bad browser cURL refresh payloads");
+requireText(contents.tests, "refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH_CACHE", "tests must reject explicitly bad sessionCookie payloads");
 requireText(contents.tests, "url.endsWith(\"/cloud/api/System/authenticateCustomer\")), false", "tests must assert valid bearer plus Cloudflare-cookie auth skips authenticateCustomer");
 requireText(contents.tests, "authenticateCustomer fallback caches bearer token and app session in AUTH_CACHE", "tests must cover authenticateCustomer fallback cache writes");
 requireText(contents.tests, "ingestion renews near-expired cached token before upstream calls", "tests must cover renewToken before upstream calls");
@@ -70,7 +70,7 @@ requireText(contents.tests, "cf_clearance=kv-clearance; __cf_bm=kv-bm", "tests m
 requireText(contents.readme, "### Upstream Auth And Cookie Assembly", "README must document upstream auth and cookie assembly");
 requireText(contents.readme, "Adds `FANTASY402_SESSION_COOKIE` when set.", "README must document configured session cookie inclusion");
 requireText(contents.readme, "app_session=<redacted>; cf_clearance=<redacted>; __cf_bm=<redacted>", "README must document sanitized Cookie shape");
-requireText(contents.readme, "production ingestion now requires a non-Cloudflare application cookie", "README must document current auth interpretation");
+requireText(contents.readme, "production ingestion accepts bearer auth plus Cloudflare cookies", "README must document current auth interpretation");
 requireText(contents.readme, "/cloud/api/System/authenticateCustomer", "README must document browser-observed auth fallback endpoint");
 requireText(contents.readme, "/cloud/api/System/renewToken", "README must document browser-observed token renewal endpoint");
 requireText(contents.readme, "stores them in `AUTH_CACHE`", "README must document app-auth caching");
@@ -86,12 +86,12 @@ requireText(dryRun, "ingestionReadiness", "dry-run must report ingestion readine
 requireText(dryRun, "bodyKeys", "dry-run must report per-endpoint bodyKeys");
 const localBrowserIngest = fs.readFileSync(path.join(workerRoot, "scripts/local-browser-ingest.mjs"), "utf8");
 requireText(localBrowserIngest, "function hasBearerCloudflareAuth", "local browser ingest must allow bearer plus Cloudflare-cookie auth");
-requireText(localBrowserIngest, "include the app session cookie", "local browser ingest must describe required app session auth");
+requireText(localBrowserIngest, "omit it or include a real application cookie", "local browser ingest must describe optional app session auth");
 requireText(localBrowserIngest, "cookieNames: cookieNames(cookieHeader(authPayload))", "local browser ingest failure reports must include sanitized cookie names");
 
 requireText(contents.securedSite, "<h2>Upstream Cookie Assembly</h2>", "secured HTML docs must include Upstream Cookie Assembly section");
 requireText(contents.securedSite, "Always included when present.", "secured HTML docs must state session cookie inclusion behavior");
-requireText(contents.securedSite, "Endpoint calls require a non-Cloudflare application cookie", "secured HTML docs must reflect current observed login flow");
+requireText(contents.securedSite, "Endpoint calls accept bearer authorization plus Cloudflare cookies", "secured HTML docs must reflect current observed login flow");
 
 const refreshSchema = workerOpenapi.components?.schemas?.RefreshAuthRequest;
 if (!refreshSchema) {
@@ -107,11 +107,11 @@ if (!refreshSchema) {
   if (!/upstream Cookie header alongside Cloudflare cookies/.test(sessionCookie?.description ?? "")) {
     findings.push("RefreshAuthRequest.sessionCookie description must document Cookie header assembly");
   }
-  if (!/non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
-    findings.push("RefreshAuthRequest.sessionCookie description must document non-Cloudflare app-session requirement");
+  if (!/optional non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
+    findings.push("RefreshAuthRequest.sessionCookie description must document optional non-Cloudflare app-session behavior");
   }
-  if (!/403\/1106/.test(sessionCookie?.description ?? "")) {
-    findings.push("RefreshAuthRequest.sessionCookie description must document upstream 403/1106 blocker");
+  if (!/bearer plus Cloudflare cookies/.test(sessionCookie?.description ?? "")) {
+    findings.push("RefreshAuthRequest.sessionCookie description must document bearer plus Cloudflare cookie readiness");
   }
 }
 

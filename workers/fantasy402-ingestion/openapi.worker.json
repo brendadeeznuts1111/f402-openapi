@@ -3362,7 +3362,7 @@
             "type": "string",
             "maxLength": 8192,
             "writeOnly": true,
-            "description": "Browser-observed non-Cloudflare application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies. Required for refresh readiness because bearer plus Cloudflare cookies alone yields upstream 403/1106.",
+            "description": "Browser-observed optional non-Cloudflare application/session Cookie header fragment from an authenticated upstream browser request. Included in the upstream Cookie header alongside Cloudflare cookies when present. bearer plus Cloudflare cookies are sufficient for refresh readiness when no app cookie exists.",
             "x-sensitive": true,
             "x-privacy-classification": "Credential",
             "x-security-review-required": true

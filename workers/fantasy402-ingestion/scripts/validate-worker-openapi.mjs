@@ -52,11 +52,11 @@ if (!upstreamAuthShape?.properties?.ingestionReadiness) {
 }
 
 const sessionCookie = spec.components?.schemas?.RefreshAuthRequest?.properties?.sessionCookie;
-if (!/non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
-  findings.push("RefreshAuthRequest.sessionCookie must document non-Cloudflare app-session requirement");
+if (!/optional non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
+  findings.push("RefreshAuthRequest.sessionCookie must document optional non-Cloudflare app-session behavior");
 }
-if (!/403\/1106/.test(sessionCookie?.description ?? "")) {
-  findings.push("RefreshAuthRequest.sessionCookie must document the upstream 403/1106 blocker");
+if (!/bearer plus Cloudflare cookies/.test(sessionCookie?.description ?? "")) {
+  findings.push("RefreshAuthRequest.sessionCookie must document bearer plus Cloudflare cookie readiness");
 }
 
 for (const [name, schema] of Object.entries(spec.components?.schemas ?? {})) {

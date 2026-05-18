@@ -19,6 +19,10 @@
 .DS_Store
 node_modules/
 
+# Local environment secrets
+.dev.vars
+.env
+
 # Local discovery/probing utilities and copied skill internals are not part of
 # the secured contract release.
 tools/browser-to-api-local/

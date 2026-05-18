@@ -50,6 +50,11 @@ export const authorizationsQuerySchema = paginationSchema.extend({
   limit: z.coerce.number().int().min(1).max(200).default(20).catch(20),
 });
 
+export const updateCookiesSchema = z.object({
+  cf_clearance: z.string().min(1),
+  __cf_bm: z.string().min(1),
+});
+
 export type Pagination = z.infer<typeof paginationSchema>;
 export type WagerQuery = z.infer<typeof wagerQuerySchema>;
 export type LocalIngestItem = z.infer<typeof localIngestItemSchema>;

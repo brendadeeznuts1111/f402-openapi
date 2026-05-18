@@ -1,6 +1,6 @@
 import { diagnoseUrlScanner, submitAndWait, UrlScannerApiError } from "./url-scanner";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
-import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema } from "./schemas";
+import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema } from "./schemas";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
 
 export interface Env {
@@ -90,6 +90,10 @@ interface AuthMaterial {
   cfClearance?: string;
   cfBm?: string;
 }
+
+// In-memory cache for D1 cookies (60-second TTL per Worker isolate)
+let d1CookiesCache: { value: string; expiresAt: number } | null = null;
+const D1_COOKIES_CACHE_TTL_MS = 60_000;
 
 interface EndpointConfig {
   key: EndpointKey;
@@ -942,6 +946,20 @@ const worker = {
       return refreshAuth(request, env);
     }
 
+    if (url.pathname === "/update-cookies" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return updateCookies(request, env);
+    }
+
+    if (url.pathname === "/upstream-cookies-status" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return upstreamCookiesStatus(env);
+    }
+
     if (url.pathname === "/ingest/local" && request.method === "POST") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -1726,6 +1744,75 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   );
 }
 
+async function updateCookies(request: Request, env: Env): Promise<Response> {
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ status: "failed", message: "Expected JSON body" }, 400);
+  }
+  const parsed = updateCookiesSchema.safeParse(payload);
+  if (!parsed.success) {
+    return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
+  }
+
+  const { cf_clearance, __cf_bm } = parsed.data;
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO cookies (name, value, updated_at) VALUES (?1, ?2, datetime('now'))
+     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+  );
+
+  try {
+    await stmt.bind("cf_clearance", cf_clearance).run();
+    await stmt.bind("__cf_bm", __cf_bm).run();
+  } catch (error) {
+    console.error("[Cookies] D1 upsert failed:", errorMessage(error));
+    return json({ status: "failed", message: "D1 upsert failed", detail: errorMessage(error) }, 500);
+  }
+
+  // Clear in-memory cache so the next request picks up fresh cookies immediately
+  d1CookiesCache = null;
+
+  return json({ status: "ok", updated: ["cf_clearance", "__cf_bm"] }, 200);
+}
+
+async function upstreamCookiesStatus(env: Env): Promise<Response> {
+  try {
+    const result = await env.ANALYTICS_DB.prepare(
+      "SELECT name, value, updated_at FROM cookies WHERE name IN ('cf_clearance', '__cf_bm')"
+    ).all();
+    const rows = result.results as { name: string; value: string; updated_at: string }[];
+    const cookies: Record<string, { updated_at: string; value_preview: string }> = {};
+    for (const row of rows) {
+      cookies[row.name] = {
+        updated_at: row.updated_at,
+        value_preview: row.value.slice(0, 30) + "...",
+      };
+    }
+    return json(
+      {
+        status: "ok",
+        source: "d1",
+        cookies,
+        cache_active: d1CookiesCache !== null && d1CookiesCache.expiresAt > Date.now(),
+      },
+      200,
+    );
+  } catch (error) {
+    return json(
+      {
+        status: "ok",
+        source: "fallback",
+        cf_clearance_present: Boolean(env.FANTASY402_CF_CLEARANCE),
+        __cf_bm_present: Boolean(env.FANTASY402_CF_BM),
+        cache_active: d1CookiesCache !== null && d1CookiesCache.expiresAt > Date.now(),
+        d1_error: errorMessage(error),
+      },
+      200,
+    );
+  }
+}
+
 function applyCookieHeaderAuthAliases(body: Record<string, unknown>): void {
   const cookieHeader = firstString(body.cookieHeader, body.cookie, body.cookies);
   if (!cookieHeader) return;
@@ -1858,7 +1945,7 @@ async function authenticateFantasy402(env: Env): Promise<AuthMaterial> {
   const response = await fetchWithTimeout(`${baseUrl(env)}/cloud/api/System/authenticateCustomer`, {
     method: "POST",
     body: form,
-    headers: fantasy402ApiHeaders(env, "", "application/x-www-form-urlencoded; charset=UTF-8"),
+    headers: await fantasy402ApiHeaders(env, "", "application/x-www-form-urlencoded; charset=UTF-8"),
   });
 
   if (!response.ok) {
@@ -1901,7 +1988,7 @@ async function tryRenewFantasy402Token(env: Env, sessionCookie: string): Promise
     const response = await fetchWithTimeout(`${baseUrl(env)}/cloud/api/System/renewToken`, {
       method: "POST",
       body: new URLSearchParams(),
-      headers: fantasy402ApiHeaders(env, sessionCookie, "application/x-www-form-urlencoded; charset=UTF-8"),
+      headers: await fantasy402ApiHeaders(env, sessionCookie, "application/x-www-form-urlencoded; charset=UTF-8"),
     });
     if (!response.ok) {
       console.warn("[Fantasy402] renewToken failed", { status: response.status });
@@ -2042,7 +2129,7 @@ interface AttemptedResponse {
 async function postFantasy402(env: Env, endpoint: EndpointConfig, sessionCookie: string, now: Date): Promise<Response> {
   const body = endpoint.buildBody(env, now);
   const encodedBody = encodeRequestBody(endpoint, body);
-  const headers = fantasy402ApiHeaders(env, sessionCookie, encodedBody.contentType);
+  const headers = await fantasy402ApiHeaders(env, sessionCookie, encodedBody.contentType);
 
   const response = await fetchWithTimeout(`${baseUrl(env)}${endpoint.path}`, {
     method: "POST",
@@ -2064,13 +2151,14 @@ async function postFantasy402(env: Env, endpoint: EndpointConfig, sessionCookie:
   return response;
 }
 
-function fantasy402ApiHeaders(env: Env, sessionCookie: string, contentType: string): Record<string, string> {
+async function fantasy402ApiHeaders(env: Env, sessionCookie: string, contentType: string): Promise<Record<string, string>> {
   const base = baseUrl(env);
+  const upstreamCookies = await getUpstreamCookies(env);
   const headers: Record<string, string> = {
     Accept: "*/*",
     "Accept-Language": "en-US,en;q=0.9",
     "Content-Type": contentType,
-    Cookie: fantasy402CookieHeader(env, sessionCookie),
+    Cookie: fantasy402CookieHeader(env, sessionCookie, upstreamCookies),
     Origin: base,
     Referer: env.FANTASY402_REFERER || `${base}/manager.html`,
     "User-Agent": env.FANTASY402_USER_AGENT || "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
@@ -2085,7 +2173,7 @@ function fantasy402ApiHeaders(env: Env, sessionCookie: string, contentType: stri
   };
   applyObservedBrowserHeaders(headers, env.FANTASY402_BROWSER_HEADERS_JSON);
   headers["Content-Type"] = contentType;
-  headers.Cookie = fantasy402CookieHeader(env, sessionCookie);
+  headers.Cookie = fantasy402CookieHeader(env, sessionCookie, upstreamCookies);
   const authorization = normalizeAuthorization(env.UPSTREAM_TOKEN) ?? normalizeAuthorization(env.FANTASY402_AUTHORIZATION);
   if (authorization) headers.Authorization = authorization;
   return headers;
@@ -2141,13 +2229,48 @@ function canonicalHeaderName(name: string): string {
     .join("-");
 }
 
-function fantasy402CookieHeader(env: Env, sessionCookie: string): string {
+function fantasy402CookieHeader(env: Env, sessionCookie: string, upstreamCookies?: string): string {
   const cookies: string[] = [];
   appendCookieHeaderIfMissing(cookies, env.FANTASY402_SESSION_COOKIE);
   appendCookieHeaderIfMissing(cookies, sessionCookie);
+  appendCookieHeaderIfMissing(cookies, upstreamCookies);
   appendCookieIfMissing(cookies, "cf_clearance", env.FANTASY402_CF_CLEARANCE);
   appendCookieIfMissing(cookies, "__cf_bm", env.FANTASY402_CF_BM);
   return cookies.join("; ");
+}
+
+async function getUpstreamCookies(env: Env): Promise<string> {
+  const now = Date.now();
+  if (d1CookiesCache && d1CookiesCache.expiresAt > now) {
+    return d1CookiesCache.value;
+  }
+
+  try {
+    const result = await env.ANALYTICS_DB.prepare(
+      "SELECT name, value, updated_at FROM cookies WHERE name IN ('cf_clearance', '__cf_bm')"
+    ).all();
+    const rows = result.results as { name: string; value: string; updated_at: string }[];
+    const cookies: string[] = [];
+    for (const row of rows) {
+      const clean = normalizeCookieValue(row.name, row.value);
+      if (clean) cookies.push(clean);
+    }
+    if (cookies.length > 0) {
+      const value = cookies.join("; ");
+      d1CookiesCache = { value, expiresAt: now + D1_COOKIES_CACHE_TTL_MS };
+      return value;
+    }
+  } catch (error) {
+    console.error("[Cookies] Failed to read cookies from D1:", errorMessage(error));
+  }
+
+  // Fallback to env vars
+  const fallback: string[] = [];
+  appendCookieIfMissing(fallback, "cf_clearance", env.FANTASY402_CF_CLEARANCE);
+  appendCookieIfMissing(fallback, "__cf_bm", env.FANTASY402_CF_BM);
+  const value = fallback.join("; ");
+  d1CookiesCache = { value, expiresAt: now + D1_COOKIES_CACHE_TTL_MS };
+  return value;
 }
 
 function splitCookieHeader(value: string): string[] {

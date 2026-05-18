@@ -477,6 +477,31 @@
         }
       }
     },
+    "/archive/viewer": {
+      "get": {
+        "operationId": "getArchiveViewer",
+        "summary": "Serve the protected archive and scan operations viewer UI",
+        "description": "Public static HTML operator shell. Data APIs called by the viewer still require triggerToken authorization and do not expose archive data without a bearer token.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Archive viewer HTML",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "html": {
+                    "value": "<!doctype html><html><head><title>Fantasy402 Archive Viewer</title></head><body>Fantasy402 Archive Viewer</body></html>"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/diagnostics": {
       "get": {
         "operationId": "getDiagnostics",

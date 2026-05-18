@@ -208,7 +208,7 @@ npm run validate:deploy-config
 
 This intentionally fails while `wrangler.toml` still contains placeholder KV or D1 IDs.
 
-The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract. Defaults currently ingest the read-only Manager helpers that do not require `FANTASY402_CUSTOMER_ID`: `getAgentPerformance`, `getAgentBilling`, `getEnterTransactions`, `getPlayers`, `getAddedInfo`, `getLineTypes`, and `getHeriarchy`.
+The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract. The production default is `getAccountInfoOwner`, which matches the observed authenticated manager browser request and does not require `FANTASY402_CUSTOMER_ID`.
 
 Some discovered browser-to-api operations use different body encodings. The Worker sends form-encoded bodies for the common Manager/Report endpoints and JSON for `Manager/getPending`, matching `openapi.secured.examples.json`.
 

@@ -7,6 +7,7 @@ const endpointKeys = (process.env.FANTASY402_INGESTION_ENDPOINTS ?? readWrangler
   .filter(Boolean);
 
 const endpoints = {
+  getAccountInfoOwner: { path: "/cloud/api/Manager/getAccountInfoOwner", operation: "getAccountInfoOwner", contentType: "json", accountOwnerOnly: true },
   getAgentPerformance: { path: "/cloud/api/Manager/getAgentPerformance", operation: "getAgentPerformance", contentType: "form" },
   getAgentBilling: { path: "/cloud/api/Manager/getAgentBilling", operation: "getAgentBilling", contentType: "form" },
   getEnterTransactions: { path: "/cloud/api/Manager/getEnterTransactions", operation: "getEnterTransactions", contentType: "form" },
@@ -90,6 +91,12 @@ console.log(JSON.stringify(output, null, 2));
 if (allFindings.length > 0) process.exit(1);
 
 function requestBody(endpoint, now) {
+  if (endpoint.accountOwnerOnly) {
+    return {
+      operation: endpoint.operation,
+      agentOwner: agentId,
+    };
+  }
   if (endpoint.contentType === "json") {
     return {
       RRO: 1,

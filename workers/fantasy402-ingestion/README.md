@@ -247,6 +247,76 @@ The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints
 
 The secured static docs include an `Operation Request Parameters` section generated from `openapi.secured.examples.json`. The validator fails if any non-GET upstream operation loses its request body schema or required parameter list.
 
+## Automated Cloudflare Cookie Refresh
+
+The Worker can automatically maintain fresh Cloudflare clearance cookies (`cf_clearance` and `__cf_bm`) via a Puppeteer script that pushes extracted cookies to a protected D1-backed endpoint.
+
+### How it works
+
+1. **Puppeteer script** (`scripts/refresh-cookies/refresh-cookies.js`) launches a stealth headless browser, navigates to `fantasy402.com`, waits for the Cloudflare challenge to resolve, and extracts both cookies.
+2. **Worker endpoint** `POST /update-cookies` accepts `{cf_clearance, __cf_bm}` and upserts them into the D1 `cookies` table.
+3. **Ingestion engine** reads cookies from D1 first (with a 60-second in-memory cache), falling back to `env.FANTASY402_CF_CLEARANCE` / `env.FANTASY402_CF_BM` if D1 is empty or errors.
+4. **Scheduling** — on macOS, a `launchd` job runs the script every 15 minutes.
+
+### Setup
+
+```bash
+cd scripts/refresh-cookies
+npm install
+```
+
+Create a local `.env` file from 1Password (or set env vars directly):
+
+```bash
+./generate-env.sh
+# or manually:
+export INGESTION_TRIGGER_TOKEN="..."
+export REFRESH_COOKIES_WORKER_URL="https://fantasy402-ingestion.utahj4754.workers.dev"
+```
+
+Run manually:
+
+```bash
+node refresh-cookies.js
+```
+
+### macOS Scheduling (launchd)
+
+The included `com.fantasy402.refresh-cookies.plist` runs every 15 minutes via a wrapper script that loads secrets from `.env`:
+
+```bash
+cp com.fantasy402.refresh-cookies.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.fantasy402.refresh-cookies.plist
+```
+
+Logs: `/tmp/com.fantasy402.refresh-cookies.out` and `.err`
+
+### VPS Scheduling (cron)
+
+```cron
+*/15 * * * * cd /path/to/refresh-cookies && INGESTION_TRIGGER_TOKEN=... REFRESH_COOKIES_WORKER_URL=... node refresh-cookies.js >> /var/log/refresh-cookies.log 2>&1
+```
+
+### Diagnostics
+
+Check cookie freshness anytime:
+
+```bash
+curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" \
+  https://fantasy402-ingestion.utahj4754.workers.dev/upstream-cookies-status
+```
+
+Returns:
+- `source`: `"d1"` or `"fallback"`
+- `cookies`: names, `updated_at`, and `value_preview` (first 30 chars)
+- `cache_active`: whether the 60-second in-memory cache is active
+
+### Security notes
+
+- The `.env` file is generated with `chmod 600` and is ignored by git.
+- `INGESTION_TRIGGER_TOKEN` is the same token used for `/trigger`, `/refresh-auth`, and other protected routes.
+- The Puppeteer script does not need upstream JWT auth; Cloudflare challenges appear before application login.
+
 ## Worker API Contract
 
 The Worker's own operational API is documented in `openapi.worker.json`.

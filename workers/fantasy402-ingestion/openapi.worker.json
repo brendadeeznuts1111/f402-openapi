@@ -2043,6 +2043,129 @@
         }
       }
     },
+    "/update-cookies": {
+      "post": {
+        "operationId": "updateCloudflareCookies",
+        "summary": "Update Cloudflare clearance cookies in D1",
+        "description": "Accepts fresh cf_clearance and __cf_bm cookies extracted by the Puppeteer refresh script. Upserts them into the D1 cookies table and clears the in-memory cache so subsequent ingestion requests use the new values immediately.",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCookiesRequest"
+              },
+              "examples": {
+                "freshCookies": {
+                  "value": {
+                    "cf_clearance": "<redacted-cf-clearance>",
+                    "__cf_bm": "<redacted-cf-bm>"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cookies updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCookiesResponse"
+                },
+                "examples": {
+                  "ok": {
+                    "value": {
+                      "status": "ok",
+                      "updated": ["cf_clearance", "__cf_bm"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON body or missing required cookies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/upstream-cookies-status": {
+      "get": {
+        "operationId": "getUpstreamCookiesStatus",
+        "summary": "Diagnostic endpoint for upstream cookie freshness",
+        "description": "Returns the current state of Cloudflare cookies used for upstream requests, including whether they are sourced from D1 or env fallback, their last update time, and whether the in-memory cache is active.",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cookie status report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamCookiesStatusResponse"
+                },
+                "examples": {
+                  "fromD1": {
+                    "value": {
+                      "status": "ok",
+                      "source": "d1",
+                      "cookies": {
+                        "cf_clearance": {
+                          "updated_at": "2026-05-18T23:36:46.000Z",
+                          "value_preview": "Q.H0Y25wPRDSmhEgwWIb_tUy.B4evj..."
+                        },
+                        "__cf_bm": {
+                          "updated_at": "2026-05-18T23:36:46.000Z",
+                          "value_preview": ".vBakGOAPBrZm.ckS45ZhjgUBujk5M..."
+                        }
+                      },
+                      "cache_active": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingest/local": {
       "post": {
         "operationId": "uploadLocalIngestionResults",
@@ -3697,6 +3820,97 @@
               "type": "object",
               "additionalProperties": true
             }
+          }
+        }
+      },
+      "UpdateCookiesRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cf_clearance",
+          "__cf_bm"
+        ],
+        "properties": {
+          "cf_clearance": {
+            "type": "string",
+            "minLength": 1,
+            "writeOnly": true,
+            "description": "Cloudflare cf_clearance cookie value",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential"
+          },
+          "__cf_bm": {
+            "type": "string",
+            "minLength": 1,
+            "writeOnly": true,
+            "description": "Cloudflare __cf_bm cookie value",
+            "x-sensitive": true,
+            "x-privacy-classification": "Credential"
+          }
+        }
+      },
+      "UpdateCookiesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "updated"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "updated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpstreamCookiesStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "source"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "d1",
+              "fallback"
+            ]
+          },
+          "cookies": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "updated_at": {
+                  "type": "string"
+                },
+                "value_preview": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "cache_active": {
+            "type": "boolean"
+          },
+          "d1_error": {
+            "type": "string"
           }
         }
       }

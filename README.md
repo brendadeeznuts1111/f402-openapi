@@ -106,6 +106,8 @@ Recommended runtime auth inputs:
 
 `cf_clearance` and `__cf_bm` remain the Cloudflare WAF/challenge layer. Production ingestion also needs the upstream application session cookie, such as `ASP.NET_SessionId`, when Fantasy402 requires it. The Worker can manage app-level auth with `authenticateCustomer` and `renewToken` once it can reach the upstream application.
 
+**Automated cookie refresh** is available via a Puppeteer script in `workers/fantasy402-ingestion/scripts/refresh-cookies/`. It extracts fresh Cloudflare cookies and pushes them to the Worker's D1-backed `/update-cookies` endpoint, so the ingestion engine always uses the latest clearance without manual intervention. See the Worker README for setup and scheduling instructions.
+
 ## Local Auth And Ingestion Checks
 
 From `workers/fantasy402-ingestion`:

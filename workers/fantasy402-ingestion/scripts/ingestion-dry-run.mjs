@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { jwtExpiryDiagnostics } from "./browser-auth-utils.mjs";
 
 const EXPECTED_BROWSER_HEADER_NAMES = [
   "accept",
@@ -42,6 +43,7 @@ const auth = readAuthPayload(authFile);
 const agentId = process.env.FANTASY402_AGENT_ID || auth.agentId || auth.customerId || "";
 const customerId = process.env.FANTASY402_CUSTOMER_ID || auth.customerId || "";
 const authShape = authDiagnostics(auth);
+const authorizationExpiry = jwtExpiryDiagnostics(auth.authorization);
 const browserHeaders = normalizeBrowserHeaders(auth.browserHeadersJson ?? auth.browserHeaders);
 const browserHeaderCount = Object.keys(browserHeaders).length + (auth.userAgent ? 1 : 0) + (auth.referer ? 1 : 0);
 const browserHeaderShape = browserHeaderPresence(browserHeaders, auth);
@@ -50,6 +52,8 @@ const findings = [];
 const warnings = [];
 if (!agentId) findings.push("missing agentId/customerId for agentID and agentOwner");
 if (!auth.authorization || isPlaceholder(auth.authorization)) findings.push("authorization is missing or placeholder");
+if (authorizationExpiry.status === "expired") findings.push(`authorization JWT expired at ${authorizationExpiry.expiresAt}`);
+if (authorizationExpiry.status === "expiring") warnings.push(`authorization JWT expires soon at ${authorizationExpiry.expiresAt}`);
 if (!auth.cfClearance || isPlaceholder(auth.cfClearance)) findings.push("cfClearance is missing or placeholder");
 if (!auth.cfBm || isPlaceholder(auth.cfBm)) findings.push("cfBm is missing or placeholder");
 if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
@@ -97,6 +101,7 @@ const output = {
   authFile,
   endpointCount: endpointsOut.length,
   authShape,
+  authorizationExpiry,
   ingestionReadiness: {
     status: authShape.hasAuthorization && authShape.hasCfClearance && authShape.hasCfBm ? "ready" : "blocked",
     blocker: authShape.hasAuthorization && authShape.hasCfClearance && authShape.hasCfBm ? null : "missing bearer authorization plus cf_clearance and __cf_bm",
@@ -161,6 +166,7 @@ function authDiagnostics(payload) {
   const hasCfBm = hasCookieName("__cf_bm");
   return {
     hasAuthorization,
+    authorizationExpiry: jwtExpiryDiagnostics(payload.authorization),
     hasCookie: cookieNames.length > 0,
     hasSessionCookie: cookieNames.some((name) => !isCloudflareCookieName(name)),
     hasCfClearance,

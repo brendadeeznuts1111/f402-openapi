@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { jwtExpiryDiagnostics } from "./browser-auth-utils.mjs";
 
 const EXPECTED_BROWSER_HEADER_NAMES = [
   "accept",
@@ -50,6 +51,7 @@ if (isPlaceholderToken(operatorToken)) {
 
 const authPayload = readAuthPayload(authFile);
 validateBrowserAuthPayload(authPayload, authFile);
+const authorizationExpiry = jwtExpiryDiagnostics(authPayload.authorization);
 const browserHeaderShape = browserHeaderPresence(normalizeBrowserHeaders(authPayload.browserHeadersJson ?? authPayload.browserHeaders), authPayload);
 const agentId = process.env.FANTASY402_AGENT_ID || authPayload.agentId || authPayload.customerId || "";
 const customerId = process.env.FANTASY402_CUSTOMER_ID || authPayload.customerId || "";
@@ -92,6 +94,7 @@ const summary = {
     expiresAt: refresh.body?.expiresAt,
     ttlSeconds: refresh.body?.ttlSeconds,
   },
+  authorizationExpiry,
   browserHeaderShape,
   localFetch: fetched.map((item) => ({
     endpointKey: item.endpointKey,
@@ -444,6 +447,10 @@ function validateBrowserAuthPayload(payload, path) {
       continue;
     }
     if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
+  }
+  const expiry = jwtExpiryDiagnostics(payload.authorization);
+  if (expiry.status === "expired") {
+    findings.push(`authorization JWT expired at ${expiry.expiresAt}`);
   }
   if (payload.sessionCookie && isPlaceholderToken(payload.sessionCookie)) {
     findings.push("sessionCookie still looks like a placeholder");

@@ -124,6 +124,10 @@ export function validateBrowserAuthPayload(payload, label = "browser auth") {
     }
     if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
   }
+  const expiry = jwtExpiryDiagnostics(payload.authorization);
+  if (expiry.status === "expired") {
+    findings.push(`authorization JWT expired at ${expiry.expiresAt}`);
+  }
 
   if (payload.sessionCookie && isPlaceholderToken(payload.sessionCookie)) {
     findings.push("sessionCookie still looks like a placeholder");
@@ -160,8 +164,10 @@ export function refreshPayload(payload) {
 }
 
 export function authShape(payload) {
+  const authorizationExpiry = jwtExpiryDiagnostics(payload.authorization);
   return {
     hasAuthorization: Boolean(normalizeAuthorization(payload.authorization)),
+    authorizationExpiry,
     hasSessionCookie: hasNonCloudflareCookie(payload.sessionCookie),
     hasCfClearance: Boolean(normalizeCookieValue("cf_clearance", payload.cfClearance)),
     hasCfBm: Boolean(normalizeCookieValue("__cf_bm", payload.cfBm)),
@@ -216,8 +222,33 @@ export function normalizeAuthorization(value) {
   return /^Bearer\s+/i.test(trimmed) ? trimmed : `Bearer ${trimmed}`;
 }
 
+export function jwtExpiryDiagnostics(value, nowMs = Date.now()) {
+  const token = normalizeAuthorization(value)?.replace(/^Bearer\s+/i, "") ?? "";
+  const payload = decodeJwtPayload(token);
+  const exp = typeof payload?.exp === "number" && Number.isFinite(payload.exp) ? payload.exp : null;
+  if (!exp) return { status: "unknown", expiresAt: null, secondsRemaining: null };
+
+  const secondsRemaining = Math.floor(exp - nowMs / 1000);
+  const expiresAt = new Date(exp * 1000).toISOString();
+  if (secondsRemaining <= 0) return { status: "expired", expiresAt, secondsRemaining };
+  if (secondsRemaining <= 300) return { status: "expiring", expiresAt, secondsRemaining };
+  return { status: "valid", expiresAt, secondsRemaining };
+}
+
 export function hasNonCloudflareCookie(value) {
   return cookieNames(value || "").some((name) => !isCloudflareCookieName(name));
+}
+
+function decodeJwtPayload(token) {
+  const parts = String(token).split(".");
+  if (parts.length < 2) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
 }
 
 function parseCurlUrl(text) {

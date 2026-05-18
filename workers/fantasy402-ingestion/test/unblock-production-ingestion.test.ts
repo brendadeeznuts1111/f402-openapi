@@ -46,6 +46,21 @@ test("unblock auth validation rejects explicit Cloudflare-only sessionCookie fie
   );
 });
 
+test("unblock auth validation rejects expired browser bearer JWTs", () => {
+  const expiredJwt = testJwt({ sub: "agent-1", exp: Math.floor(Date.now() / 1000) - 60 });
+  const auth = parseBrowserCurl([
+    "curl 'https://fantasy402.com/cloud/api/Manager/getAccountInfoOwner'",
+    `  --header 'authorization: Bearer ${expiredJwt}'`,
+    "  --header 'user-agent: Browser/1.0'",
+    "  --cookie 'cf_clearance=clearance-secret; __cf_bm=bm-secret'",
+  ].join(" \\\n"));
+
+  assert.throws(
+    () => validateBrowserAuthPayload(auth, "test capture"),
+    /authorization JWT expired at/,
+  );
+});
+
 test("unblock auth validation accepts full app-session cookie captures", () => {
   const auth = parseBrowserCurl(fullCurl);
   assert.doesNotThrow(() => validateBrowserAuthPayload(auth, "test capture"));
@@ -53,6 +68,11 @@ test("unblock auth validation accepts full app-session cookie captures", () => {
   assert.equal(auth.cfClearance, "clearance-secret");
   assert.equal(auth.cfBm, "bm-secret");
 });
+
+function testJwt(payload: Record<string, unknown>): string {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "none", typ: "JWT" })}.${encode(payload)}.signature`;
+}
 
 test("unblock command stops before trigger when diagnostics are degraded", async () => {
   const calls: string[] = [];

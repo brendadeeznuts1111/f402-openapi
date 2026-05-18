@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { jwtExpiryDiagnostics } from "./browser-auth-utils.mjs";
 
 const authFile = process.env.FANTASY402_BROWSER_AUTH_FILE ?? process.argv[2] ?? "fantasy402/browser-auth.json";
 const auth = readJson(authFile);
@@ -12,6 +13,12 @@ for (const field of ["authorization", "cfClearance", "cfBm"]) {
   } else if (isPlaceholder(value)) {
     findings.push(`${field} still looks like a placeholder`);
   }
+}
+const authorizationExpiry = jwtExpiryDiagnostics(auth.authorization);
+if (authorizationExpiry.status === "expired") {
+  findings.push(`authorization JWT expired at ${authorizationExpiry.expiresAt}`);
+} else if (authorizationExpiry.status === "expiring") {
+  warnings.push(`authorization JWT expires soon at ${authorizationExpiry.expiresAt}`);
 }
 
 if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
@@ -41,6 +48,7 @@ const summary = {
     cfBm: Boolean(auth.cfBm),
     browserHeaders: Boolean(auth.browserHeaders || auth.browserHeadersJson || auth.userAgent),
   },
+  authorizationExpiry,
   findings,
   warnings,
 };

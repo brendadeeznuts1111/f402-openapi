@@ -53,7 +53,11 @@ type EndpointKey =
   | "getSportsType"
   | "getMessage"
   | "getNewEmailsCount"
-  | "getWeeklyFigureByAgentLite";
+  | "getWeeklyFigureByAgentLite"
+  | "getBetTicker"
+  | "getBetTickerConfig"
+  | "getAgentPositionData"
+  | "getAgentPositionList";
 
 interface SessionRecord {
   cookie: string;
@@ -215,6 +219,46 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       agentOwner: env.FANTASY402_AGENT_ID,
       operation: "getAuthorizations",
       RRO: 1,
+    }),
+  },
+  getBetTicker: {
+    key: "getBetTicker",
+    path: "/cloud/api/Manager/getBetTicker",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getBetTicker",
+    }),
+  },
+  getBetTickerConfig: {
+    key: "getBetTickerConfig",
+    path: "/cloud/api/Manager/getBetTickerConfig",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getBetTickerConfig",
+    }),
+  },
+  getAgentPositionData: {
+    key: "getAgentPositionData",
+    path: "/cloud/api/Manager/getAgentPositionData",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getAgentPositionData",
+    }),
+  },
+  getAgentPositionList: {
+    key: "getAgentPositionList",
+    path: "/cloud/api/Manager/getAgentPositionList",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getAgentPositionList",
     }),
   },
   getAgentPerformance: {

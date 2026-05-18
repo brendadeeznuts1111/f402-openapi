@@ -43,6 +43,10 @@ const endpoints = {
   getPending: { path: "/cloud/api/Manager/getPending", operation: "getPending", contentType: "json", requiresCustomerId: true },
   Pending: { path: "/cloud/api/Report/Pending", operation: "Pending", contentType: "form", requiresCustomerId: true },
   getCommunicationMessages: { path: "/cloud/api/Customer/getCommunicationMessages", operation: "getCommunicationMessages", contentType: "form", requiresCustomerId: true },
+  getBetTicker: { path: "/cloud/api/Manager/getBetTicker", operation: "getBetTicker", contentType: "form", omitDateRange: true },
+  getBetTickerConfig: { path: "/cloud/api/Manager/getBetTickerConfig", operation: "getBetTickerConfig", contentType: "form", omitDateRange: true },
+  getAgentPositionData: { path: "/cloud/api/Manager/getAgentPositionData", operation: "getAgentPositionData", contentType: "form", omitDateRange: true },
+  getAgentPositionList: { path: "/cloud/api/Manager/getAgentPositionList", operation: "getAgentPositionList", contentType: "form", omitDateRange: true },
 };
 
 const auth = readAuthPayload(authFile);

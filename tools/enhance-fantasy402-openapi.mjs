@@ -353,6 +353,39 @@ function addMinimalExamples(spec) {
     }
   }
 
+  const betTicker = withExamples.paths?.['/cloud/api/Manager/getBetTicker']?.post;
+  if (betTicker) {
+    requestContentFor('/cloud/api/Manager/getBetTicker').examples = {
+      valid: { $ref: '#/components/examples/BetTickerRequestValid' },
+    };
+    const ok = contentFor('/cloud/api/Manager/getBetTicker', '200');
+    if (ok) {
+      ok.examples = {
+        emptyBetTicker: { $ref: '#/components/examples/BetTickerResponseEmpty' },
+      };
+    }
+  }
+
+  const betTickerConfig = withExamples.paths?.['/cloud/api/Manager/getBetTickerConfig']?.post;
+  if (betTickerConfig) {
+    requestContentFor('/cloud/api/Manager/getBetTickerConfig').examples = {
+      valid: { $ref: '#/components/examples/BetTickerRequestValid' },
+    };
+  }
+
+  const agentPositionList = withExamples.paths?.['/cloud/api/Manager/getAgentPositionList']?.post;
+  if (agentPositionList) {
+    requestContentFor('/cloud/api/Manager/getAgentPositionList').examples = {
+      valid: { $ref: '#/components/examples/AgentPositionListRequestValid' },
+    };
+    const ok = contentFor('/cloud/api/Manager/getAgentPositionList', '200');
+    if (ok) {
+      ok.examples = {
+        emptyList: { $ref: '#/components/examples/AgentPositionListResponseEmpty' },
+      };
+    }
+  }
+
   const listAgenst = withExamples.paths?.['/cloud/api/Manager/getListAgenstByAgent']?.post;
   if (listAgenst) {
     requestContentFor('/cloud/api/Manager/getListAgenstByAgent').examples = {
@@ -372,6 +405,7 @@ function addMinimalExamples(spec) {
     '/cloud/api/Manager/getAgentBilling',
     '/cloud/api/Manager/getEnterTransactions',
     '/cloud/api/Manager/getBetTicker',
+    '/cloud/api/Manager/getBetTickerConfig',
     '/cloud/api/Manager/getPending',
     '/cloud/api/System/authenticateCustomer',
     '/cloud/api/Manager/getAgentPositionList',

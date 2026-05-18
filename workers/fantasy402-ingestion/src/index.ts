@@ -633,6 +633,20 @@ const worker = {
       return queryBetTickerWagers(url, env);
     }
 
+    if (url.pathname === "/performance" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryAgentPerformance(url, env);
+    }
+
+    if (url.pathname === "/authorizations" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryAuthorizations(url, env);
+    }
+
     if (url.pathname === "/alerts" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -2140,6 +2154,44 @@ async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
 
   const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
   return json({ limit, total: result.results?.length ?? 0, wagers: result.results ?? [] }, 200);
+}
+
+async function queryAgentPerformance(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 200);
+  const agentId = String(url.searchParams.get("agent_id") ?? "").trim();
+  const since = String(url.searchParams.get("since") ?? "").trim();
+
+  let sql = `SELECT id, run_id, captured_at, agent_id, total_wagers, total_volume, win_rate
+             FROM agent_performance WHERE 1=1`;
+  const params: (string | number)[] = [];
+
+  if (agentId) { sql += " AND agent_id = ?"; params.push(agentId); }
+  if (since) { sql += " AND captured_at >= ?"; params.push(since); }
+
+  sql += " ORDER BY captured_at DESC LIMIT ?";
+  params.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 200);
+  const agentId = String(url.searchParams.get("agent_id") ?? "").trim();
+  const since = String(url.searchParams.get("since") ?? "").trim();
+
+  let sql = `SELECT id, snapshot_id, run_id, captured_at, agent_id, master_agent_id, commission_type
+             FROM authorization_permissions WHERE 1=1`;
+  const params: (string | number)[] = [];
+
+  if (agentId) { sql += " AND agent_id = ?"; params.push(agentId); }
+  if (since) { sql += " AND captured_at >= ?"; params.push(since); }
+
+  sql += " ORDER BY captured_at DESC LIMIT ?";
+  params.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
 async function listAlertEvents(url: URL, env: Env): Promise<Response> {

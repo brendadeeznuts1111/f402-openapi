@@ -256,6 +256,9 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
 - `GET /runs?limit=<n>` lists recent ingestion runs (D1) including success/failure totals.
 - `GET /runs/endpoints?runId=<uuid>` lists per-endpoint snapshots and failures for a run, including `trace_id` and `duration_ms` when available.
+- `GET /bet-ticker-wagers?limit=<n>&agent_id=<id>&wager_type=<S|P|M|L>&since=<iso>&min_amount=<cents>&max_amount=<cents>` queries the `bet_ticker_wagers` D1 table. Returns wagers sorted by recency. Filters are optional.
+- `GET /performance?limit=<n>&agent_id=<id>&since=<iso>` queries the `agent_performance` D1 table (total_wagers, total_volume, win_rate).
+- `GET /authorizations?limit=<n>&agent_id=<id>&since=<iso>` queries the `authorization_permissions` D1 table (agent_id, master_agent_id, commission_type).
 - `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.
 - `GET /scans/screenshot?scanId=<uuid>` streams the archived scan screenshot from R2 with no-store cache headers.
 - `GET /scans/har?scanId=<uuid>` streams the archived HAR network evidence from R2 with no-store cache headers.

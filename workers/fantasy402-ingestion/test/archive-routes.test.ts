@@ -789,6 +789,80 @@ test("ingestion includes static RRO flag on configured Fantasy402 endpoints", as
   }
 });
 
+test("ingestion preserves case-sensitive endpoint paths and parameter names", async () => {
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; contentType: string | null; body: string }> = [];
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push({
+      url: String(input),
+      contentType: headers.get("Content-Type"),
+      body: typeof init?.body === "string" ? init.body : init?.body instanceof URLSearchParams ? init.body.toString() : "",
+    });
+    return Response.json({ ok: true });
+  };
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://worker.test/trigger", {
+        method: "POST",
+        headers: { Authorization: "Bearer test-token" },
+      }),
+      env(new MemoryR2Bucket(), new MemoryD1Database(), {
+        FANTASY402_SESSION_COOKIE: "app_session=test-session",
+        FANTASY402_AUTHORIZATION: "browser-token",
+        FANTASY402_INGESTION_ENDPOINTS: "getAccountInfoOwner,getAuthorizations",
+      }),
+    );
+    assert.equal(response.status, 202);
+
+    const accountInfo = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAccountInfoOwner"));
+    assert.ok(accountInfo, "expected exact-cased getAccountInfoOwner endpoint path");
+    assert.equal(accountInfo.contentType, "application/json");
+    const accountInfoBody = JSON.parse(accountInfo.body);
+    assert.deepEqual(Object.keys(accountInfoBody).sort(), ["agentOwner", "operation"]);
+    assert.equal(accountInfoBody.operation, "getAccountInfoOwner");
+    assert.equal(accountInfoBody.agentOwner, "agent");
+    assert.equal(Object.hasOwn(accountInfoBody, "agentowner"), false);
+    assert.equal(Object.hasOwn(accountInfoBody, "agentID"), false);
+
+    const authorizations = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAuthorizations"));
+    assert.ok(authorizations, "expected exact-cased getAuthorizations endpoint path");
+    assert.equal(authorizations.contentType, "application/x-www-form-urlencoded");
+    const authorizationsBody = new URLSearchParams(authorizations.body);
+    assert.deepEqual([...authorizationsBody.keys()].sort(), ["RRO", "agentID", "agentOwner", "operation"]);
+    assert.equal(authorizationsBody.get("operation"), "getAuthorizations");
+    assert.equal(authorizationsBody.get("agentID"), "agent");
+    assert.equal(authorizationsBody.get("agentOwner"), "agent");
+    assert.equal(authorizationsBody.get("RRO"), "1");
+    assert.equal(authorizationsBody.has("agentid"), false);
+    assert.equal(authorizationsBody.has("agentowner"), false);
+    assert.equal(authorizationsBody.has("rro"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("ingestion rejects wrong-cased endpoint keys instead of normalizing them", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/trigger", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-token" },
+    }),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), {
+      FANTASY402_SESSION_COOKIE: "app_session=test-session",
+      FANTASY402_AUTHORIZATION: "browser-token",
+      FANTASY402_INGESTION_ENDPOINTS: "getauthorizations",
+    }),
+  );
+
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), {
+    status: "failed",
+    message: "Unknown endpoint configured: getauthorizations",
+  });
+});
+
 test("manual ingestion trigger returns JSON on upstream login failure", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input: RequestInfo | URL) => {

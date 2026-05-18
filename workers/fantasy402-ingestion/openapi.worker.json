@@ -545,7 +545,22 @@
                           "cf_clearance",
                           "__cf_bm"
                         ],
-                        "browserHeaderCount": 12
+                        "browserHeaderCount": 12,
+                        "browserHeaders": {
+                          "present": [
+                            "accept",
+                            "accept-language",
+                            "origin",
+                            "referer",
+                            "user-agent",
+                            "x-requested-with"
+                          ],
+                          "missing": [
+                            "sec-ch-ua"
+                          ],
+                          "count": 6,
+                          "complete": false
+                        }
                       },
                       "workerName": "fantasy402-ingestion",
                       "cloudflare": {
@@ -2603,6 +2618,7 @@
               "hasCfBm",
               "cookieNames",
               "browserHeaderCount",
+              "browserHeaders",
               "ingestionReadiness"
             ],
             "properties": {
@@ -2631,6 +2647,39 @@
               "browserHeaderCount": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "browserHeaders": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "present",
+                  "missing",
+                  "count",
+                  "complete"
+                ],
+                "properties": {
+                  "present": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Sanitized browser header names present in the current capture; never includes values."
+                  },
+                  "missing": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Expected browser header names missing from the current capture."
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "complete": {
+                    "type": "boolean"
+                  }
+                }
               },
               "ingestionReadiness": {
                 "type": "object",

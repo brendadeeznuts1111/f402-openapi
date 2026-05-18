@@ -291,7 +291,7 @@ curl -X POST "https://fantasy402-ingestion.utahj4754.workers.dev/refresh-auth" \
 
 The cached overlay takes precedence over configured Fantasy402 auth secrets and expires automatically. Production ingestion accepts bearer auth plus Cloudflare cookies; if `sessionCookie` is provided it must contain a non-Cloudflare application cookie rather than only `cf_clearance` or `__cf_bm`. The endpoint returns only accepted field names plus expiry metadata.
 
-When pasting a full browser `Cookie` header, send it as `cookieHeader`; `/refresh-auth` extracts any application session cookie into `sessionCookie` and the Cloudflare cookies into their dedicated fields without echoing values. If diagnostics reports `upstreamAuthShape.ingestionReadiness.status = "blocked"`, refresh the browser request so it includes bearer authorization plus both Cloudflare cookies.
+When pasting a full browser `Cookie` header, send it as `cookieHeader`; `/refresh-auth` extracts any application session cookie into `sessionCookie` and the Cloudflare cookies into their dedicated fields without echoing values. If diagnostics reports `upstreamAuthShape.ingestionReadiness.status = "blocked"`, refresh the browser request so it includes bearer authorization plus both Cloudflare cookies. Diagnostics also includes `upstreamAuthShape.browserHeaders`, a sanitized present/missing header-name report for the expected browser headers; it never includes header values.
 
 For the production unblock path from the browser machine, copy a successful authenticated Fantasy402 `/cloud/api/*` request as cURL and run:
 
@@ -317,7 +317,7 @@ The script posts the auth overlay to `/refresh-auth`, uses the local machine for
 
 `/ingest/local` is storage-only: it archives the supplied response bodies to R2 and records D1 snapshots without making upstream calls from Cloudflare. Use it when Worker egress is blocked by the upstream edge.
 
-You can also generate `fantasy402/browser-auth.json` from a browser Network request copied as cURL:
+You can also generate `fantasy402/browser-auth.json` from a browser Network request copied as cURL. A copied `fetch(...)` snippet is accepted for header, referrer, path, and body-shape extraction, but browser JavaScript omits `Cookie`; use cURL when you need the importer to extract `cf_clearance` and `__cf_bm`.
 
 ```bash
 # Option A: save the copied curl into this ignored local file first:

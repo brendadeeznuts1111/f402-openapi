@@ -1,5 +1,21 @@
 import fs from "node:fs";
 
+const EXPECTED_BROWSER_HEADER_NAMES = [
+  "accept",
+  "accept-language",
+  "origin",
+  "priority",
+  "referer",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+  "sec-fetch-dest",
+  "sec-fetch-mode",
+  "sec-fetch-site",
+  "user-agent",
+  "x-requested-with",
+];
+
 const authFile = process.env.FANTASY402_BROWSER_AUTH_FILE ?? process.argv[2] ?? "fantasy402/browser-auth.json";
 const endpointKeys = (process.env.FANTASY402_INGESTION_ENDPOINTS ?? readWranglerEndpointKeys())
   .split(",")
@@ -28,6 +44,7 @@ const customerId = process.env.FANTASY402_CUSTOMER_ID || auth.customerId || "";
 const authShape = authDiagnostics(auth);
 const browserHeaders = normalizeBrowserHeaders(auth.browserHeadersJson ?? auth.browserHeaders);
 const browserHeaderCount = Object.keys(browserHeaders).length + (auth.userAgent ? 1 : 0) + (auth.referer ? 1 : 0);
+const browserHeaderShape = browserHeaderPresence(browserHeaders, auth);
 
 const findings = [];
 const warnings = [];
@@ -41,6 +58,7 @@ if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
   findings.push("sessionCookie contains only Cloudflare cookie names; omit it or include a real application cookie");
 }
 if (browserHeaderCount === 0) findings.push("browser headers/userAgent are missing");
+if (!browserHeaderShape.complete) warnings.push(`browser header capture is missing: ${browserHeaderShape.missing.join(", ")}`);
 
 const now = new Date();
 const endpointsOut = endpointKeys.map((key) => {
@@ -64,6 +82,7 @@ const endpointsOut = endpointKeys.map((key) => {
     hasCustomerID: Boolean(body.customerID),
     authShape,
     browserHeaderCount,
+    browserHeaderShape,
     status: endpointFindings.length === 0 ? "ok" : "failed",
     findings: endpointFindings,
   };
@@ -83,6 +102,7 @@ const output = {
     blocker: authShape.hasAuthorization && authShape.hasCfClearance && authShape.hasCfBm ? null : "missing bearer authorization plus cf_clearance and __cf_bm",
   },
   browserHeaderCount,
+  browserHeaderShape,
   findings: allFindings,
   warnings,
   endpoints: endpointsOut,
@@ -173,6 +193,18 @@ function normalizeBrowserHeaders(value) {
     }
   }
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function browserHeaderPresence(headers, payload) {
+  const normalized = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === "string" && value.trim()) normalized[name.toLowerCase()] = value.trim();
+  }
+  if (payload.userAgent && !normalized["user-agent"]) normalized["user-agent"] = payload.userAgent;
+  if (payload.referer && !normalized.referer) normalized.referer = payload.referer;
+  const present = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => normalized[name]);
+  const missing = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => !normalized[name]);
+  return { present, missing, count: present.length, complete: missing.length === 0 };
 }
 
 function splitCookieHeader(value) {

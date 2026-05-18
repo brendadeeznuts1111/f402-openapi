@@ -2,7 +2,8 @@ import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
 export function parseBrowserCurl(text) {
-  const headers = {};
+  const fetchSnippet = parseBrowserFetch(text);
+  const headers = { ...fetchSnippet.headers };
   const headerMatches = text.matchAll(/(?:^|\s)(?:-H|--header)\s+(["'])(.*?)\1/gms);
   for (const match of headerMatches) {
     const raw = unescapeShell(match[2]).trim();
@@ -10,11 +11,13 @@ export function parseBrowserCurl(text) {
     if (index <= 0) continue;
     headers[raw.slice(0, index).trim().toLowerCase()] = raw.slice(index + 1).trim();
   }
+  if (fetchSnippet.referrer && !headers.referer) headers.referer = fetchSnippet.referrer;
 
   const cookie = parseCookieFlag(text) || headers.cookie || "";
   const cookies = parseCookies(cookie);
-  const bodyText = parseDataRaw(text);
+  const bodyText = parseDataRaw(text) || fetchSnippet.body;
   const form = parseFormBody(bodyText);
+  const sourceUrl = parseCurlUrl(text) || fetchSnippet.url;
 
   const browserHeaders = {};
   for (const name of [
@@ -36,7 +39,7 @@ export function parseBrowserCurl(text) {
   }
 
   const result = {
-    sourcePath: parseCurlUrl(text)?.pathname || "",
+    sourcePath: sourceUrl?.pathname || "",
     sourceOperation: form.operation || "",
     sourceContentType: headers["content-type"] || "",
     agentId: form.agentID || form.agentOwner || form.customerID || "",
@@ -55,6 +58,42 @@ export function parseBrowserCurl(text) {
     }
   }
   return result;
+}
+
+function parseBrowserFetch(text) {
+  const match = text.match(/fetch\(\s*(["'`])([\s\S]*?)\1\s*,\s*\{/m);
+  if (!match) return { headers: {}, body: "", referrer: "", url: null };
+
+  const snippet = text.slice(match.index ?? 0);
+  const headers = {};
+  const headersBlock = snippet.match(/["']headers["']\s*:\s*\{([\s\S]*?)\}\s*,/m)?.[1] ?? "";
+  try {
+    const parsedHeaders = JSON.parse(`{${headersBlock}}`);
+    if (parsedHeaders && typeof parsedHeaders === "object" && !Array.isArray(parsedHeaders)) {
+      for (const [name, value] of Object.entries(parsedHeaders)) {
+        if (typeof value === "string") headers[name.toLowerCase()] = value.trim();
+      }
+    }
+  } catch {
+    for (const headerMatch of headersBlock.matchAll(/["']([^"']+)["']\s*:\s*(["'])((?:\\.|(?!\2)[\s\S])*?)\2\s*,?/gm)) {
+      headers[headerMatch[1].toLowerCase()] = unescapeJsString(headerMatch[3]).trim();
+    }
+  }
+
+  const body = parseObjectStringField(snippet, "body");
+  const referrer = parseObjectStringField(snippet, "referrer");
+  let url = null;
+  try {
+    url = new URL(unescapeJsString(match[2]));
+  } catch {
+    url = null;
+  }
+  return { headers, body, referrer, url };
+}
+
+function parseObjectStringField(text, field) {
+  const match = text.match(new RegExp(`["']${field}["']\\s*:\\s*(["'])((?:\\\\.|(?!\\1)[\\s\\S])*?)\\1\\s*,?`, "m"));
+  return match ? unescapeJsString(match[2]).trim() : "";
 }
 
 export function readBrowserCurlInput(path) {
@@ -237,6 +276,16 @@ function cookieWithoutCloudflare(cookies) {
 
 function unescapeShell(value) {
   return value.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+}
+
+function unescapeJsString(value) {
+  return value
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\"/g, '"')
+    .replace(/\\'/g, "'")
+    .replace(/\\\\/g, "\\");
 }
 
 function readMacClipboard() {

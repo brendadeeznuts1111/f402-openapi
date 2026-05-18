@@ -357,6 +357,9 @@ test("diagnostics reports readiness and sanitized upstream auth shape without le
   assert.equal(body.upstreamAuthShape.hasCfBm, true);
   assert.deepEqual(body.upstreamAuthShape.cookieNames, ["app_session", "cf_clearance", "__cf_bm"]);
   assert.equal(body.upstreamAuthShape.browserHeaderCount, 2);
+  assert.deepEqual(body.upstreamAuthShape.browserHeaders.present.sort(), ["sec-fetch-site", "user-agent"]);
+  assert.equal(body.upstreamAuthShape.browserHeaders.complete, false);
+  assert.ok(body.upstreamAuthShape.browserHeaders.missing.includes("sec-ch-ua"));
   assert.equal(JSON.stringify(body).includes("cf-token"), false);
   assert.equal(JSON.stringify(body).includes("test-token"), false);
   assert.equal(JSON.stringify(body).includes("session-from-secret"), false);
@@ -1005,6 +1008,9 @@ test("failure archive records upstream cookie shape without cookie values", asyn
     assert.equal(archived.upstream.request.hasCfClearance, true);
     assert.equal(archived.upstream.request.hasCfBm, true);
     assert.deepEqual(archived.upstream.request.cookieNames, ["app_session", "cf_clearance", "__cf_bm"]);
+    assert.equal(archived.upstream.request.browserHeaders.complete, true);
+    assert.ok(archived.upstream.request.browserHeaders.present.includes("sec-ch-ua"));
+    assert.ok(archived.upstream.request.browserHeaders.present.includes("x-requested-with"));
     assert.doesNotMatch(JSON.stringify(archived), /session-from-secret|clearance-token|bm-token|browser-token/);
   } finally {
     globalThis.fetch = originalFetch;

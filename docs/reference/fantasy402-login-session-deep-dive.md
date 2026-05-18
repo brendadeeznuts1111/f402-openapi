@@ -91,26 +91,45 @@ diagnostics, never for authorization decisions.
 ## 5. Observed Login Flow
 
 1. The user submits the login form.
-2. The legacy frontend normalizes relevant identifiers to uppercase.
+2. The legacy frontend normalizes relevant identifiers to uppercase before
+   building the login request.
 3. The browser posts to `/cloud/api/System/authenticateCustomer` for the normal
    customer login path.
-4. The response provides the bearer JWT used as `credentials.code`, plus account
-   metadata consumed by the frontend.
-5. The frontend stores the session payload in `sessionStorage.credentials`.
-6. The frontend redirects master agents to `manager.html`.
+4. If the page is already operating with an agent token, the legacy flow may use
+   `/cloud/api/System/authenticateCustomerforAgent` instead.
+5. The response provides the bearer JWT used as `credentials.code`, account
+   metadata consumed by the frontend, and login flags such as `tokenauth`.
+6. The frontend stores the session payload in `sessionStorage.credentials`.
+7. The frontend redirects based on account metadata such as `DefaultSiteSkin`
+   and agent type. Master agents are redirected to `manager.html`.
 
-An agent-token login path may use `/cloud/api/System/authenticateCustomerforAgent`;
-document that separately if a fresh trace captures it.
+Keep the agent-token login path documented separately if a fresh trace captures
+its exact request and response shape.
 
 ## 6. Subsequent API Behavior
 
-After login, browser API calls use:
+After login, browser API calls pass through the legacy request helper layer
+observed around `$.ajaxPrefilter` / `presetParam`. That layer prepares the
+request before it reaches the `/cloud/api/*` endpoint.
+
+Browser API calls use:
 
 - `Authorization: Bearer <jwt>`
 - Cloudflare cookies such as `cf_clearance` and `__cf_bm`
 - Browser headers from the original request, including `user-agent`,
   `x-requested-with`, `sec-fetch-*`, and `sec-ch-ua*`
 - Operation-specific POST bodies
+- Automatically injected routing fields where required, especially:
+
+```js
+{
+  agentID: "<master-id-or-customerID>",
+  agentOwner: "<master-id-or-customerID>"
+}
+```
+
+The effective agent value comes from the active master context when present and
+falls back to the logged-in customer ID for top-level master-agent sessions.
 
 Observed manager API examples:
 
@@ -126,10 +145,10 @@ Content-Type: application/x-www-form-urlencoded; charset=UTF-8
 Body: agentID=<customerID>&agentOwner=<customerID>&operation=getAuthorizations&RRO=1
 ```
 
-The frontend request helpers inject fields such as `agentID`, `agentOwner`, and
-`customerID` depending on the operation. Keep endpoint request shapes tied to
-observed browser traffic instead of assuming every route uses the same body
-encoding.
+The frontend request helpers can also inject fields such as `customerID`
+depending on the operation. Keep endpoint request shapes tied to observed
+browser traffic instead of assuming every route uses the same body encoding or
+the same routing tuple.
 
 ## 7. Token Refresh
 

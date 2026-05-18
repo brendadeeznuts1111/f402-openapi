@@ -210,7 +210,7 @@ npm run validate:deploy-config
 
 This intentionally fails while `wrangler.toml` still contains placeholder KV or D1 IDs.
 
-The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract. The production defaults are `getAccountInfoOwner` and `getAuthorizations`, which match observed authenticated manager browser requests and do not require `FANTASY402_CUSTOMER_ID`.
+The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract. The production defaults are `getAccountInfoOwner`, `getAuthorizations`, `getBetTicker`, `getAgentPositionData`, and `getAgentPositionList`. The first two match observed authenticated manager browser requests and do not require `FANTASY402_CUSTOMER_ID`. The last three enable live wager and position data ingestion.
 
 Some discovered browser-to-api operations use different body encodings. The Worker sends form-encoded bodies for the common Manager/Report endpoints and JSON for `Manager/getPending`, matching `openapi.secured.examples.json`.
 
@@ -256,6 +256,9 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
 - `GET /runs?limit=<n>` lists recent ingestion runs (D1) including success/failure totals.
 - `GET /runs/endpoints?runId=<uuid>` lists per-endpoint snapshots and failures for a run, including `trace_id` and `duration_ms` when available.
+- `GET /bet-ticker-wagers?limit=<n>&agent_id=<id>&wager_type=<S|P|M|L>&since=<iso>&min_amount=<cents>&max_amount=<cents>` queries the `bet_ticker_wagers` D1 table. Returns wagers sorted by recency. Filters are optional.
+- `GET /performance?limit=<n>&agent_id=<id>&since=<iso>` queries the `agent_performance` D1 table (total_wagers, total_volume, win_rate).
+- `GET /authorizations?limit=<n>&agent_id=<id>&since=<iso>` queries the `authorization_permissions` D1 table (agent_id, master_agent_id, commission_type).
 - `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.
 - `GET /scans/screenshot?scanId=<uuid>` streams the archived scan screenshot from R2 with no-store cache headers.
 - `GET /scans/har?scanId=<uuid>` streams the archived HAR network evidence from R2 with no-store cache headers.

@@ -23,7 +23,7 @@ curl 'https://fantasy402.com/cloud/api/Manager/getAuthorizations' \
 
 Key requirements:
 
-- `Authorization: Bearer <browser-jwt>` from the authenticated browser session.
+- `Authorization: Bearer <browser-jwt>` from the authenticated browser session (`credentials.code` — see [§3 Credentials JSON](fantasy402-login-session-deep-dive.md#3-credentials-json) in the deep-dive doc).
 - Cloudflare cookies `cf_clearance` and `__cf_bm`.
 - Browser-shaped headers, especially `Origin`, `Referer`, `User-Agent`, and
   `X-Requested-With`.
@@ -58,9 +58,39 @@ rate settings.
 }
 ```
 
+### Distribution Marker
+
+`DISTRIBUTION` is an integer at the top level of the response. Observed values are `0` or `1`. A value of `1` indicates the agent is operating under a downstream distribution hierarchy rather than a direct master-agent relationship.
+
+### Commission Type
+
+`INFO.CommissionType` is a single-character string. The observed value `"S"` represents standard commission (head-count rate split). Other possible values observed elsewhere in the Fantasy402 API include `"L"` (loss-based) and `"F"` (flat-fee), though these have not been confirmed for this specific endpoint.
+
+## Permission Flags
+
+The `INFO` object contains boolean-like flags (`"Y"` / `"N"`) controlling agent permissions:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `CustomerID` | string | Agent account identifier (same as request `agentID`) |
+| `AgentID` | string | Agent identifier (typically matches `CustomerID`) |
+| `MasterAgentID` | string | Parent master-agent identifier |
+| `CommissionType` | string | Commission model (`"S"` = standard) |
+| `PermitDeleteBets` | `"Y"` or `"N"` | Agent may delete settled bets |
+| `SuspendSportsbook` | `"Y"` or `"N"` | Sportsbook access is suspended |
+| `SuspendAccount` | `"Y"` or `"N"` | Account is suspended |
+| `Freeplaymanager` | `"Y"` or `"N"` | Agent may issue freeplay credits |
+| `AllowRoundRobin` | `"Y"` or `"N"` | Round-robin betting is permitted |
+| `AllowPropBuilder` | `"Y"` or `"N"` | Proposition-builder is permitted |
+| `AllowUltraLive` | `"Y"` or `"N"` | Ultra-live betting is permitted |
+| `AllowCrash` | `"Y"` or `"N"` | Crash-game betting is permitted |
+| `FantasyRate` | integer | Fantasy-product commission override (0 = use default) |
+
+Additional flags may appear in `raw_json` that are not yet modeled as queryable columns (see Storage Pipeline below).
+
 ## Worker Integration
 
-The Worker defines this endpoint as:
+The endpoint definition is at `src/index.ts:210-218`:
 
 ```ts
 getAuthorizations: {
@@ -76,7 +106,29 @@ getAuthorizations: {
 ```
 
 The endpoint is part of the production default `FANTASY402_INGESTION_ENDPOINTS`
-list with `getAccountInfoOwner`.
+list alongside `getAccountInfoOwner`.
+
+### Ingestion Wiring
+
+Successful `getAuthorizations` responses are processed through two pipeline
+stages in the ingestion Worker:
+
+1. **`mapAuthorizations`** at `src/index.ts:1802-1815` — extracts `INFO.AgentID`,
+   `INFO.MasterAgentID`, `INFO.CommissionType`, and the full `INFO` object from
+   the API response into an `AuthorizationPermissionRecord`.
+
+2. **`storeAuthorizations`** at `src/index.ts:1792-1800` — inserts the mapped
+   record into the D1 `authorization_permissions` table.
+
+Both stages are called from two ingestion paths:
+- **`runIngestion`** at `src/index.ts:626-628` (scheduled/all-endpoints path).
+- **`ingestLocalResponses`** at `src/index.ts:708-710` (local browser-archive
+  path).
+
+### D1 Schema
+
+The `authorization_permissions` table is created by migration
+`0009_authorization_permissions.sql`:
 
 ## Storage Pipeline
 

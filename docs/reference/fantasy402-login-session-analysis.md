@@ -5,6 +5,8 @@
 **Agent Type**: `M`
 **Office**: `<office>`
 
+See [fantasy402-login-session-deep-dive.md](fantasy402-login-session-deep-dive.md) for expanded implementation details including Worker source line references, the full login sequence diagram, and the `authenticateCustomer` parameter catalog.
+
 ## Raw Captured Session String
 
 Do not commit raw Fantasy402 session strings. The browser session dump contains a live bearer JWT and the plaintext login password from `sessionStorage.credentials`.
@@ -95,6 +97,11 @@ The `code` field is the JWT used as the API bearer token. It is included in the 
 - The Worker also runs a proactive `*/5 * * * *` scheduled cron that calls `tryRenewFantasy402Token` via `refreshAuthSchedule()`, matching the frontend refresh cadence.
 - The refresh response returns a new `code` (JWT) that replaces the current `sessionStorage.credentials.code`.
 - The associated `customerID` and `agentType` remain unchanged across refreshes.
+
+## See Also
+
+- [fantasy402-login-session-deep-dive.md](fantasy402-login-session-deep-dive.md) — expanded implementation details, Worker source line references, login sequence diagram, and `authenticateCustomer` parameter catalog.
+- [fantasy402-getauthorizations-endpoint.md](fantasy402-getauthorizations-endpoint.md) — full request/response shape for the `getAuthorizations` endpoint, permission flag reference, and Worker storage pipeline documentation.
 
 ## Implications for Our Systems
 

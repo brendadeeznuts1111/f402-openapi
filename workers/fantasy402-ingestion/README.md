@@ -64,6 +64,8 @@ When fallback login is possible, the Worker mirrors the browser form: uppercase 
 
 Some browser-observed calls also require `Authorization: Bearer <token>` plus Cloudflare clearance cookies. Store the bearer value in `FANTASY402_AUTHORIZATION`, the application/session cookie in `FANTASY402_SESSION_COOKIE`, and Cloudflare cookies in `FANTASY402_CF_CLEARANCE` / `FANTASY402_CF_BM`. The Worker composes the outbound `Cookie` header and adds browser-shaped `Origin`, `Referer`, `User-Agent`, `X-Requested-With`, `Sec-*`, and `Priority` headers for upstream calls.
 
+When upstream `authenticateCustomer` or `renewToken` responses rotate Cloudflare cookies, the Worker captures `cf_clearance` and `__cf_bm` from `Set-Cookie`, writes them to `AUTH_CACHE`, and prefers those fresh values over configured fallback secrets for subsequent upstream requests.
+
 For exact replay of safe browser fingerprint headers from a successful request, set `FANTASY402_BROWSER_HEADERS_JSON` to a JSON object containing only browser metadata headers such as `accept`, `accept-language`, `origin`, `referer`, `user-agent`, `sec-ch-ua`, `sec-fetch-site`, `priority`, and `x-requested-with`. The Worker intentionally ignores `cookie`, `authorization`, `content-type`, `host`, and `content-length` in that JSON so auth and endpoint encoding remain controlled by the ingestion code.
 
 ## Environment Matrix

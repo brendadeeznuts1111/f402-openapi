@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -40,6 +40,7 @@ test("browser cURL import accepts long header and cookie flags from copied reque
     assert.equal(imported.agentId, "agent-1");
     assert.equal(imported.customerId, "cust-1");
     assert.equal(imported.browserHeaders["user-agent"], "Browser/1.0");
+    assert.equal(statSync(outputPath).mode & 0o777, 0o600);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

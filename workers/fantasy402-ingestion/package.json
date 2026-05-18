@@ -28,6 +28,7 @@
     "ingest:browser": "node scripts/local-browser-ingest.mjs",
     "ingest:curl": "node scripts/ingest-from-browser-curl.mjs",
     "ingest:clipboard": "node scripts/ingest-from-browser-curl.mjs fantasy402/browser-request.curl",
+    "ingest:unblock": "node scripts/unblock-production-ingestion.mjs",
     "verify": "npm run typecheck && npm run test && npm run bootstrap:cloudflare:self-test && npm run audit && npm run validate:openapi && npm run validate:upstream-contract && npm run validate:runtime-auth",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",

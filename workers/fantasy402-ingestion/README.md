@@ -293,7 +293,15 @@ The cached overlay takes precedence over configured Fantasy402 auth secrets and 
 
 When pasting a full browser `Cookie` header, send it as `cookieHeader`; `/refresh-auth` extracts the application session cookie into `sessionCookie` and the Cloudflare cookies into their dedicated fields without echoing values. If diagnostics reports `upstreamAuthShape.ingestionReadiness.status = "blocked"`, refresh the browser request so it includes a non-Cloudflare app session cookie.
 
-For a one-command operator run from the browser machine, create a local untracked auth file from the template:
+For the production unblock path from the browser machine, copy a successful authenticated Fantasy402 `/cloud/api/*` request as cURL and run:
+
+```bash
+pbpaste | INGESTION_TRIGGER_TOKEN="$(cat .archive-auth-token)" npm run ingest:unblock -- -
+```
+
+`ingest:unblock` imports the browser auth to the ignored local auth file, rejects captures without `authorization`, `cf_clearance`, `__cf_bm`, and a non-Cloudflare application cookie such as `ASP.NET_SessionId`, refreshes the Worker auth overlay, requires `/diagnostics` to report ingestion-ready, triggers `POST /trigger`, and prints sanitized `/runs/endpoints` evidence with trace IDs, durations, and R2 keys. It never prints bearer or cookie values.
+
+For a local-browser upload run instead, create a local untracked auth file from the template:
 
 ```bash
 cp fantasy402/browser-auth.example.json fantasy402/browser-auth.json
@@ -332,6 +340,8 @@ For the fastest refresh path from a copied browser request:
 ```bash
 pbpaste | INGESTION_TRIGGER_TOKEN="$(cat .archive-auth-token)" npm run ingest:curl -- -
 ```
+
+Use `ingest:unblock` instead when you want the Worker to refresh auth, verify diagnostics, trigger production ingestion, and read back `/runs/endpoints` in one command.
 
 The pipeline now hard-fails before `/refresh-auth` if the copied request has only Cloudflare cookies and no application session cookie, so a bad capture cannot silently refresh the Worker into the known 403/1106 state.
 

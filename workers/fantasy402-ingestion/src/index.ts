@@ -71,6 +71,8 @@ interface AuthCacheRecord {
 interface AuthMaterial {
   sessionCookie: string;
   authorization?: string;
+  cfClearance?: string;
+  cfBm?: string;
 }
 
 interface EndpointConfig {
@@ -1076,7 +1078,11 @@ async function authenticateFantasy402(env: Env): Promise<AuthMaterial> {
   const authResponse = await safeReadJson(response);
   const authorization = normalizeAuthorization(extractAuthToken(authResponse));
   const cookie = optionalFirstSetCookie(response.headers);
+  const cfClearance = setCookieValue(response.headers, "cf_clearance");
+  const cfBm = setCookieValue(response.headers, "__cf_bm");
   if (authorization) env.FANTASY402_AUTHORIZATION = authorization;
+  if (cfClearance) env.FANTASY402_CF_CLEARANCE = cfClearance;
+  if (cfBm) env.FANTASY402_CF_BM = cfBm;
   if (!authorization && !cookie) {
     throw new Error("Fantasy402 authenticateCustomer response did not include bearer token or session cookie");
   }
@@ -1095,6 +1101,8 @@ async function authenticateFantasy402(env: Env): Promise<AuthMaterial> {
     sessionCookie: session.cookie,
   };
   if (session.authorization) material.authorization = session.authorization;
+  if (cfClearance) material.cfClearance = cfClearance;
+  if (cfBm) material.cfBm = cfBm;
   return material;
 }
 
@@ -1112,11 +1120,17 @@ async function tryRenewFantasy402Token(env: Env, sessionCookie: string): Promise
     const authResponse = await safeReadJson(response);
     const authorization = normalizeAuthorization(extractAuthToken(authResponse));
     const cookie = optionalFirstSetCookie(response.headers) ?? sessionCookie;
+    const cfClearance = setCookieValue(response.headers, "cf_clearance");
+    const cfBm = setCookieValue(response.headers, "__cf_bm");
     if (!authorization && !cookie) return null;
     if (authorization) env.FANTASY402_AUTHORIZATION = authorization;
     if (cookie) env.FANTASY402_SESSION_COOKIE = cookie;
+    if (cfClearance) env.FANTASY402_CF_CLEARANCE = cfClearance;
+    if (cfBm) env.FANTASY402_CF_BM = cfBm;
     const renewed: AuthMaterial = { sessionCookie: cookie };
     if (authorization) renewed.authorization = authorization;
+    if (cfClearance) renewed.cfClearance = cfClearance;
+    if (cfBm) renewed.cfBm = cfBm;
     await cacheFantasy402Auth(env, renewed, DEFAULT_SESSION_TTL_SECONDS);
     return renewed;
   } catch (error) {
@@ -1132,8 +1146,8 @@ async function cacheFantasy402Auth(env: Env, auth: AuthMaterial, ttlSeconds: num
   };
   if (auth.authorization) record.authorization = auth.authorization;
   if (auth.sessionCookie) record.sessionCookie = auth.sessionCookie;
-  const cfClearance = normalizeCookieValue("cf_clearance", env.FANTASY402_CF_CLEARANCE);
-  const cfBm = normalizeCookieValue("__cf_bm", env.FANTASY402_CF_BM);
+  const cfClearance = normalizeCookieValue("cf_clearance", auth.cfClearance ?? env.FANTASY402_CF_CLEARANCE);
+  const cfBm = normalizeCookieValue("__cf_bm", auth.cfBm ?? env.FANTASY402_CF_BM);
   if (cfClearance) record.cfClearance = cfClearance;
   if (cfBm) record.cfBm = cfBm;
   if (env.FANTASY402_BROWSER_HEADERS_JSON) record.browserHeadersJson = env.FANTASY402_BROWSER_HEADERS_JSON;
@@ -1974,13 +1988,24 @@ function extractAuthToken(value: unknown): string | undefined {
 }
 
 function optionalFirstSetCookie(headers: Headers): string | null {
+  return setCookiePairs(headers)
+    .find((cookie) => {
+      const name = cookieName(cookie);
+      return Boolean(name && !isCloudflareCookieName(name));
+    }) ?? null;
+}
+
+function setCookieValue(headers: Headers, wantedName: string): string | null {
+  return setCookiePairs(headers)
+    .find((cookie) => cookieName(cookie)?.toLowerCase() === wantedName.toLowerCase()) ?? null;
+}
+
+function setCookiePairs(headers: Headers): string[] {
   const setCookie = headers.get("set-cookie") ?? "";
-  const sessionCookie = setCookie
+  return setCookie
     .split(/,(?=\s*[^;=]+=[^;]+)/)
     .map((cookie) => cookie.trim().split(";")[0] ?? "")
-    .find((cookie) => cookie.length > 0);
-
-  return sessionCookie ?? null;
+    .filter(Boolean);
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Promise<Response> {

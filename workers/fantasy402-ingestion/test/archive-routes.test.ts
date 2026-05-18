@@ -1253,7 +1253,7 @@ test("authenticateCustomer fallback caches bearer token and app session in AUTH_
     if (String(input).endsWith("/cloud/api/System/authenticateCustomer")) {
       return Response.json(
         { accountInfo: { tokenauth: "login-token" } },
-        { headers: { "Set-Cookie": "app_session=login-session; Path=/; HttpOnly" } },
+        { headers: { "Set-Cookie": "__cf_bm=rotated-login-bm; Path=/; HttpOnly, app_session=login-session; Path=/; HttpOnly" } },
       );
     }
     if (String(input).endsWith("/cloud/api/Manager/getAgentPerformance")) {
@@ -1287,12 +1287,12 @@ test("authenticateCustomer fallback caches bearer token and app session in AUTH_
     assert.equal(loginForm.get("RRO"), "1");
     const apiRequest = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAgentPerformance"));
     assert.equal(apiRequest?.authorization, "Bearer login-token");
-    assert.equal(apiRequest?.cookie, "app_session=login-session; cf_clearance=clearance-token; __cf_bm=bm-token");
+    assert.equal(apiRequest?.cookie, "app_session=login-session; cf_clearance=clearance-token; __cf_bm=rotated-login-bm");
     const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
     assert.equal(stored.authorization, "Bearer login-token");
     assert.equal(stored.sessionCookie, "app_session=login-session");
     assert.equal(stored.cfClearance, "cf_clearance=clearance-token");
-    assert.equal(stored.cfBm, "__cf_bm=bm-token");
+    assert.equal(stored.cfBm, "__cf_bm=rotated-login-bm");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1358,7 +1358,7 @@ test("ingestion renews near-expired cached token before upstream calls", async (
     if (String(input).endsWith("/cloud/api/System/renewToken")) {
       return Response.json(
         { tokenauth: "renewed-token" },
-        { headers: { "Set-Cookie": "app_session=renewed-session; Path=/; HttpOnly" } },
+        { headers: { "Set-Cookie": "app_session=renewed-session; Path=/; HttpOnly, __cf_bm=rotated-renew-bm; Path=/; HttpOnly" } },
       );
     }
     if (String(input).endsWith("/cloud/api/Manager/getAgentPerformance")) {
@@ -1384,7 +1384,9 @@ test("ingestion renews near-expired cached token before upstream calls", async (
     assert.equal(renewRequest?.cookie, "app_session=stale-session; cf_clearance=kv-clearance; __cf_bm=kv-bm");
     const apiRequest = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAgentPerformance"));
     assert.equal(apiRequest?.authorization, "Bearer renewed-token");
-    assert.equal(apiRequest?.cookie, "app_session=renewed-session; cf_clearance=kv-clearance; __cf_bm=kv-bm");
+    assert.equal(apiRequest?.cookie, "app_session=renewed-session; cf_clearance=kv-clearance; __cf_bm=rotated-renew-bm");
+    const stored = await authKv.get("fantasy402:auth-overlay") as any;
+    assert.equal(stored.cfBm, "__cf_bm=rotated-renew-bm");
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -125,24 +125,24 @@ export class UrlScannerApiError extends Error {
 }
 
 export async function submitAndWait(url: string, env: Env, options: SubmitOptions = {}): Promise<ScanResult> {
-  console.log("[URL Scanner] submitAndWait started", { url, screenshots: options.screenshots ?? ["desktop", "mobile"] });
+  console.info("[URL Scanner] submitAndWait started", { url, screenshots: options.screenshots ?? ["desktop", "mobile"] });
   const scanId = await submitScan(url, env, options);
-  console.log("[URL Scanner] scan submitted", { url, scanId });
+  console.info("[URL Scanner] scan submitted", { url, scanId });
   const result = await pollScanResult(scanId, env);
-  console.log("[URL Scanner] scan result ready", {
+  console.info("[URL Scanner] scan result ready", {
     scanId,
     url: result.task.url,
     malicious: Boolean(result.verdicts?.overall?.malicious),
     tlsValidDays: result.page?.tlsValidDays ?? null,
   });
   const archiveKeys = await archiveScanArtifacts(result, env, options.screenshots ?? ["desktop", "mobile"]);
-  console.log("[URL Scanner] scan artifacts archived", { scanId, ...archiveKeys });
+  console.info("[URL Scanner] scan artifacts archived", { scanId, ...archiveKeys });
   await storeVerdict(result, env, archiveKeys);
-  console.log("[URL Scanner] verdict stored", { scanId, url: result.task.url });
+  console.info("[URL Scanner] verdict stored", { scanId, url: result.task.url });
   if (archiveKeys.harSummary) {
     result.networkSummary = archiveKeys.harSummary;
     await storeNetworkSummary(scanId, archiveKeys.harR2Key, archiveKeys.harSummary, env);
-    console.log("[URL Scanner] network summary stored", { scanId, totalRequests: archiveKeys.harSummary.totalRequests });
+    console.info("[URL Scanner] network summary stored", { scanId, totalRequests: archiveKeys.harSummary.totalRequests });
   }
   return result;
 }
@@ -151,7 +151,7 @@ export async function diagnoseUrlScanner(env: Env): Promise<UrlScannerDiagnostic
   const token = env.CLOUDFLARE_API_TOKEN ?? "";
   const tokenShape = cloudflareTokenShape(token);
   const checks: CloudflareDiagnosticStage[] = [];
-  console.log("[URL Scanner] diagnostics started", {
+  console.info("[URL Scanner] diagnostics started", {
     accountId: env.CLOUDFLARE_ACCOUNT_ID,
     tokenConfigured: tokenShape.configured,
     tokenLength: tokenShape.length,
@@ -219,7 +219,7 @@ async function submitScan(url: string, env: Env, options: SubmitOptions): Promis
   }
 
   const path = "/urlscanner/v2/scan";
-  console.log("[URL Scanner] submitting scan", { path, url, accountId: env.CLOUDFLARE_ACCOUNT_ID });
+  console.info("[URL Scanner] submitting scan", { path, url, accountId: env.CLOUDFLARE_ACCOUNT_ID });
   const response = await fetch(scannerUrl(env, path), {
     method: "POST",
     headers: scannerHeaders(env, true),
@@ -243,7 +243,7 @@ async function submitScan(url: string, env: Env, options: SubmitOptions): Promis
 async function pollScanResult(scanId: string, env: Env, maxAttempts = 30): Promise<ScanResult> {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const path = `/urlscanner/v2/result/${encodeURIComponent(scanId)}`;
-    console.log("[URL Scanner] polling scan result", { scanId, attempt, maxAttempts, path });
+    console.info("[URL Scanner] polling scan result", { scanId, attempt, maxAttempts, path });
     const response = await fetch(scannerUrl(env, path), {
       headers: scannerHeaders(env),
     });
@@ -251,7 +251,7 @@ async function pollScanResult(scanId: string, env: Env, maxAttempts = 30): Promi
     if (!response.ok) {
       const body = await response.text();
       if (response.status === 404 && isPendingScanResponse(body)) {
-        console.log("[URL Scanner] scan still pending", { scanId, attempt, maxAttempts });
+        console.info("[URL Scanner] scan still pending", { scanId, attempt, maxAttempts });
         await sleep(2000);
         continue;
       }
@@ -261,7 +261,7 @@ async function pollScanResult(scanId: string, env: Env, maxAttempts = 30): Promi
     const payload = await response.json<unknown>();
     const result = scanResultFromPayload(payload);
     if (result?.task?.success === true) {
-      console.log("[URL Scanner] poll completed", { scanId, attempt });
+      console.info("[URL Scanner] poll completed", { scanId, attempt });
       return result;
     }
     if (result?.task?.success === false) {
@@ -311,7 +311,7 @@ async function archiveScanArtifacts(result: ScanResult, env: Env, resolutions: s
   const scanR2Key = `${SCANNER_PREFIX}/scans/${date}/${scanId}.json`;
   const serialized = JSON.stringify(result, null, 2);
 
-  console.log("[URL Scanner] archiving scan result", { scanId, key: scanR2Key, size: serialized.length });
+  console.info("[URL Scanner] archiving scan result", { scanId, key: scanR2Key, size: serialized.length });
   await env.RAW_ARCHIVE.put(scanR2Key, serialized, {
     httpMetadata: {
       contentType: "application/json; charset=utf-8",
@@ -351,7 +351,7 @@ async function archiveScreenshot(scanId: string, resolution: string, env: Env): 
 
   const bytes = await response.arrayBuffer();
   const key = `${SCANNER_PREFIX}/screenshots/${scanId}_${resolution}.png`;
-  console.log("[URL Scanner] archiving screenshot", { scanId, resolution, key, size: bytes.byteLength });
+  console.info("[URL Scanner] archiving screenshot", { scanId, resolution, key, size: bytes.byteLength });
   await env.RAW_ARCHIVE.put(key, bytes, {
     httpMetadata: {
       contentType: "image/png",
@@ -387,7 +387,7 @@ async function archiveHar(scanId: string, env: Env): Promise<{ key: string | nul
   } catch (error) {
     console.warn("[URL Scanner] HAR summary unavailable", { scanId, key, message: errorMessage(error) });
   }
-  console.log("[URL Scanner] archiving HAR", { scanId, key, size: body.length });
+  console.info("[URL Scanner] archiving HAR", { scanId, key, size: body.length });
   await env.RAW_ARCHIVE.put(key, body, {
     httpMetadata: {
       contentType: "application/json; charset=utf-8",
@@ -406,7 +406,7 @@ async function archiveHar(scanId: string, env: Env): Promise<{ key: string | nul
 
 async function storeVerdict(result: ScanResult, env: Env, archiveKeys: ArchiveKeys): Promise<void> {
   const scanId = scanIdFromResult(result);
-  console.log("[URL Scanner] storing verdict", {
+  console.info("[URL Scanner] storing verdict", {
     scanId,
     url: result.task.url,
     malicious: Boolean(result.verdicts?.overall?.malicious),
@@ -532,7 +532,7 @@ async function cloudflareDiagnosticFetch(stage: string, method: string, path: st
       errors: parsed.errors,
       messages: parsed.messages,
     };
-    console.log("[URL Scanner] diagnostics check completed", {
+    console.info("[URL Scanner] diagnostics check completed", {
       stage,
       method,
       path,

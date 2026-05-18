@@ -47,6 +47,17 @@ const endpoints = {
   getBetTickerConfig: { path: "/cloud/api/Manager/getBetTickerConfig", operation: "getBetTickerConfig", contentType: "form", omitDateRange: true },
   getAgentPositionData: { path: "/cloud/api/Manager/getAgentPositionData", operation: "getAgentPositionData", contentType: "form", omitDateRange: true },
   getAgentPositionList: { path: "/cloud/api/Manager/getAgentPositionList", operation: "getAgentPositionList", contentType: "form", omitDateRange: true },
+  getSubSportByReport: { path: "/cloud/api/Manager/getSubSportByReport", operation: "getSubSportByReport", contentType: "form", omitDateRange: true },
+  getPropWagers: { path: "/cloud/api/Manager/getPropWagers", operation: "getPropWagers", contentType: "form", omitDateRange: true },
+  getGraded: { path: "/cloud/api/Manager/getGraded", operation: "getGraded", contentType: "form", omitDateRange: true },
+  getWagaerDetailShort: { path: "/cloud/api/Manager/getWagaerDetailShort", operation: "getWagaerDetailShort", contentType: "form", omitDateRange: true },
+  getAgentPermissionSetting: { path: "/cloud/api/Manager/getAgentPermissionSetting", operation: "getAgentPermissionSetting", contentType: "form", omitDateRange: true },
+  getTransactionHistory: { path: "/cloud/api/Manager/getTransactionHistory", operation: "getTransactionHistory", contentType: "form" },
+  getTransactionList: { path: "/cloud/api/Manager/getTransactionList", operation: "getTransactionList", contentType: "form", omitDateRange: true },
+  getGradedWagerByCustomer: { path: "/cloud/api/Report/getGradedWagerByCustomer", operation: "getGradedWagerByCustomer", contentType: "form", omitDateRange: true },
+  getWagersByFigureDate: { path: "/cloud/api/Report/getWagersByFigureDate", operation: "getWagersByFigureDate", contentType: "form", omitDateRange: true },
+  getWagerDetailTransaction: { path: "/cloud/api/Report/getWagerDetailTransaction", operation: "getWagerDetailTransaction", contentType: "form", omitDateRange: true },
+  getPendingByTicket: { path: "/cloud/api/Report/getPendingByTicket", operation: "getPendingByTicket", contentType: "form", omitDateRange: true },
 };
 
 const auth = readAuthPayload(authFile);

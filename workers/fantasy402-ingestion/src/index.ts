@@ -57,7 +57,18 @@ type EndpointKey =
   | "getBetTicker"
   | "getBetTickerConfig"
   | "getAgentPositionData"
-  | "getAgentPositionList";
+  | "getAgentPositionList"
+  | "getSubSportByReport"
+  | "getPropWagers"
+  | "getGraded"
+  | "getWagaerDetailShort"
+  | "getAgentPermissionSetting"
+  | "getTransactionHistory"
+  | "getTransactionList"
+  | "getGradedWagerByCustomer"
+  | "getWagersByFigureDate"
+  | "getWagerDetailTransaction"
+  | "getPendingByTicket";
 
 interface SessionRecord {
   cookie: string;
@@ -259,6 +270,111 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       agentID: env.FANTASY402_AGENT_ID,
       agentOwner: env.FANTASY402_AGENT_ID,
       operation: "getAgentPositionList",
+    }),
+  },
+  getSubSportByReport: {
+    key: "getSubSportByReport",
+    path: "/cloud/api/Manager/getSubSportByReport",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getSubSportByReport",
+    }),
+  },
+  getPropWagers: {
+    key: "getPropWagers",
+    path: "/cloud/api/Manager/getPropWagers",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getPropWagers",
+    }),
+  },
+  getGraded: {
+    key: "getGraded",
+    path: "/cloud/api/Manager/getGraded",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getGraded",
+    }),
+  },
+  getWagaerDetailShort: {
+    key: "getWagaerDetailShort",
+    path: "/cloud/api/Manager/getWagaerDetailShort",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getWagaerDetailShort",
+    }),
+  },
+  getAgentPermissionSetting: {
+    key: "getAgentPermissionSetting",
+    path: "/cloud/api/Manager/getAgentPermissionSetting",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getAgentPermissionSetting",
+    }),
+  },
+  getTransactionHistory: {
+    key: "getTransactionHistory",
+    path: "/cloud/api/Manager/getTransactionHistory",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getTransactionHistory" }),
+  },
+  getTransactionList: {
+    key: "getTransactionList",
+    path: "/cloud/api/Manager/getTransactionList",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getTransactionList",
+    }),
+  },
+  getGradedWagerByCustomer: {
+    key: "getGradedWagerByCustomer",
+    path: "/cloud/api/Report/getGradedWagerByCustomer",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getGradedWagerByCustomer",
+    }),
+  },
+  getWagersByFigureDate: {
+    key: "getWagersByFigureDate",
+    path: "/cloud/api/Report/getWagersByFigureDate",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getWagersByFigureDate",
+    }),
+  },
+  getWagerDetailTransaction: {
+    key: "getWagerDetailTransaction",
+    path: "/cloud/api/Report/getWagerDetailTransaction",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getWagerDetailTransaction",
+    }),
+  },
+  getPendingByTicket: {
+    key: "getPendingByTicket",
+    path: "/cloud/api/Report/getPendingByTicket",
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getPendingByTicket",
     }),
   },
   getAgentPerformance: {

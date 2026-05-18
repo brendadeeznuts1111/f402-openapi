@@ -411,6 +411,15 @@ function addMinimalExamples(spec) {
     '/cloud/api/Manager/getAgentPositionList',
     '/cloud/api/Manager/getAgentPositionData',
     '/cloud/api/Manager/getListAgenstByAgent',
+    '/cloud/api/Manager/getGraded',
+    '/cloud/api/Manager/getSubSportByReport',
+    '/cloud/api/Manager/getPropWagers',
+    '/cloud/api/Manager/getTransactionHistory',
+    '/cloud/api/Manager/getTransactionList',
+    '/cloud/api/Report/getWagersByFigureDate',
+    '/cloud/api/Report/getGradedWagerByCustomer',
+    '/cloud/api/Report/getWagerDetailTransaction',
+    '/cloud/api/Report/getPendingByTicket',
   ];
   for (const apiPath of rateLimitedPaths) {
     const rateLimited = contentFor(apiPath, '429');

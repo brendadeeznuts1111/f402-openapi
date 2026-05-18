@@ -786,6 +786,9 @@ async function runIngestion(env: Env): Promise<RunResult> {
         if (endpoint.key === "getAuthorizations") {
           await storeAuthorizations(env, mapAuthorizations(result.data, result.snapshotId, runId));
         }
+        if (endpoint.key === "getBetTicker") {
+          await storeBetTickerWagers(env, mapBetTickerWagers(result.data, result.snapshotId, runId));
+        }
 
         endpointsSucceeded += 1;
       } catch (error) {
@@ -867,6 +870,9 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         }
         if (endpoint.key === "getAuthorizations") {
           await storeAuthorizations(env, mapAuthorizations(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getBetTicker") {
+          await storeBetTickerWagers(env, mapBetTickerWagers(result.data, result.snapshotId, runId));
         }
         endpointsSucceeded += 1;
         stored.push({
@@ -1972,6 +1978,67 @@ function mapAuthorizations(data: unknown, rawSnapshotId: string, runId: string):
     commissionType: stringField(info ?? {}, ["CommissionType", "commissionType"], "").trim() || null,
     rawJson: JSON.stringify(info ?? {}),
   };
+}
+
+interface BetTickerWagerRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  capturedAt: string;
+  wagerNumber: number;
+  agentId: string;
+  customerId: string;
+  login: string;
+  wagerType: string;
+  amountWagered: number;
+  toWinAmount: number | null;
+  insertDateTime: string | null;
+  ticketWriter: string | null;
+  volumeAmount: number | null;
+  shortDesc: string | null;
+  agentLogin: string | null;
+  rawJson: string;
+}
+
+function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string): BetTickerWagerRecord[] {
+  const obj = firstObject(data);
+  const items = (typeof obj?.LIST === "object" && Array.isArray(obj.LIST) ? obj.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  return items.map((item) => {
+    const raw = item as Record<string, unknown>;
+    return {
+      id: crypto.randomUUID(),
+      snapshotId: rawSnapshotId,
+      runId,
+      capturedAt: new Date().toISOString(),
+      wagerNumber: numberField(item, ["WagerNumber"], 0),
+      agentId: stringField(item, ["AgentID", "agentID"], "").trim(),
+      customerId: stringField(item, ["CustomerID", "customerID"], "").trim(),
+      login: stringField(item, ["Login", "login"], "").trim(),
+      wagerType: stringField(item, ["WagerType", "wagerType"], "").trim(),
+      amountWagered: numberField(item, ["AmountWagered", "amountWagered"], 0),
+      toWinAmount: typeof raw.ToWinAmount === "number" ? raw.ToWinAmount : null,
+      insertDateTime: typeof raw.InsertDateTime === "string" ? raw.InsertDateTime.trim() : null,
+      ticketWriter: typeof raw.TicketWriter === "string" ? raw.TicketWriter.trim() : null,
+      volumeAmount: typeof raw.VolumeAmount === "number" ? raw.VolumeAmount : null,
+      shortDesc: typeof raw.ShortDesc === "string" ? raw.ShortDesc.trim() : null,
+      agentLogin: typeof raw.AgentLogin === "string" ? raw.AgentLogin.trim() : null,
+      rawJson: JSON.stringify(item),
+    };
+  });
+}
+
+async function storeBetTickerWagers(env: Env, records: BetTickerWagerRecord[]): Promise<void> {
+  if (records.length === 0) return;
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO bet_ticker_wagers
+       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const record of records) {
+    await stmt
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
+      .run();
+  }
 }
 
 async function finishRun(

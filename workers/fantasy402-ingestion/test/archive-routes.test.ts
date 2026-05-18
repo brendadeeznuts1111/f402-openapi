@@ -124,6 +124,7 @@ class MemoryKVNamespace {
 
 class MemoryD1Database {
   readonly runs: unknown[][] = [];
+  readonly statements: Array<{ sql: string; bindings: unknown[] }> = [];
 
   constructor(
     private readonly scanRows: Record<string, unknown>[] = [],
@@ -145,6 +146,7 @@ class MemoryD1Database {
         }),
         run: async () => {
           this.runs.push(bindings);
+          this.statements.push({ sql, bindings });
           return { success: true };
         },
       }),
@@ -759,6 +761,12 @@ test("ingestion includes static RRO flag on configured Fantasy402 endpoints", as
           "getAddedInfo",
           "getLineTypes",
           "getHeriarchy",
+          "getConfigWebReports",
+          "getConfigWebReportsPending",
+          "getSportsType",
+          "getMessage",
+          "getNewEmailsCount",
+          "getWeeklyFigureByAgentLite",
         ].join(","),
       }),
     );
@@ -772,6 +780,12 @@ test("ingestion includes static RRO flag on configured Fantasy402 endpoints", as
       "getAddedInfo",
       "getLineTypes",
       "getHeriarchy",
+      "getConfigWebReports",
+      "getConfigWebReportsPending",
+      "getSportsType",
+      "getMessage",
+      "getNewEmailsCount",
+      "getWeeklyFigureByAgentLite",
     ]);
     const apiRequests = seen.filter((request) => request.url.includes("/cloud/api/"));
     assert.equal(apiRequests.length, expectedOperations.size);
@@ -1330,6 +1344,65 @@ test("local ingestion upload stores browser-fetched endpoint responses", async (
   assert.match(body.stored[0].r2Key, /^fantasy402\/getAgentPerformance\/2026-05-17\//);
   assert.equal(db.runs.some((bindings) => bindings[4] === "2026-05-17T12:00:00.000Z"), true);
   assert.equal(db.runs.length >= 4, true);
+});
+
+test("ingestion stores authorization permissions from getAuthorizations response", async () => {
+  const originalFetch = globalThis.fetch;
+  const db = new MemoryD1Database();
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/cloud/api/System/authenticateCustomer")) {
+      return Response.json(
+        { tokenauth: "login-jwt" },
+        { headers: { "Set-Cookie": "app_session=login-session; Path=/; HttpOnly" } },
+      );
+    }
+    if (url.endsWith("/cloud/api/Manager/getAuthorizations")) {
+      return Response.json({
+        INFO: {
+          CustomerID: "agent-1 ",
+          AgentID: "agent-1 ",
+          MasterAgentID: "master-1 ",
+          CommissionType: "S",
+        },
+        DISTRIBUTION: 0,
+      });
+    }
+    return Response.json({ status: "failed" }, { status: 404 });
+  };
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://worker.test/trigger", {
+        method: "POST",
+        headers: { Authorization: "Bearer test-token" },
+      }),
+      env(new MemoryR2Bucket(), db, {
+        FANTASY402_USERNAME: "agent-1",
+        FANTASY402_PASSWORD: "test-password",
+        FANTASY402_AGENT_ID: "agent-1",
+        FANTASY402_INGESTION_ENDPOINTS: "getAuthorizations",
+      }),
+    );
+    assert.equal(response.status, 202);
+
+    const authInsert = db.statements.find((statement) => statement.sql.includes("authorization_permissions"));
+    assert.ok(authInsert, "expected authorization_permissions insert");
+    assert.equal(authInsert.bindings[4], "agent-1");
+    assert.equal(authInsert.bindings[5], "master-1");
+    assert.equal(authInsert.bindings[6], "S");
+    const rawJson = typeof authInsert.bindings[7] === "string" ? JSON.parse(authInsert.bindings[7]) : null;
+    assert.ok(rawJson, "expected raw_json to be parseable");
+    assert.equal(rawJson.CustomerID, "agent-1 ");
+    assert.equal(rawJson.MasterAgentID, "master-1 ");
+    assert.equal(rawJson.CommissionType, "S");
+    const authSnapshot = db.statements.find((statement) =>
+      statement.sql.includes("api_snapshots") && statement.bindings[2] === "getAuthorizations"
+    );
+    assert.ok(authSnapshot, "expected raw getAuthorizations snapshot");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("ingestion renews near-expired cached token before upstream calls", async () => {

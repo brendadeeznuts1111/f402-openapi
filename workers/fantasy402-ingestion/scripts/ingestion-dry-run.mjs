@@ -26,6 +26,12 @@ const endpointKeys = (process.env.FANTASY402_INGESTION_ENDPOINTS ?? readWrangler
 const endpoints = {
   getAccountInfoOwner: { path: "/cloud/api/Manager/getAccountInfoOwner", operation: "getAccountInfoOwner", contentType: "json", accountOwnerOnly: true },
   getAuthorizations: { path: "/cloud/api/Manager/getAuthorizations", operation: "getAuthorizations", contentType: "form", omitDateRange: true },
+  getConfigWebReports: { path: "/cloud/api/Manager/getConfigWebReports", operation: "getConfigWebReports", contentType: "form", omitDateRange: true },
+  getConfigWebReportsPending: { path: "/cloud/api/Manager/getConfigWebReportsPending", operation: "getConfigWebReportsPending", contentType: "form", omitDateRange: true },
+  getSportsType: { path: "/cloud/api/Manager/getSportsType", operation: "getSportsType", contentType: "form", omitDateRange: true },
+  getMessage: { path: "/cloud/api/Manager/getMessage", operation: "getMessage", contentType: "form", omitDateRange: true, accountMessage: true },
+  getNewEmailsCount: { path: "/cloud/api/Manager/getNewEmailsCount", operation: "getNewEmailsCount", contentType: "form", omitDateRange: true, accountMessage: true },
+  getWeeklyFigureByAgentLite: { path: "/cloud/api/Manager/getWeeklyFigureByAgentLite", operation: "getWeeklyFigureByAgentLite", contentType: "form", omitDateRange: true, weeklyFigure: true },
   getAgentPerformance: { path: "/cloud/api/Manager/getAgentPerformance", operation: "getAgentPerformance", contentType: "form" },
   getAgentBilling: { path: "/cloud/api/Manager/getAgentBilling", operation: "getAgentBilling", contentType: "form" },
   getEnterTransactions: { path: "/cloud/api/Manager/getEnterTransactions", operation: "getEnterTransactions", contentType: "form" },
@@ -144,6 +150,9 @@ function requestBody(endpoint, now) {
     agentOwner: agentId,
     operation: endpoint.operation,
     ...(endpoint.agentType ? { agentType: endpoint.agentType } : {}),
+    ...(endpoint.accountMessage ? { acc: agentId } : {}),
+    ...(endpoint.operation === "getMessage" ? { type: 0 } : {}),
+    ...(endpoint.weeklyFigure ? { week: 0, type: "A", layout: "byDay" } : {}),
   };
   if (!endpoint.omitDateRange) {
     body.startDate = date;

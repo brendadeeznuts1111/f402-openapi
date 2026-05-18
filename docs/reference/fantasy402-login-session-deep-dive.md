@@ -155,6 +155,9 @@ the same routing tuple.
 - The frontend refreshes the JWT through `/cloud/api/System/renewToken`.
 - The observed browser behavior refreshes periodically, roughly every five
   minutes, while the page remains active.
+- The Worker mirrors this cadence with a `*/5 * * * *` scheduled cron that
+  proactively calls `tryRenewFantasy402Token` via `refreshAuthSchedule()` every
+  5 minutes when cached auth exists.
 - The refresh response provides a replacement JWT.
 - Expired browser captures must be replaced with a fresh successful
   `/cloud/api/*` Network request.
@@ -184,5 +187,8 @@ Expired captures fail before Worker auth refresh or Fantasy402 upstream calls.
 - Keep request body encoding per endpoint. For example, `getAccountInfoOwner`
   has been observed as JSON, while `getAuthorizations` has been observed as form
   data.
+- The Worker runs a `*/5 * * * *` scheduled cron via `refreshAuthSchedule()`
+  that proactively calls `tryRenewFantasy402Token` every 5 minutes, matching
+  the frontend refresh cadence.
 - Never embed raw credentials, JWTs, cookie values, or account identifiers in
   OpenAPI examples.

@@ -92,6 +92,7 @@ The `code` field is the JWT used as the API bearer token. It is included in the 
 
 - The JWT is refreshed via `/cloud/api/System/renewToken`.
 - The frontend calls this endpoint every ~5 minutes on an interval, not at the moment of expiry.
+- The Worker also runs a proactive `*/5 * * * *` scheduled cron that calls `tryRenewFantasy402Token` via `refreshAuthSchedule()`, matching the frontend refresh cadence.
 - The refresh response returns a new `code` (JWT) that replaces the current `sessionStorage.credentials.code`.
 - The associated `customerID` and `agentType` remain unchanged across refreshes.
 

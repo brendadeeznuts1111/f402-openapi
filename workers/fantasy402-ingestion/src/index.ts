@@ -300,6 +300,10 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
 const worker = {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const runtimeEnv = await materializeSecretBindings(env);
+    if (event.cron === "*/5 * * * *") {
+      ctx.waitUntil(refreshAuthSchedule(runtimeEnv));
+      return;
+    }
     if (event.cron === "0 */6 * * *") {
       ctx.waitUntil(runScheduledScan(runtimeEnv));
       return;
@@ -1137,6 +1141,22 @@ async function cacheFantasy402Auth(env: Env, auth: AuthMaterial, ttlSeconds: num
   if (env.FANTASY402_REFERER) record.referer = env.FANTASY402_REFERER;
   if (env.FANTASY402_CUSTOMER_ID) record.customerId = env.FANTASY402_CUSTOMER_ID;
   await env.AUTH_CACHE.put(AUTH_CACHE_KEY, JSON.stringify(record), { expirationTtl: ttlSeconds });
+}
+
+async function refreshAuthSchedule(env: Env): Promise<void> {
+  const cachedAuth = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  if (!cachedAuth?.authorization) {
+    console.log("[Fantasy402] Scheduled renew skipped - no cached authorization to refresh");
+    return;
+  }
+  applyAuthRecord(env, cachedAuth);
+  const sessionCookie = cachedAuth.sessionCookie ?? env.FANTASY402_SESSION_COOKIE ?? "";
+  const renewed = await tryRenewFantasy402Token(env, sessionCookie);
+  if (renewed) {
+    console.log("[Fantasy402] Token proactively renewed via 5-min schedule");
+  } else {
+    console.warn("[Fantasy402] Scheduled renew failed - cached session may expire soon");
+  }
 }
 
 function applyAuthRecord(env: Env, record: AuthCacheRecord): void {

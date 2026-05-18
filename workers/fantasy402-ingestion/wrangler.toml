@@ -62,7 +62,7 @@ store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
 secret_name = "FANTASY402_BROWSER_HEADERS_JSON"
 
 [triggers]
-crons = ["*/15 * * * *", "0 */6 * * *"]
+crons = ["*/5 * * * *", "*/15 * * * *", "0 */6 * * *"]
 
 [vars]
 ENVIRONMENT = "production"

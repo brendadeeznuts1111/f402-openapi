@@ -369,6 +369,8 @@ npm run ingest:dry-run
 
 The dry-run prints one sanitized entry per endpoint with `bodyKeys`, `hasRRO`, `hasAgentID`, `hasAgentOwner`, `hasCustomerID`, and auth booleans such as `hasSessionCookie`, `hasCfClearance`, and `hasCfBm`. It exits non-zero for missing required bearer/Cloudflare auth or if a customer-scoped endpoint lacks `customerId`.
 
+`auth:check`, `ingest:dry-run`, and the local ingest commands decode the bearer JWT payload locally enough to report `authorizationExpiry` without printing the token. Expired captures fail before refreshing Worker auth or calling Fantasy402; captures expiring within five minutes produce a warning.
+
 Or run the full local flow from the copied cURL in one step:
 
 ```bash

@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { parseBrowserCurl, readBrowserCurlInput } from "./browser-auth-utils.mjs";
+import { jwtExpiryDiagnostics, parseBrowserCurl, readBrowserCurlInput } from "./browser-auth-utils.mjs";
 
 const inputPath = process.argv[2] ?? process.env.FANTASY402_BROWSER_CURL_FILE ?? "fantasy402/browser-request.curl";
 const outputPath = process.env.FANTASY402_BROWSER_AUTH_FILE ?? "fantasy402/browser-auth.json";
@@ -21,6 +21,7 @@ try {
     input: inputPath,
     output: outputPath,
     fields: Object.keys(imported),
+    authorizationExpiry: jwtExpiryDiagnostics(imported.authorization),
     browserHeaderCount: Object.keys(imported.browserHeaders ?? {}).length,
   }, null, 2));
 } catch (error) {

@@ -14,12 +14,10 @@ for (const field of ["authorization", "cfClearance", "cfBm"]) {
   }
 }
 
-if (!auth.sessionCookie) {
-  findings.push("sessionCookie is missing. Copy a successful authenticated /cloud/api browser request that includes the application cookie such as ASP.NET_SessionId.");
-} else if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
+if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
   findings.push("sessionCookie still looks like a placeholder");
-} else if (!hasNonCloudflareCookie(auth.sessionCookie)) {
-  findings.push("sessionCookie contains only Cloudflare cookies. Include the browser application cookie such as ASP.NET_SessionId.");
+} else if (auth.sessionCookie && !hasNonCloudflareCookie(auth.sessionCookie)) {
+  findings.push("sessionCookie contains only Cloudflare cookies. Omit it or include a real application cookie.");
 }
 
 if (!auth.browserHeaders && !auth.browserHeadersJson && !auth.userAgent) {
@@ -65,6 +63,7 @@ function isPlaceholder(value) {
 }
 
 function hasNonCloudflareCookie(value) {
+  if (typeof value !== "string" || !value.trim()) return false;
   return String(value)
     .split(";")
     .map((part) => part.trim())

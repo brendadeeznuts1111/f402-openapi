@@ -86,12 +86,10 @@ export function validateBrowserAuthPayload(payload, label = "browser auth") {
     if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
   }
 
-  if (!payload.sessionCookie) {
-    findings.push("sessionCookie is missing; include the app session cookie such as ASP.NET_SessionId");
-  } else if (isPlaceholderToken(payload.sessionCookie)) {
+  if (payload.sessionCookie && isPlaceholderToken(payload.sessionCookie)) {
     findings.push("sessionCookie still looks like a placeholder");
-  } else if (!hasNonCloudflareCookie(payload.sessionCookie)) {
-    findings.push("sessionCookie contains only Cloudflare cookies; include the app session cookie such as ASP.NET_SessionId");
+  } else if (payload.sessionCookie && !hasNonCloudflareCookie(payload.sessionCookie)) {
+    findings.push("sessionCookie contains only Cloudflare cookies; omit it or include a real application cookie");
   }
 
   if (!payload.browserHeaders && !payload.browserHeadersJson && !payload.userAgent) {

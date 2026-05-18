@@ -52,11 +52,19 @@ if (!upstreamAuthShape?.properties?.ingestionReadiness) {
 }
 
 const sessionCookie = spec.components?.schemas?.RefreshAuthRequest?.properties?.sessionCookie;
-if (!/non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
-  findings.push("RefreshAuthRequest.sessionCookie must document non-Cloudflare app-session requirement");
+const refreshAuthAnyOf = spec.components?.schemas?.RefreshAuthRequest?.anyOf ?? [];
+if (
+  !refreshAuthAnyOf.some((branch) =>
+    ["authorization", "cfClearance", "cfBm"].every((name) => branch.required?.includes(name)),
+  )
+) {
+  findings.push("RefreshAuthRequest.anyOf must allow bearer plus cfClearance and cfBm without sessionCookie");
 }
-if (!/403\/1106/.test(sessionCookie?.description ?? "")) {
-  findings.push("RefreshAuthRequest.sessionCookie must document the upstream 403/1106 blocker");
+if (!/optional non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
+  findings.push("RefreshAuthRequest.sessionCookie must document optional non-Cloudflare app-session behavior");
+}
+if (!/bearer plus Cloudflare cookies/.test(sessionCookie?.description ?? "")) {
+  findings.push("RefreshAuthRequest.sessionCookie must document bearer plus Cloudflare cookie readiness");
 }
 
 for (const [name, schema] of Object.entries(spec.components?.schemas ?? {})) {

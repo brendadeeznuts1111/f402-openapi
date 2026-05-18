@@ -165,7 +165,67 @@ the same routing tuple.
 The ingestion tooling now reports JWT expiry locally without printing the token.
 Expired captures fail before Worker auth refresh or Fantasy402 upstream calls.
 
-## 8. Security and Operational Implications
+## 8. Login Sequence Diagram
+
+The following Mermaid diagram shows the end-to-end login flow, including the
+optional CAPTCHA and OTP branches observed in the legacy frontend code:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend as Frontend<br/>(RequireJS + jQuery)
+    participant Backend as Fantasy402 Backend<br/>(/cloud/api/System/)
+    participant Storage as sessionStorage
+    participant Redirect as Skin/Dashboard
+
+    %% 1. Login Initiation
+    User->>Frontend: Submit form<br/>(customer ID / password)
+    Note right of Frontend: Force uppercase<br/>customerID -> &lt;CUSTOMER_ID&gt;<br/>password -> &lt;PASSWORD&gt;
+
+    %% 2. Main Auth Call
+    Frontend->>Backend: POST /authenticateCustomer<br/>form-urlencoded<br/>(customerID, password, RRO=1, operation=authenticateCustomer, ...)
+    Backend-->>Frontend: 200 OK + JSON<br/>{ code: "&lt;jwt&gt;", accountInfo: {...}, tokenauth? }
+
+    %% 3. Session Storage
+    Frontend->>Storage: sessionStorage.credentials = JSON<br/>{ code: "&lt;jwt&gt;", password: "&lt;redacted&gt;", customerID, ... }
+    Frontend->>Storage: sessionStorage.customerID = "&lt;CUSTOMER_ID&gt;"
+    Frontend->>Storage: sessionStorage.agentType = "M"
+    Frontend->>Storage: sessionStorage.token = 0 (legacy)
+
+    %% 4. Optional Branches
+    alt CAPTCHA Required
+        Backend-->>Frontend: accountInfo.UseCaptcha = "Y"
+        Frontend->>User: Show CAPTCHA iframe (SweetAlert2)
+        User->>Frontend: Complete CAPTCHA
+        Frontend->>Backend: POST /validCaptcha
+        Backend-->>Frontend: Success
+    end
+
+    alt OTP / 2FA Required
+        Backend-->>Frontend: tokenauth = true OR setup QR
+        Frontend->>User: SweetAlert2 OTP modal (or QR setup)
+        User->>Frontend: Enter 6-digit code
+        Frontend->>Backend: POST /OTPLoginWithCode OR /OTPConfirmSetup
+        Backend-->>Frontend: Success
+    end
+
+    %% 5. Master Agent Redirect
+    Frontend->>Frontend: Check accountInfo.AgentType === "M"
+    Frontend->>Redirect: Redirect to manager.html<br/>or skin-specific page<br/>(Gotham, Toronto, etc.)
+    Note right of Redirect: Uses DefaultSiteSkin + AgentSkinOverride
+
+    %% 6. Ongoing Behavior
+    loop Every 5 minutes
+        Frontend->>Backend: POST /renewToken<br/>(Authorization: Bearer &lt;JWT&gt;)
+        Backend-->>Frontend: New JWT
+        Frontend->>Storage: Update credentials.code
+    end
+
+    %% 7. Idle Timeout
+    Note over Frontend,Storage: IdleTimer (30 min) -> sessionDestroy() + redirect to /
+```
+
+## 9. Security and Operational Implications
 
 | Issue | Severity | Operational response |
 |-------|----------|----------------------|
@@ -175,7 +235,7 @@ Expired captures fail before Worker auth refresh or Fantasy402 upstream calls.
 | JWT expiry is independent of Worker cache TTL | Medium | Reject expired captures locally and request a fresh browser capture |
 | Master-agent access has broad scope | High | Keep endpoint set explicit and avoid speculative ingestion expansion |
 
-## 9. Ingestion Worker Guidance
+## 10. Ingestion Worker Guidance
 
 - Store and send the browser JWT as `Authorization: Bearer <jwt>`.
 - Preserve observed browser header names and values for upstream requests, but

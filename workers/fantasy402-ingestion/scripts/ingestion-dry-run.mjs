@@ -8,6 +8,7 @@ const endpointKeys = (process.env.FANTASY402_INGESTION_ENDPOINTS ?? readWrangler
 
 const endpoints = {
   getAccountInfoOwner: { path: "/cloud/api/Manager/getAccountInfoOwner", operation: "getAccountInfoOwner", contentType: "json", accountOwnerOnly: true },
+  getAuthorizations: { path: "/cloud/api/Manager/getAuthorizations", operation: "getAuthorizations", contentType: "form", omitDateRange: true },
   getAgentPerformance: { path: "/cloud/api/Manager/getAgentPerformance", operation: "getAgentPerformance", contentType: "form" },
   getAgentBilling: { path: "/cloud/api/Manager/getAgentBilling", operation: "getAgentBilling", contentType: "form" },
   getEnterTransactions: { path: "/cloud/api/Manager/getEnterTransactions", operation: "getEnterTransactions", contentType: "form" },
@@ -160,7 +161,7 @@ function readAuthPayload(path) {
 
 function readWranglerEndpointKeys() {
   const config = fs.readFileSync("wrangler.toml", "utf8");
-  return config.match(/FANTASY402_INGESTION_ENDPOINTS\s*=\s*"([^"]+)"/)?.[1] ?? "getAgentPerformance,getAgentBilling,getEnterTransactions,getPlayers,getAddedInfo,getLineTypes,getHeriarchy";
+  return config.match(/FANTASY402_INGESTION_ENDPOINTS\s*=\s*"([^"]+)"/)?.[1] ?? "getAccountInfoOwner,getAuthorizations";
 }
 
 function normalizeBrowserHeaders(value) {

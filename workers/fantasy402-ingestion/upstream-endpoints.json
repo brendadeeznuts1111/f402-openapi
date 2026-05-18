@@ -9,6 +9,13 @@
       "contentType": "application/json"
     },
     {
+      "key": "getAuthorizations",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAuthorizations",
+      "operationId": "post_cloud_api_Manager_getAuthorizations",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
       "key": "getAgentPerformance",
       "method": "post",
       "path": "/cloud/api/Manager/getAgentPerformance",

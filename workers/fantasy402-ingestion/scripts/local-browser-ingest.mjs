@@ -173,6 +173,7 @@ function writeUpstreamFailureReport({ endpointKey, endpoint, response, responseT
       hasCfBm: Boolean(authPayload.cfBm),
       cookieNames: cookieNames(cookieHeader(authPayload)),
       browserHeaderCount: Object.keys(normalizeBrowserHeaders(authPayload.browserHeadersJson ?? authPayload.browserHeaders)).length,
+      browserHeaders: browserHeaderShape,
     },
   };
   fs.writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
@@ -203,8 +204,11 @@ function diagnosticHint(endpointKey, status, text) {
   const statusHint = status >= 500
     ? "Upstream returned an application error; inspect whether copied cURL operation/path matches the endpoint being replayed."
     : "";
+  const authHint = status === 401
+    ? "Upstream rejected the browser authorization; copy a fresh successful authenticated /cloud/api/* request."
+    : "";
   const bodyHint = text.trim().length === 0 ? "Response body was empty." : "";
-  return [statusHint, bodyHint, sourceHint].filter(Boolean).join(" ");
+  return [authHint, statusHint, bodyHint, sourceHint].filter(Boolean).join(" ");
 }
 
 function requestBody(endpoint, now) {

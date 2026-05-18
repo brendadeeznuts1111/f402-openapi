@@ -626,6 +626,13 @@ const worker = {
       return listIngestionRunEndpoints(url, env);
     }
 
+    if (url.pathname === "/bet-ticker-wagers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryBetTickerWagers(url, env);
+    }
+
     if (url.pathname === "/alerts" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -2105,6 +2112,34 @@ async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> 
     },
     200,
   );
+}
+
+async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 500);
+  const agentId = String(url.searchParams.get("agent_id") ?? "").trim();
+  const wagerType = String(url.searchParams.get("wager_type") ?? "").trim().toUpperCase();
+  const since = String(url.searchParams.get("since") ?? "").trim();
+  const minAmount = Number(url.searchParams.get("min_amount") ?? "0");
+  const maxAmount = Number(url.searchParams.get("max_amount") ?? "0");
+
+  let sql = `SELECT id, wager_number, agent_id, customer_id, login, wager_type,
+                    amount_wagered, to_win_amount, insert_date_time, ticket_writer,
+                    volume_amount, short_desc, agent_login, captured_at
+             FROM bet_ticker_wagers
+             WHERE 1=1`;
+  const params: (string | number)[] = [];
+
+  if (agentId) { sql += " AND agent_id = ?"; params.push(agentId); }
+  if (wagerType) { sql += " AND wager_type = ?"; params.push(wagerType); }
+  if (since) { sql += " AND captured_at >= ?"; params.push(since); }
+  if (minAmount > 0) { sql += " AND amount_wagered >= ?"; params.push(minAmount); }
+  if (maxAmount > 0) { sql += " AND amount_wagered <= ?"; params.push(maxAmount); }
+
+  sql += " ORDER BY captured_at DESC, wager_number DESC LIMIT ?";
+  params.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
+  return json({ limit, total: result.results?.length ?? 0, wagers: result.results ?? [] }, 200);
 }
 
 async function listAlertEvents(url: URL, env: Env): Promise<Response> {

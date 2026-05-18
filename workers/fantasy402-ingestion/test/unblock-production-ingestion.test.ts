@@ -46,6 +46,22 @@ test("unblock auth validation rejects explicit Cloudflare-only sessionCookie fie
   );
 });
 
+test("unblock auth validation rejects Cloudflare challenge captures", () => {
+  const auth = parseBrowserCurl([
+    "curl 'https://fantasy402.com/cdn-cgi/challenge-platform/h/b/jsd/oneshot/challenge-id'",
+    "  --header 'content-type: text/plain;charset=UTF-8'",
+    "  --header 'origin: https://fantasy402.com'",
+    "  --header 'user-agent: Browser/1.0'",
+    "  --cookie '__cf_bm=bm-secret'",
+    "  --data-raw 'opaque-cloudflare-challenge-payload'",
+  ].join(" \\\n"));
+
+  assert.throws(
+    () => validateBrowserAuthPayload(auth, "test capture"),
+    /sourcePath is Cloudflare challenge telemetry/,
+  );
+});
+
 test("unblock auth validation rejects expired browser bearer JWTs", () => {
   const expiredJwt = testJwt({ sub: "agent-1", exp: Math.floor(Date.now() / 1000) - 60 });
   const auth = parseBrowserCurl([

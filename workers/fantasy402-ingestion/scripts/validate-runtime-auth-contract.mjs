@@ -98,6 +98,14 @@ if (!refreshSchema) {
   findings.push("worker OpenAPI must define RefreshAuthRequest");
 } else {
   const sessionCookie = refreshSchema.properties?.sessionCookie;
+  const anyOf = refreshSchema.anyOf ?? [];
+  if (
+    !anyOf.some((branch) =>
+      ["authorization", "cfClearance", "cfBm"].every((name) => branch.required?.includes(name)),
+    )
+  ) {
+    findings.push("RefreshAuthRequest.anyOf must allow bearer plus cfClearance and cfBm without sessionCookie");
+  }
   if (!sessionCookie) findings.push("RefreshAuthRequest must include sessionCookie");
   if (sessionCookie?.writeOnly !== true) findings.push("RefreshAuthRequest.sessionCookie must be writeOnly");
   if (sessionCookie?.["x-sensitive"] !== true) findings.push("RefreshAuthRequest.sessionCookie must be x-sensitive");

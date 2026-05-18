@@ -3343,6 +3343,7 @@
         "additionalProperties": false,
         "minProperties": 1,
         "anyOf": [
+          { "required": [ "authorization", "cfClearance", "cfBm" ] },
           { "required": [ "sessionCookie" ] },
           { "required": [ "cookieHeader" ] },
           { "required": [ "cookie" ] },

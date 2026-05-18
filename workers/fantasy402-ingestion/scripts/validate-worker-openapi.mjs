@@ -52,6 +52,14 @@ if (!upstreamAuthShape?.properties?.ingestionReadiness) {
 }
 
 const sessionCookie = spec.components?.schemas?.RefreshAuthRequest?.properties?.sessionCookie;
+const refreshAuthAnyOf = spec.components?.schemas?.RefreshAuthRequest?.anyOf ?? [];
+if (
+  !refreshAuthAnyOf.some((branch) =>
+    ["authorization", "cfClearance", "cfBm"].every((name) => branch.required?.includes(name)),
+  )
+) {
+  findings.push("RefreshAuthRequest.anyOf must allow bearer plus cfClearance and cfBm without sessionCookie");
+}
 if (!/optional non-Cloudflare application\/session Cookie/.test(sessionCookie?.description ?? "")) {
   findings.push("RefreshAuthRequest.sessionCookie must document optional non-Cloudflare app-session behavior");
 }

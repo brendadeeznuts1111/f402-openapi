@@ -1,6 +1,7 @@
 import { diagnoseUrlScanner, submitAndWait, UrlScannerApiError } from "./url-scanner";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
 import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema } from "./schemas";
+export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
 
 export interface Env {
   SESSION_KV: KVNamespace;
@@ -25,6 +26,7 @@ export interface Env {
   FANTASY402_BROWSER_HEADERS_JSON?: string;
   FANTASY402_AGENT_ID: string;
   FANTASY402_CUSTOMER_ID?: string;
+  LIVE_WAGER_BROADCASTER: DurableObjectNamespace;
   FANTASY402_ALLOWED_SCAN_HOSTS?: string;
   INGESTION_TRIGGER_TOKEN?: string;
   ARCHIVE_AUTH_TOKEN?: string;
@@ -882,11 +884,15 @@ const worker = {
       ctx.waitUntil(runScheduledScan(runtimeEnv));
       return;
     }
+    if (event.cron === "*/2 * * * *") {
+      ctx.waitUntil(evaluateAlertRules(runtimeEnv));
+      return;
+    }
 
     ctx.waitUntil(runIngestion(runtimeEnv));
   },
 
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
@@ -1007,6 +1013,13 @@ const worker = {
       return queryPositionData(url, env);
     }
 
+    if (url.pathname === "/summary" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getDashboardSummary(env);
+    }
+
     if (url.pathname === "/alerts" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -1033,6 +1046,57 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return createSyntheticPolicyAlert(env);
+    }
+
+    if (url.pathname === "/alert-rules" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return createAlertRule(request, env);
+    }
+
+    if (url.pathname === "/alert-rules" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listAlertRules(url, env);
+    }
+
+    if (url.pathname === "/alert-rules" && request.method === "DELETE") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return deleteAlertRule(url, env);
+    }
+
+    if (url.pathname === "/alert-rules" && request.method === "PATCH") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return patchAlertRule(request, url, env);
+    }
+
+    if (url.pathname === "/players" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryPlayers(url, env);
+    }
+
+    if (url.pathname === "/alert-log" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listAlertLog(url, env);
+    }
+
+    if (url.pathname === "/live-wagers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      const doId = env.LIVE_WAGER_BROADCASTER.idFromName("global");
+      const stub = env.LIVE_WAGER_BROADCASTER.get(doId);
+      return stub.fetch(request);
     }
 
     if (url.pathname === "/scanner/diagnostics" && request.method === "GET") {
@@ -1169,16 +1233,31 @@ async function runIngestion(env: Env): Promise<RunResult> {
           await storeAuthorizations(env, mapAuthorizations(result.data, result.snapshotId, runId));
         }
         if (endpoint.key === "getBetTicker") {
-          await storeBetTickerWagers(env, mapBetTickerWagers(result.data, result.snapshotId, runId));
+          const records = mapBetTickerWagers(result.data, result.snapshotId, runId);
+          await storeBetTickerWagers(env, records);
+          for (const record of records) {
+            notifyLiveWager(env, { id: record.id, login: record.login, wager_type: record.wagerType, amount_wagered: record.amountWagered, captured_at: record.capturedAt });
+          }
         }
         if (endpoint.key === "getGraded") {
-          await storeGradedWagers(env, mapGradedWagers(result.data, result.snapshotId, runId));
+          const records = mapGradedWagers(result.data, result.snapshotId, runId);
+          await storeGradedWagers(env, records);
+          for (const record of records) {
+            notifyLiveWager(env, { id: record.id, login: record.login, wager_type: record.wagerType, amount_wagered: record.amountWagered, captured_at: record.capturedAt });
+          }
         }
         if (endpoint.key === "getPropWagers") {
-          await storePropWagers(env, mapPropWagers(result.data, result.snapshotId, runId));
+          const records = mapPropWagers(result.data, result.snapshotId, runId);
+          await storePropWagers(env, records);
+          for (const record of records) {
+            notifyLiveWager(env, { id: record.id, login: record.login, wager_type: record.wagerType, amount_wagered: record.amountWagered, captured_at: record.capturedAt });
+          }
         }
         if (endpoint.key === "getAgentPositionData") {
           await storeAgentPositionData(env, mapAgentPositionData(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getListAgenstByAgent") {
+          await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
 
         endpointsSucceeded += 1;
@@ -1260,16 +1339,31 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
           await storeAuthorizations(env, mapAuthorizations(result.data, result.snapshotId, runId));
         }
         if (endpoint.key === "getBetTicker") {
-          await storeBetTickerWagers(env, mapBetTickerWagers(result.data, result.snapshotId, runId));
+          const records = mapBetTickerWagers(result.data, result.snapshotId, runId);
+          await storeBetTickerWagers(env, records);
+          for (const record of records) {
+            notifyLiveWager(env, { id: record.id, login: record.login, wager_type: record.wagerType, amount_wagered: record.amountWagered, captured_at: record.capturedAt });
+          }
         }
         if (endpoint.key === "getGraded") {
-          await storeGradedWagers(env, mapGradedWagers(result.data, result.snapshotId, runId));
+          const records = mapGradedWagers(result.data, result.snapshotId, runId);
+          await storeGradedWagers(env, records);
+          for (const record of records) {
+            notifyLiveWager(env, { id: record.id, login: record.login, wager_type: record.wagerType, amount_wagered: record.amountWagered, captured_at: record.capturedAt });
+          }
         }
         if (endpoint.key === "getPropWagers") {
-          await storePropWagers(env, mapPropWagers(result.data, result.snapshotId, runId));
+          const records = mapPropWagers(result.data, result.snapshotId, runId);
+          await storePropWagers(env, records);
+          for (const record of records) {
+            notifyLiveWager(env, { id: record.id, login: record.login, wager_type: record.wagerType, amount_wagered: record.amountWagered, captured_at: record.capturedAt });
+          }
         }
         if (endpoint.key === "getAgentPositionData") {
           await storeAgentPositionData(env, mapAgentPositionData(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getListAgenstByAgent") {
+          await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
         endpointsSucceeded += 1;
         stored.push({
@@ -2378,6 +2472,46 @@ function mapAuthorizations(data: unknown, rawSnapshotId: string, runId: string):
   };
 }
 
+interface PlayerAgentRecord {
+  customerId: string;
+  login: string;
+  nameFirst: string;
+  agentId: string;
+  rawSnapshotId: string;
+  capturedAt: string;
+  rawJson: string;
+}
+
+async function storePlayerAgents(env: Env, records: PlayerAgentRecord[]): Promise<void> {
+  if (!records.length) return;
+  const BATCH_SIZE = 1000;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    const stmts = batch.map((r) =>
+      env.ANALYTICS_DB.prepare(
+        `INSERT OR REPLACE INTO player_agents (customer_id, login, name_first, agent_id, raw_snapshot_id, captured_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(r.customerId, r.login, r.nameFirst, r.agentId, r.rawSnapshotId, r.capturedAt),
+    );
+    await env.ANALYTICS_DB.batch(stmts);
+  }
+}
+
+function mapPlayerAgents(data: unknown, rawSnapshotId: string): PlayerAgentRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const players = Array.isArray(root.PLAYERS) ? (root.PLAYERS as Record<string, unknown>[]) : [];
+  const now = new Date().toISOString();
+  return players.map((item) => ({
+    customerId: stringField(item, ["customerID", "CustomerID"], "").trim(),
+    login: stringField(item, ["Login", "login"], "").trim(),
+    nameFirst: stringField(item, ["NameFirst", "nameFirst"], "").trim(),
+    agentId: stringField(item, ["Agent", "agent"], "").trim(),
+    rawSnapshotId,
+    capturedAt: now,
+    rawJson: JSON.stringify(item),
+  }));
+}
+
 interface BetTickerWagerRecord {
   id: string;
   snapshotId: string;
@@ -2436,6 +2570,19 @@ async function storeBetTickerWagers(env: Env, records: BetTickerWagerRecord[]): 
     await stmt
       .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
       .run();
+  }
+}
+
+async function notifyLiveWager(env: Env, wager: { id: string; login: string; wager_type: string; amount_wagered: number; captured_at: string }): Promise<void> {
+  try {
+    const doId = env.LIVE_WAGER_BROADCASTER.idFromName("global");
+    const stub = env.LIVE_WAGER_BROADCASTER.get(doId);
+    await stub.fetch("http://do/internals/broadcast", {
+      method: "POST",
+      body: JSON.stringify(wager),
+    });
+  } catch (error) {
+    console.error("live wager broadcast failed", safeError(error, { wagerId: wager.id }));
   }
 }
 
@@ -2711,17 +2858,20 @@ async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
 async function queryAgentPerformance(url: URL, env: Env): Promise<Response> {
   const filters = performanceQuerySchema.parse(Object.fromEntries(url.searchParams));
   const agentId = (filters.agent_id ?? "").trim();
-  const since = (filters.since ?? "").trim();
+  const since = (filters.since ?? new Date(Date.now() - 86400000).toISOString()).trim();
   const limit = filters.limit;
 
-  let sql = `SELECT id, run_id, captured_at, agent_id, total_wagers, total_volume, win_rate
-             FROM agent_performance WHERE 1=1`;
+  let sql = `SELECT agent_id,
+                    COUNT(*) as total_wagers,
+                    COALESCE(SUM(amount_wagered),0) as total_volume,
+                    0 as win_rate
+             FROM bet_ticker_wagers WHERE 1=1`;
   const bindings: (string | number)[] = [];
 
   if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
   if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
 
-  sql += " ORDER BY captured_at DESC LIMIT ?";
+  sql += " GROUP BY agent_id ORDER BY total_volume DESC LIMIT ?";
   bindings.push(limit);
 
   const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
@@ -2742,6 +2892,24 @@ async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
   if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
 
   sql += " ORDER BY captured_at DESC LIMIT ?";
+  bindings.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function queryPlayers(url: URL, env: Env): Promise<Response> {
+  const customerId = (url.searchParams.get("customer_id") ?? "").trim();
+  const agentId = (url.searchParams.get("agent_id") ?? "").trim();
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+
+  let sql = "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE 1=1";
+  const bindings: (string | number)[] = [];
+
+  if (customerId) { sql += " AND customer_id = ?"; bindings.push(customerId); }
+  if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+
+  sql += " ORDER BY login ASC LIMIT ?";
   bindings.push(limit);
 
   const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
@@ -2820,6 +2988,58 @@ async function queryPositionData(url: URL, env: Env): Promise<Response> {
 
   const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function getDashboardSummary(env: Env): Promise<Response> {
+  const today = new Date().toISOString().slice(0, 10);
+  const since = `${today}T00:00:00.000Z`;
+
+  const [tickerCount, gradedCount, perfRows, posRows] = await Promise.all([
+    env.ANALYTICS_DB.prepare(
+      `SELECT COUNT(*) as total, COALESCE(SUM(amount_wagered),0) as volume,
+              COUNT(DISTINCT agent_id) as agents, COUNT(DISTINCT wager_type) as types
+       FROM bet_ticker_wagers WHERE captured_at >= ?`,
+    ).bind(since).first<Record<string, number>>(),
+    env.ANALYTICS_DB.prepare(
+      `SELECT COUNT(*) as total, COALESCE(SUM(net_amount),0) as pnl,
+              COUNT(DISTINCT agent_id) as agents
+       FROM graded_wagers WHERE captured_at >= ?`,
+    ).bind(since).first<Record<string, number>>(),
+    env.ANALYTICS_DB.prepare(
+      `SELECT agent_id,
+              COUNT(*) as total_wagers,
+              COALESCE(SUM(amount_wagered),0) as total_volume,
+              0 as win_rate
+       FROM bet_ticker_wagers
+       WHERE captured_at >= ?
+       GROUP BY agent_id
+       ORDER BY total_volume DESC
+       LIMIT 5`,
+    ).bind(since).all<{ agent_id: string; total_wagers: number; total_volume: number; win_rate: number }>(),
+    env.ANALYTICS_DB.prepare(
+      `SELECT sport_name, COALESCE(SUM(total_wagered),0) as volume,
+              COALESCE(SUM(wager_count),0) as wagers
+       FROM agent_position_data WHERE captured_at >= ?
+       GROUP BY sport_name ORDER BY volume DESC LIMIT 5`,
+    ).bind(since).all<{ sport_name: string; volume: number; wagers: number }>(),
+  ]);
+
+  return json({
+    date: today,
+    liveWagers: {
+      total: tickerCount?.total ?? 0,
+      volume: tickerCount?.volume ?? 0,
+      agents: tickerCount?.agents ?? 0,
+      types: tickerCount?.types ?? 0,
+    },
+    gradedWagers: {
+      total: gradedCount?.total ?? 0,
+      pnl: gradedCount?.pnl ?? 0,
+      agents: gradedCount?.agents ?? 0,
+    },
+    topAgents: (perfRows.results ?? []).slice(0, 5),
+    topSports: posRows.results ?? [],
+  }, 200);
 }
 
 async function listAlertEvents(url: URL, env: Env): Promise<Response> {
@@ -3033,6 +3253,360 @@ async function storeAlertEvent(env: Env, alert: AlertEventInput): Promise<Record
     console.error("alert event persistence failed", safeError(error, { type: alert.type, severity: alert.severity }));
     return null;
   }
+}
+
+const ALERT_RULE_METRICS = new Set(["wager_amount", "agent_volume", "agent_loss", "agent_wager_count", "total_volume", "win_rate"]);
+const ALERT_RULE_OPERATORS = new Set(["gt", "lt", "gte", "lte"]);
+
+function cleanAlertRuleId(value: string | null): string | null {
+  if (!value) return null;
+  return isUuid(value.trim()) ? value.trim() : null;
+}
+
+function cleanAlertRuleMetric(value: string | null): string | null {
+  if (!value) return null;
+  return ALERT_RULE_METRICS.has(value) ? value : null;
+}
+
+function cleanAlertRuleOperator(value: string | null): string | null {
+  if (!value) return null;
+  return ALERT_RULE_OPERATORS.has(value) ? value : null;
+}
+
+function cleanAgentId(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 40) return null;
+  if (!/^[A-Za-z0-9_*.-]+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+async function createAlertRule(request: Request, env: Env): Promise<Response> {
+  const body = await safeJson(request);
+  if (!body) {
+    return json({ status: "failed", message: "Invalid JSON body" }, 400);
+  }
+
+  const agentId = cleanAgentId(typeof body.agent_id === "string" ? body.agent_id : null) ?? "*";
+  const metric = cleanAlertRuleMetric(typeof body.metric === "string" ? body.metric : null);
+  const operator = cleanAlertRuleOperator(typeof body.operator === "string" ? body.operator : null);
+  const threshold = typeof body.threshold === "number" && Number.isFinite(body.threshold) && body.threshold >= 0 ? Math.trunc(body.threshold) : null;
+  const severity = cleanAlertSeverity(typeof body.severity === "string" ? body.severity : null) ?? "warning";
+  const enabled = typeof body.enabled === "boolean" ? (body.enabled ? 1 : 0) : 1;
+
+  if (!metric) {
+    return json({ status: "failed", message: `Invalid metric. Must be one of: ${[...ALERT_RULE_METRICS].join(", ")}` }, 400);
+  }
+  if (!operator) {
+    return json({ status: "failed", message: `Invalid operator. Must be one of: ${[...ALERT_RULE_OPERATORS].join(", ")}` }, 400);
+  }
+  if (threshold === null) {
+    return json({ status: "failed", message: "Invalid threshold. Must be a non-negative integer." }, 400);
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await env.ANALYTICS_DB.prepare(
+    `INSERT INTO alert_rules (id, agent_id, metric, operator, threshold, severity, enabled, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(id, agentId, metric, operator, threshold, severity, enabled, now, now).run();
+
+  return json({ status: "created", rule: { id, agent_id: agentId, metric, operator, threshold, severity, enabled, created_at: now, updated_at: now } }, 201);
+}
+
+async function listAlertRules(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const result = await env.ANALYTICS_DB.prepare(
+    `SELECT id, agent_id, metric, operator, threshold, severity, enabled, created_at, updated_at
+     FROM alert_rules
+     ORDER BY created_at DESC
+     LIMIT ?`,
+  ).bind(limit).all();
+
+  return json({ limit, total: result.results?.length ?? 0, rules: result.results ?? [] }, 200);
+}
+
+async function deleteAlertRule(url: URL, env: Env): Promise<Response> {
+  const id = cleanAlertRuleId(url.searchParams.get("id"));
+  if (!id) {
+    return json({ status: "failed", message: "Missing or invalid ?id= parameter" }, 400);
+  }
+
+  const result = await env.ANALYTICS_DB.prepare("DELETE FROM alert_rules WHERE id = ?").bind(id).run();
+  if (result.meta.changes === 0) {
+    return json({ status: "failed", message: "Rule not found" }, 404);
+  }
+
+  return json({ status: "deleted", id }, 200);
+}
+
+async function patchAlertRule(request: Request, url: URL, env: Env): Promise<Response> {
+  const id = cleanAlertRuleId(url.searchParams.get("id"));
+  if (!id) {
+    return json({ status: "failed", message: "Missing or invalid ?id= parameter" }, 400);
+  }
+
+  const body = await safeJson(request);
+  if (!body) {
+    return json({ status: "failed", message: "Invalid JSON body" }, 400);
+  }
+
+  const updates: string[] = [];
+  const bindings: (string | number)[] = [];
+
+  if (typeof body.enabled === "boolean") {
+    updates.push("enabled = ?");
+    bindings.push(body.enabled ? 1 : 0);
+  }
+  if (typeof body.severity === "string") {
+    const sev = cleanAlertSeverity(body.severity);
+    if (sev) {
+      updates.push("severity = ?");
+      bindings.push(sev);
+    }
+  }
+  if (typeof body.threshold === "number" && Number.isFinite(body.threshold) && body.threshold >= 0) {
+    updates.push("threshold = ?");
+    bindings.push(Math.trunc(body.threshold));
+  }
+
+  if (updates.length === 0) {
+    return json({ status: "failed", message: "No valid fields to update. Supported: enabled, severity, threshold" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  updates.push("updated_at = ?");
+  bindings.push(now);
+  bindings.push(id);
+
+  const result = await env.ANALYTICS_DB.prepare(
+    `UPDATE alert_rules SET ${updates.join(", ")} WHERE id = ?`,
+  ).bind(...bindings).run();
+
+  if (result.meta.changes === 0) {
+    return json({ status: "failed", message: "Rule not found" }, 404);
+  }
+
+  return json({ status: "updated", id }, 200);
+}
+
+async function listAlertLog(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const ruleId = cleanAlertRuleId(url.searchParams.get("rule_id"));
+  const agentId = cleanAgentId(url.searchParams.get("agent_id"));
+  const metric = cleanAlertRuleMetric(url.searchParams.get("metric"));
+  const severity = cleanAlertSeverity(url.searchParams.get("severity"));
+
+  const where: string[] = [];
+  const bindings: (string | number)[] = [];
+
+  if (ruleId) {
+    where.push("rule_id = ?");
+    bindings.push(ruleId);
+  }
+  if (agentId) {
+    where.push("agent_id = ?");
+    bindings.push(agentId);
+  }
+  if (metric) {
+    where.push("metric = ?");
+    bindings.push(metric);
+  }
+  if (severity) {
+    where.push("severity = ?");
+    bindings.push(severity);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const result = await env.ANALYTICS_DB.prepare(
+    `SELECT id, rule_id, agent_id, metric, actual_value, threshold, operator, severity, message, created_at
+     FROM alert_log
+     ${whereSql}
+     ORDER BY created_at DESC
+     LIMIT ?`,
+  ).bind(...bindings, limit).all();
+
+  return json({ limit, total: result.results?.length ?? 0, entries: result.results ?? [] }, 200);
+}
+
+async function evaluateAlertRules(env: Env): Promise<void> {
+  try {
+    const rules = await env.ANALYTICS_DB.prepare(
+      `SELECT id, agent_id, metric, operator, threshold, severity
+       FROM alert_rules
+       WHERE enabled = 1
+       ORDER BY created_at ASC`,
+    ).all<{ id: string; agent_id: string; metric: string; operator: string; threshold: number; severity: string }>();
+
+    if (!rules.results?.length) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const since = `${today}T00:00:00.000Z`;
+
+    for (const rule of rules.results) {
+      try {
+        await evaluateSingleRule(env, rule, since);
+      } catch (error) {
+        console.error("alert rule evaluation failed", safeError(error, { ruleId: rule.id }));
+      }
+    }
+  } catch (error) {
+    console.error("alert rules query failed", safeError(error, {}));
+  }
+}
+
+async function evaluateSingleRule(
+  env: Env,
+  rule: { id: string; agent_id: string; metric: string; operator: string; threshold: number; severity: string },
+  since: string,
+): Promise<void> {
+  let currentValue: number | null = null;
+  let agentId = rule.agent_id;
+
+  switch (rule.metric) {
+    case "wager_amount": {
+      const row = await env.ANALYTICS_DB.prepare(
+        "SELECT COALESCE(MAX(amount_wagered), 0) as val FROM bet_ticker_wagers WHERE captured_at >= ?",
+      ).bind(since).first<{ val: number }>();
+      currentValue = row?.val ?? 0;
+      break;
+    }
+    case "total_volume": {
+      const row = await env.ANALYTICS_DB.prepare(
+        "SELECT COALESCE(SUM(amount_wagered), 0) as val FROM bet_ticker_wagers WHERE captured_at >= ?",
+      ).bind(since).first<{ val: number }>();
+      currentValue = row?.val ?? 0;
+      break;
+    }
+    case "agent_volume": {
+      const row = await env.ANALYTICS_DB.prepare(
+        agentId === "*"
+          ? "SELECT COALESCE(SUM(amount_wagered), 0) as val FROM bet_ticker_wagers WHERE captured_at >= ?"
+          : "SELECT COALESCE(SUM(amount_wagered), 0) as val FROM bet_ticker_wagers WHERE agent_id = ? AND captured_at >= ?",
+      ).bind(...(agentId === "*" ? [since] : [agentId, since])).first<{ val: number }>();
+      currentValue = row?.val ?? 0;
+      break;
+    }
+    case "agent_loss": {
+      const row = await env.ANALYTICS_DB.prepare(
+        agentId === "*"
+          ? "SELECT COALESCE(SUM(net_amount), 0) as val FROM graded_wagers WHERE captured_at >= ?"
+          : "SELECT COALESCE(SUM(net_amount), 0) as val FROM graded_wagers WHERE agent_id = ? AND captured_at >= ?",
+      ).bind(...(agentId === "*" ? [since] : [agentId, since])).first<{ val: number }>();
+      currentValue = row?.val ?? 0;
+      break;
+    }
+    case "agent_wager_count": {
+      const row = await env.ANALYTICS_DB.prepare(
+        agentId === "*"
+          ? "SELECT COUNT(*) as val FROM bet_ticker_wagers WHERE captured_at >= ?"
+          : "SELECT COUNT(*) as val FROM bet_ticker_wagers WHERE agent_id = ? AND captured_at >= ?",
+      ).bind(...(agentId === "*" ? [since] : [agentId, since])).first<{ val: number }>();
+      currentValue = row?.val ?? 0;
+      break;
+    }
+    case "win_rate": {
+      if (agentId === "*") return;
+      const row = await env.ANALYTICS_DB.prepare(
+        `SELECT COALESCE(SUM(CASE WHEN result = 'W' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 0) as val
+         FROM graded_wagers WHERE agent_id = ? AND captured_at >= ?`,
+      ).bind(agentId, since).first<{ val: number }>();
+      currentValue = row?.val ?? 0;
+      break;
+    }
+  }
+
+  if (currentValue === null) return;
+
+  const breached = rule.operator === "gt" ? currentValue > rule.threshold
+    : rule.operator === "gte" ? currentValue >= rule.threshold
+      : rule.operator === "lt" ? currentValue < rule.threshold
+        : rule.operator === "lte" ? currentValue <= rule.threshold
+          : false;
+
+  if (!breached) return;
+
+  const alreadyAlerted = await env.ANALYTICS_DB.prepare(
+    "SELECT COUNT(*) as cnt FROM alert_log WHERE rule_id = ? AND agent_id = ? AND created_at >= ?",
+  ).bind(rule.id, agentId, since).first<{ cnt: number }>();
+
+  if (alreadyAlerted && alreadyAlerted.cnt > 0) return;
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const message = `Alert rule ${rule.id.slice(0, 8)}: ${rule.metric} ${rule.operator} ${rule.threshold} (actual: ${currentValue}) for agent ${agentId}`;
+
+  await env.ANALYTICS_DB.prepare(
+    `INSERT INTO alert_log (id, rule_id, agent_id, metric, actual_value, threshold, operator, severity, message, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(id, rule.id, agentId, rule.metric, currentValue, rule.threshold, rule.operator, rule.severity, message, now).run();
+
+  await sendFailureAlert(env, {
+    severity: rule.severity as "info" | "warning" | "critical",
+    type: "alert-rule-breach",
+    message,
+    context: { ruleId: rule.id, agentId, metric: rule.metric, actualValue: currentValue, threshold: rule.threshold },
+  });
+}
+
+async function liveWagersStream(url: URL, env: Env, ctx?: ExecutionContext): Promise<Response> {
+  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const since = (filters.since ?? new Date(Date.now() - 300_000).toISOString()).trim();
+  const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
+  const minAmount = filters.min_amount ?? 0;
+  const maxAmount = filters.max_amount ?? 0;
+
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+
+  async function pump() {
+    let lastSince = since;
+    const encoder = new TextEncoder();
+    while (true) {
+      try {
+        let sql = `SELECT id, wager_number, agent_id, customer_id, login, wager_type,
+                          amount_wagered, to_win_amount, insert_date_time, ticket_writer,
+                          volume_amount, short_desc, agent_login, captured_at
+                   FROM bet_ticker_wagers
+                   WHERE captured_at > ?`;
+        const bindings: (string | number)[] = [lastSince];
+        if (wagerType) sql += " AND wager_type = ?", bindings.push(wagerType);
+        if (minAmount > 0) sql += " AND amount_wagered >= ?", bindings.push(minAmount);
+        if (maxAmount > 0) sql += " AND amount_wagered <= ?", bindings.push(maxAmount);
+        sql += " ORDER BY captured_at ASC, wager_number ASC";
+
+        const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+        const rows = result.results ?? [];
+
+        for (const row of rows) {
+          const r = row as Record<string, unknown>;
+          const captured = (r.captured_at ?? "") as string;
+          if (captured > lastSince) lastSince = captured;
+          await writer.write(encoder.encode(`event: wager\ndata: ${JSON.stringify({ event: "wager", wager: r })}\n\n`));
+        }
+
+        if (rows.length > 0) {
+          await writer.write(encoder.encode(`event: heartbeat\ndata: ${JSON.stringify({ count: rows.length, since: lastSince })}\n\n`));
+        }
+
+        await writer.write(encoder.encode(": keepalive\n\n"));
+        await new Promise((r) => setTimeout(r, 3000));
+      } catch {
+        try { await writer.close(); } catch { /* ignore */ }
+        return;
+      }
+    }
+  }
+
+  if (ctx) { ctx.waitUntil(pump()); } else { pump(); }
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 }
 
 function selectEndpoints(env: Env): EndpointConfig[] {

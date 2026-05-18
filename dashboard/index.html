@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fantasy402 Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --purple: #a855f7; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 1.5rem; }
+h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
+h1 span { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
+.grid { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
+.summary-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; }
+.card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+.card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+.positive { color: var(--green); }
+.negative { color: var(--red); }
+.main-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+.full-grid { grid-template-columns: 1fr; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; user-select: none; }
+th:hover { color: var(--text); }
+td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover { background: rgba(255,255,255,0.03); }
+.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+.badge-s { background: #1e3a5f; color: var(--blue); }
+.badge-p { background: #3b1f5e; color: var(--purple); }
+.badge-m { background: #1a3d2e; color: var(--green); }
+.badge-l { background: #3d2e1a; color: var(--amber); }
+.badge-warning { background: #3d2e1a; color: var(--amber); }
+.badge-critical { background: #3d1a1a; color: var(--red); }
+.badge-info { background: #1a2d3d; color: var(--blue); }
+.alert-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem; }
+.alert-toast div { background: var(--card); border: 1px solid var(--red); border-radius: 0.5rem; padding: 0.75rem 1rem; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); animation: slideIn 0.3s ease; max-width: 360px; }
+.alert-toast .dismiss { cursor: pointer; margin-left: 0.5rem; opacity: 0.5; }
+.alert-toast .dismiss:hover { opacity: 1; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.loading { color: var(--muted); font-style: italic; font-size: 0.85rem; padding: 1rem 0; }
+.error { color: var(--red); font-size: 0.85rem; padding: 0.5rem 0; }
+.ticker-item { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; }
+.ticker-item:last-child { border-bottom: none; }
+.ticker-item .login { font-weight: 600; min-width: 80px; }
+.ticker-item .amount { font-weight: 700; }
+.ticker-item .time { color: var(--muted); font-size: 0.75rem; }
+.ticker-container { max-height: 400px; overflow-y: auto; }
+.ticker-container::-webkit-scrollbar { width: 4px; }
+.ticker-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.filters { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.filters select, .filters input, .filters button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+.filters select:focus, .filters input:focus { outline: none; border-color: var(--blue); }
+.filters label { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; }
+.conn-status { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 0.5rem; }
+.conn-connected { background: var(--green); }
+.conn-error { background: var(--red); }
+.conn-polling { background: var(--amber); }
+
+.tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+.tab { padding: 0.6rem 1.2rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-size: 0.85rem; font-weight: 600; user-select: none; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.btn { background: var(--blue); color: #fff; border: none; border-radius: 0.25rem; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; }
+.btn:hover { opacity: 0.85; }
+.btn-sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
+.btn-danger { background: var(--red); }
+.btn-amber { background: var(--amber); color: #000; }
+.rule-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; flex-wrap: wrap; }
+.rule-row:last-child { border-bottom: none; }
+.form-row { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.2rem; }
+.form-group label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
+.form-group input, .form-group select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--blue); }
+</style>
+</head>
+<body>
+
+<h1>
+  <span class="conn-status conn-polling" id="connStatus"></span>
+  Fantasy402 Live Monitor
+  <span id="lastUpdate"></span>
+</h1>
+
+<div class="tabs">
+  <div class="tab active" data-tab="monitor" onclick="switchTab('monitor')">Monitor</div>
+  <div class="tab" data-tab="alerts" onclick="switchTab('alerts')">Alerts</div>
+</div>
+
+<div class="tab-content active" id="tab-monitor">
+  <div class="grid summary-grid" id="summaryCards"></div>
+
+  <div class="grid main-grid">
+    <div class="card">
+      <h2>Live Wager Ticker</h2>
+      <div class="filters">
+        <label>Type <select id="tickerType"><option value="">All</option><option value="S">Straight</option><option value="P">Parlay</option><option value="M">Moneyline</option><option value="L">Live</option></select></label>
+        <label>Min $ <input type="number" id="tickerMin" value="0" style="width:70px"></label>
+      </div>
+      <div class="ticker-container" id="tickerFeed"><div class="loading">Waiting for data...</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Top Agents <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:0.75rem;color:var(--muted)">by volume</span></h2>
+      <div id="agentTable"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="grid full-grid" style="margin-top:0">
+    <div class="card">
+      <h2>Graded Wagers</h2>
+      <div class="filters">
+        <label>Result <select id="gradedResult"><option value="">All</option><option value="W">Win</option><option value="L">Loss</option><option value="P">Push</option></select></label>
+        <label>Agent <input type="text" id="gradedAgent" placeholder="agent id" style="width:100px"></label>
+      </div>
+      <div id="gradedFeed"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="grid full-grid" style="margin-top:0">
+    <div class="card">
+      <h2>Authorization Status</h2>
+      <div id="authGrid"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-alerts">
+  <div class="card" style="margin-bottom:1rem">
+    <h2>Alert Rules</h2>
+    <div class="form-row" id="ruleForm">
+      <div class="form-group">
+        <label>Metric</label>
+        <select id="ruleMetric">
+          <option value="wager_amount">Max Wager</option>
+          <option value="agent_volume">Agent Volume</option>
+          <option value="agent_loss">Agent Loss</option>
+          <option value="agent_wager_count">Agent Wager Count</option>
+          <option value="total_volume">Total Volume</option>
+          <option value="win_rate">Win Rate (%)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Operator</label>
+        <select id="ruleOperator">
+          <option value="gt">&gt;</option>
+          <option value="gte">&ge;</option>
+          <option value="lt">&lt;</option>
+          <option value="lte">&le;</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Threshold (cents)</label>
+        <input type="number" id="ruleThreshold" value="50000" min="0">
+      </div>
+      <div class="form-group">
+        <label>Severity</label>
+        <select id="ruleSeverity">
+          <option value="info">Info</option>
+          <option value="warning" selected>Warning</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Agent ID (* = all)</label>
+        <input type="text" id="ruleAgent" value="*" style="width:80px">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button class="btn" onclick="createAlertRule()">Add Rule</button>
+      </div>
+    </div>
+    <div id="alertRulesList"><div class="loading">Loading...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Alert Log</h2>
+    <div class="filters">
+      <label>Severity <select id="logSeverity" onchange="loadAlertLog()"><option value="">All</option><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option></select></label>
+      <label>Agent <input type="text" id="logAgent" placeholder="agent id" style="width:100px" oninput="loadAlertLog()"></label>
+    </div>
+    <div id="alertLogFeed"><div class="loading">Loading...</div></div>
+  </div>
+</div>
+
+<div class="alert-toast" id="alertContainer"></div>
+
+<script>
+const API = "/api";
+let tickerSince = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+let tickerTimer = null;
+let sseSource = null;
+const MAX_TICKER_ITEMS = 100;
+let tickerItems = [];
+
+function $(id) { return document.getElementById(id); }
+
+async function api(path) {
+  const res = await fetch(`${API}${path}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiPatch(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const res = await fetch(`${API}${path}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function fmt(n) {
+  if (n == null) return "-";
+  return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function usd(n) {
+  if (n == null) return "-";
+  return "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function tag(wt) {
+  const map = { S: "straight", P: "parlay", M: "moneyline", L: "live" };
+  return `<span class="badge badge-${wt.toLowerCase()}">${map[wt] || wt}</span>`;
+}
+
+function ago(iso) {
+  if (!iso) return "";
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  return `${Math.floor(s/3600)}h ago`;
+}
+
+function updateConn(status) {
+  const el = $("connStatus");
+  el.className = "conn-status conn-" + status;
+}
+
+function matchesTickerFilters(w) {
+  const type = $("tickerType").value;
+  const min = parseInt($("tickerMin").value) || 0;
+  if (type && w.wager_type !== type) return false;
+  if (min > 0 && w.amount_wagered < min * 100) return false;
+  return true;
+}
+
+function renderTicker() {
+  const feed = $("tickerFeed");
+  const filtered = tickerItems.filter(matchesTickerFilters);
+  if (!filtered.length) {
+    feed.innerHTML = '<div class="loading">Waiting for wagers...</div>';
+    return;
+  }
+  const items = filtered.map(w => `
+    <div class="ticker-item">
+      <span class="login">${w.login || "?"}</span>
+      <span>${tag(w.wager_type)}</span>
+      <span class="amount">${usd(w.amount_wagered)}</span>
+      <span class="time">${ago(w.captured_at)}</span>
+    </div>
+  `).join("");
+  feed.innerHTML = items;
+}
+
+function addWagerToTicker(wager) {
+  tickerItems.unshift(wager);
+  if (tickerItems.length > MAX_TICKER_ITEMS) {
+    tickerItems = tickerItems.slice(0, MAX_TICKER_ITEMS);
+  }
+  if (wager.captured_at) {
+    tickerSince = wager.captured_at;
+  }
+  renderTicker();
+  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  checkThresholds([wager]);
+  updateConn("connected");
+}
+
+async function connectSSE() {
+  if (sseSource) {
+    sseSource.close();
+    sseSource = null;
+  }
+  clearInterval(tickerTimer);
+  tickerTimer = null;
+  updateConn("polling");
+
+  // Seed ticker with recent wagers via API
+  try {
+    const d = await api(`/bet-ticker-wagers?limit=50&since=${encodeURIComponent(tickerSince)}`);
+    if (d.wagers?.length) {
+      for (const w of d.wagers.reverse()) {
+        addWagerToTicker(w);
+      }
+    }
+  } catch (e) {
+    console.warn("seed fetch failed", e);
+  }
+
+  // Connect SSE for live updates — use the latest captured_at as the since param
+  const since = tickerSince ? `?since=${encodeURIComponent(tickerSince)}` : "";
+  sseSource = new EventSource(`${API}/live-wagers${since}`);
+
+  sseSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      const wager = data.wager || data;
+      addWagerToTicker(wager);
+    } catch (e) {
+      console.error("SSE parse error", e);
+    }
+  };
+
+  sseSource.onopen = () => {
+    updateConn("connected");
+    clearInterval(tickerTimer);
+    tickerTimer = null;
+  };
+
+  sseSource.onerror = () => {
+    updateConn("error");
+  };
+
+  // Fallback polling after 10s if SSE never connected
+  setTimeout(() => {
+    if (sseSource && sseSource.readyState !== EventSource.OPEN && !tickerTimer) {
+      startPollingFallback();
+    }
+  }, 10000);
+}
+
+function startPollingFallback() {
+  if (tickerTimer) return;
+  tickerTimer = setInterval(async () => {
+    try {
+      const since = new Date(Date.now() - 10000).toISOString();
+      const res = await fetch(`${API}/bet-ticker-wagers?since=${encodeURIComponent(since)}&limit=50`);
+      if (!res.ok) return;
+      const d = await res.json();
+      if (d.wagers?.length) {
+        for (const w of d.wagers) {
+          const exists = tickerItems.some(item => item.id === w.id);
+          if (!exists) {
+            addWagerToTicker(w);
+          }
+        }
+        updateConn("connected");
+      }
+    } catch (e) {
+      updateConn("error");
+    }
+  }, 5000);
+}
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelector(`.tab[data-tab="${name}"]`).classList.add("active");
+  document.getElementById(`tab-${name}`).classList.add("active");
+
+  if (name === "monitor") {
+    clearInterval(tickerTimer);
+    tickerTimer = null;
+    if (!sseSource) connectSSE();
+  } else if (name === "alerts") {
+    if (sseSource) { sseSource.close(); sseSource = null; }
+    clearInterval(tickerTimer);
+    tickerTimer = null;
+    loadAlerts();
+  }
+}
+
+// ── Alerts tab ──
+
+async function loadAlerts() {
+  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  await Promise.all([loadAlertRules(), loadAlertLog()]);
+}
+
+async function loadAlertRules() {
+  try {
+    const d = await api("/alert-rules?limit=100");
+    if (!d.rules?.length) { $("alertRulesList").innerHTML = '<div class="loading">No alert rules configured</div>'; return; }
+    $("alertRulesList").innerHTML = d.rules.map(r => `
+      <div class="rule-row">
+        <span class="badge badge-${r.severity}">${r.severity}</span>
+        <span><strong>${r.metric}</strong> ${r.operator} ${fmt(r.threshold)}</span>
+        <span style="color:var(--muted)">agent: ${r.agent_id}</span>
+        <span style="color:var(--muted);font-size:0.7rem">${r.enabled ? '✅ enabled' : '⏸ disabled'}</span>
+        <button class="btn btn-sm ${r.enabled ? 'btn-amber' : 'btn'}" onclick="toggleAlertRule('${r.id}', ${!r.enabled})">${r.enabled ? 'Disable' : 'Enable'}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteAlertRule('${r.id}')">Delete</button>
+      </div>
+    `).join("");
+  } catch (e) {
+    $("alertRulesList").innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+async function loadAlertLog() {
+  try {
+    const severity = $("logSeverity").value;
+    const agent = $("logAgent").value.trim();
+    let path = "/alert-log?limit=100";
+    if (severity) path += `&severity=${severity}`;
+    if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
+    const d = await api(path);
+    if (!d.entries?.length) { $("alertLogFeed").innerHTML = '<div class="loading">No alert breaches</div>'; return; }
+    $("alertLogFeed").innerHTML = `<table style="font-size:0.8rem"><thead><tr><th>Time</th><th>Severity</th><th>Agent</th><th>Rule</th><th>Actual</th><th>Threshold</th></tr></thead><tbody>${
+      d.entries.map(e => `<tr>
+        <td class="time">${ago(e.created_at)}</td>
+        <td>${severityBadge(e.severity)}</td>
+        <td><strong>${e.agent_id}</strong></td>
+        <td style="font-size:0.75rem">${e.metric} ${e.operator}</td>
+        <td class="${Number(e.actual_value) > Number(e.threshold) ? 'negative' : 'positive'}">${fmt(e.actual_value)}</td>
+        <td>${fmt(e.threshold)}</td>
+      </tr>`).join("")
+    }</tbody></table>`;
+  } catch (e) {
+    $("alertLogFeed").innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+async function createAlertRule() {
+  const metric = $("ruleMetric").value;
+  const operator = $("ruleOperator").value;
+  const threshold = parseInt($("ruleThreshold").value) || 0;
+  const severity = $("ruleSeverity").value;
+  const agentId = $("ruleAgent").value.trim() || "*";
+  try {
+    const result = await apiPost("/alert-rules", { metric, operator, threshold, severity, agent_id: agentId });
+    if (result.status === "created") {
+      showAlert(`Alert rule created: ${metric} ${operator} ${threshold}`);
+      await loadAlertRules();
+    }
+  } catch (e) {
+    showAlert(`Failed: ${e.message}`);
+  }
+}
+
+async function toggleAlertRule(id, enabled) {
+  try {
+    await apiPatch(`/alert-rules?id=${id}`, { enabled });
+    await loadAlertRules();
+  } catch (e) {
+    showAlert(`Failed to toggle: ${e.message}`);
+  }
+}
+
+async function deleteAlertRule(id) {
+  try {
+    await apiDelete(`/alert-rules?id=${id}`);
+    await loadAlertRules();
+  } catch (e) {
+    showAlert(`Failed to delete: ${e.message}`);
+  }
+}
+
+function severityBadge(sev) {
+  return `<span class="badge badge-${sev}">${sev}</span>`;
+}
+
+// ── Summary cards ──
+async function loadSummary() {
+  try {
+    const d = await api("/summary");
+    $("summaryCards").innerHTML = `
+      <div class="card"><div class="label">Live Wagers Today</div><div class="value">${fmt(d.liveWagers.total)}</div><div class="sub">${usd(d.liveWagers.volume)} volume · ${d.liveWagers.agents} agents</div></div>
+      <div class="card"><div class="label">Graded Wagers Today</div><div class="value">${fmt(d.gradedWagers.total)}</div><div class="sub">PNL: <span class="${d.gradedWagers.pnl >= 0 ? 'positive' : 'negative'}">${usd(d.gradedWagers.pnl)}</span></div></div>
+      <div class="card"><div class="label">Top Agents</div><div class="value" style="font-size:1rem">${d.topAgents.map(a => a.agent_id).join(", ") || "none"}</div><div class="sub">${d.topAgents.length} agents with activity today</div></div>
+      <div class="card"><div class="label">Top Sport</div><div class="value" style="font-size:1rem">${d.topSports[0]?.sport_name || "N/A"}</div><div class="sub">${usd(d.topSports[0]?.volume)} volume</div></div>
+    `;
+  } catch (e) {
+    $("summaryCards").innerHTML = `<div class="card"><div class="label">Error</div><div class="value" style="font-size:0.9rem;color:var(--red)">${e.message}</div></div>`;
+  }
+}
+
+// Agent performance
+async function loadAgents() {
+  try {
+    const d = await api("/performance?limit=20");
+    if (!d.records?.length) { $("agentTable").innerHTML = '<div class="loading">No agent data</div>'; return; }
+    const rows = d.records.map(a => `
+      <tr>
+        <td><strong>${a.agent_id}</strong></td>
+        <td>${fmt(a.total_wagers)}</td>
+        <td>${usd(a.total_volume)}</td>
+        <td class="${a.win_rate >= 50 ? 'positive' : 'negative'}">${a.win_rate?.toFixed(1) ?? "-"}%</td>
+      </tr>
+    `).join("");
+    $("agentTable").innerHTML = `<table><thead><tr><th>Agent</th><th>Wagers</th><th>Volume</th><th>Win%</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    $("agentTable").innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+// Graded wagers
+async function loadGraded() {
+  try {
+    const result = $("gradedResult").value;
+    const agent = $("gradedAgent").value.trim();
+    let path = "/graded-wagers?limit=30";
+    if (result) path += `&wager_type=${result}`;
+    if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
+    const d = await api(path);
+    if (!d.wagers?.length) { $("gradedFeed").innerHTML = '<div class="loading">No graded wagers found</div>'; return; }
+    const rows = d.wagers.map(w => `
+      <tr>
+        <td>${w.wager_number}</td>
+        <td>${w.login}</td>
+        <td>${usd(w.amount_wagered)}</td>
+        <td class="${w.net_amount >= 0 ? 'positive' : 'negative'}">${usd(w.net_amount ?? 0)}</td>
+        <td><span class="badge badge-${(w.result || 'x').toLowerCase()}">${w.result || "?"}</span></td>
+        <td class="time">${ago(w.grade_date_time || w.captured_at)}</td>
+      </tr>
+    `).join("");
+    $("gradedFeed").innerHTML = `<table style="font-size:0.8rem"><thead><tr><th>#</th><th>Login</th><th>Amount</th><th>Net</th><th>Result</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    $("gradedFeed").innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+// Authorizations
+async function loadAuth() {
+  try {
+    const d = await api("/authorizations?limit=50");
+    if (!d.records?.length) { $("authGrid").innerHTML = '<div class="loading">No authorization data</div>'; return; }
+    const cards = d.records.map(a => `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:0.375rem;padding:0.75rem;display:inline-block;margin:0.25rem;min-width:160px">
+        <div style="font-weight:700;font-size:0.85rem">${a.agent_id}</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Master: ${a.master_agent_id || "-"}</div>
+        <div style="font-size:0.75rem;color:var(--muted)">Comm: ${a.commission_type || "-"}</div>
+      </div>
+    `).join("");
+    $("authGrid").innerHTML = cards || '<div class="loading">No agents authorized</div>';
+  } catch (e) {
+    $("authGrid").innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+// Threshold alerts
+const ALERT_THRESHOLDS = {
+  maxWager: 50000,
+  maxLossPerAgent: 100000,
+  agentDailyLoss: {},
+};
+
+function checkThresholds(wagers) {
+  for (const w of wagers) {
+    if (w.amount_wagered > ALERT_THRESHOLDS.maxWager) {
+      showAlert(`Large wager: ${w.login || w.customer_id} wagered ${usd(w.amount_wagered)}`);
+    }
+  }
+}
+
+function showAlert(msg) {
+  const container = $("alertContainer");
+  const el = document.createElement("div");
+  el.innerHTML = `${msg} <span class="dismiss" onclick="this.parentElement.remove()">✕</span>`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 8000);
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("Fantasy402 Alert", { body: msg });
+  }
+}
+
+function requestNotificationPermission() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+}
+
+// Filter change handlers
+$("tickerType").addEventListener("change", renderTicker);
+$("tickerMin").addEventListener("input", renderTicker);
+$("gradedResult").addEventListener("change", loadGraded);
+$("gradedAgent").addEventListener("input", loadGraded);
+
+// Initial load
+async function init() {
+  requestNotificationPermission();
+  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  await Promise.all([loadSummary(), loadAgents(), loadGraded(), loadAuth()]);
+  connectSSE();
+  setInterval(loadSummary, 15000);
+  setInterval(loadAgents, 15000);
+  setInterval(loadGraded, 10000);
+  setInterval(loadAuth, 30000);
+}
+
+init();
+</script>
+</body>
+</html>

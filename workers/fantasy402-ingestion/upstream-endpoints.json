@@ -16,6 +16,48 @@
       "contentType": "application/x-www-form-urlencoded"
     },
     {
+      "key": "getConfigWebReports",
+      "method": "post",
+      "path": "/cloud/api/Manager/getConfigWebReports",
+      "operationId": "post_cloud_api_Manager_getConfigWebReports",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getConfigWebReportsPending",
+      "method": "post",
+      "path": "/cloud/api/Manager/getConfigWebReportsPending",
+      "operationId": "post_cloud_api_Manager_getConfigWebReportsPending",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getSportsType",
+      "method": "post",
+      "path": "/cloud/api/Manager/getSportsType",
+      "operationId": "post_cloud_api_Manager_getSportsType",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getMessage",
+      "method": "post",
+      "path": "/cloud/api/Manager/getMessage",
+      "operationId": "post_cloud_api_Manager_getMessage",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getNewEmailsCount",
+      "method": "post",
+      "path": "/cloud/api/Manager/getNewEmailsCount",
+      "operationId": "post_cloud_api_Manager_getNewEmailsCount",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getWeeklyFigureByAgentLite",
+      "method": "post",
+      "path": "/cloud/api/Manager/getWeeklyFigureByAgentLite",
+      "operationId": "post_cloud_api_Manager_getWeeklyFigureByAgentLite",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
       "key": "getAgentPerformance",
       "method": "post",
       "path": "/cloud/api/Manager/getAgentPerformance",

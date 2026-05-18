@@ -47,7 +47,13 @@ type EndpointKey =
   | "getCommunicationMessages"
   | "getListAgenstByAgent"
   | "getLineTypes"
-  | "getHeriarchy";
+  | "getHeriarchy"
+  | "getConfigWebReports"
+  | "getConfigWebReportsPending"
+  | "getSportsType"
+  | "getMessage"
+  | "getNewEmailsCount"
+  | "getWeeklyFigureByAgentLite";
 
 interface SessionRecord {
   cookie: string;
@@ -291,6 +297,72 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     key: "getLineTypes",
     path: "/cloud/api/Manager/getLineTypes",
     buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getLineTypes" }),
+  },
+  getConfigWebReports: {
+    key: "getConfigWebReports",
+    path: "/cloud/api/Manager/getConfigWebReports",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getConfigWebReports",
+      RRO: 1,
+    }),
+  },
+  getConfigWebReportsPending: {
+    key: "getConfigWebReportsPending",
+    path: "/cloud/api/Manager/getConfigWebReportsPending",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getConfigWebReportsPending",
+      RRO: 1,
+    }),
+  },
+  getSportsType: {
+    key: "getSportsType",
+    path: "/cloud/api/Manager/getSportsType",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getSportsType",
+      RRO: 1,
+    }),
+  },
+  getMessage: {
+    key: "getMessage",
+    path: "/cloud/api/Manager/getMessage",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getMessage",
+      RRO: 1,
+      acc: env.FANTASY402_AGENT_ID,
+      type: 0,
+    }),
+  },
+  getNewEmailsCount: {
+    key: "getNewEmailsCount",
+    path: "/cloud/api/Manager/getNewEmailsCount",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getNewEmailsCount",
+      RRO: 1,
+      acc: env.FANTASY402_AGENT_ID,
+    }),
+  },
+  getWeeklyFigureByAgentLite: {
+    key: "getWeeklyFigureByAgentLite",
+    path: "/cloud/api/Manager/getWeeklyFigureByAgentLite",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getWeeklyFigureByAgentLite",
+      RRO: 1,
+      week: 0,
+      type: "A",
+      layout: "byDay",
+    }),
   },
   getHeriarchy: {
     key: "getHeriarchy",
@@ -551,6 +623,9 @@ async function runIngestion(env: Env): Promise<RunResult> {
           const metric = mapAgentPerformance(result.data, env.FANTASY402_AGENT_ID, result.snapshotId, runId);
           await storeAgentPerformance(env, metric);
         }
+        if (endpoint.key === "getAuthorizations") {
+          await storeAuthorizations(env, mapAuthorizations(result.data, result.snapshotId, runId));
+        }
 
         endpointsSucceeded += 1;
       } catch (error) {
@@ -629,6 +704,9 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         await storeSnapshot(env, runId, result);
         if (endpoint.key === "getAgentPerformance") {
           await storeAgentPerformance(env, mapAgentPerformance(result.data, env.FANTASY402_AGENT_ID, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getAuthorizations") {
+          await storeAuthorizations(env, mapAuthorizations(result.data, result.snapshotId, runId));
         }
         endpointsSucceeded += 1;
         stored.push({
@@ -724,12 +802,12 @@ function validDateOrNow(value: string | undefined): Date {
 async function runScheduledScan(env: Env, targetUrl = "https://fantasy402.com") {
   try {
     required(env.CLOUDFLARE_API_TOKEN, "CLOUDFLARE_API_TOKEN");
-    console.log("[URL Scanner] Starting scheduled scan", { url: targetUrl });
+    console.info("[URL Scanner] Starting scheduled scan", { url: targetUrl });
     const result = await submitAndWait(targetUrl, env, {
       agentReadiness: true,
       screenshots: ["desktop", "mobile"],
     });
-    console.log("[URL Scanner] Scan completed", {
+    console.info("[URL Scanner] Scan completed", {
       scanId: result.task.uuid,
       url: result.task.url,
       malicious: Boolean(result.verdicts?.overall?.malicious),
@@ -1160,14 +1238,14 @@ async function cacheFantasy402Auth(env: Env, auth: AuthMaterial, ttlSeconds: num
 async function refreshAuthSchedule(env: Env): Promise<void> {
   const cachedAuth = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
   if (!cachedAuth?.authorization) {
-    console.log("[Fantasy402] Scheduled renew skipped - no cached authorization to refresh");
+    console.info("[Fantasy402] Scheduled renew skipped - no cached authorization to refresh");
     return;
   }
   applyAuthRecord(env, cachedAuth);
   const sessionCookie = cachedAuth.sessionCookie ?? env.FANTASY402_SESSION_COOKIE ?? "";
   const renewed = await tryRenewFantasy402Token(env, sessionCookie);
   if (renewed) {
-    console.log("[Fantasy402] Token proactively renewed via 5-min schedule");
+    console.info("[Fantasy402] Token proactively renewed via 5-min schedule");
   } else {
     console.warn("[Fantasy402] Scheduled renew failed - cached session may expire soon");
   }
@@ -1217,7 +1295,7 @@ async function fetchAndArchiveEndpoint(
     size: String(serialized.length),
   });
 
-  console.log("r2 archive write", {
+  console.info("r2 archive write", {
     key: r2Key,
     etag: r2Object.etag,
     size: r2Object.size,
@@ -1655,6 +1733,42 @@ function mapAgentPerformance(data: unknown, fallbackAgentId: string, rawSnapshot
     totalVolume: numberField(record, ["totalVolume", "TotalVolume", "Handle", "Volume"], 0),
     winRate: numberField(record, ["winRate", "WinRate"], 0),
     rawSnapshotId,
+  };
+}
+
+interface AuthorizationPermissionRecord {
+  id: string;
+  runId: string;
+  capturedAt: string;
+  snapshotId: string;
+  agentId: string;
+  masterAgentId: string | null;
+  commissionType: string | null;
+  rawJson: string;
+}
+
+async function storeAuthorizations(env: Env, record: AuthorizationPermissionRecord): Promise<void> {
+  await env.ANALYTICS_DB.prepare(
+    `INSERT INTO authorization_permissions
+       (id, snapshot_id, run_id, captured_at, agent_id, master_agent_id, commission_type, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.agentId, record.masterAgentId, record.commissionType, record.rawJson)
+    .run();
+}
+
+function mapAuthorizations(data: unknown, rawSnapshotId: string, runId: string): AuthorizationPermissionRecord {
+  const obj = firstObject(data);
+  const info = (typeof obj?.INFO === "object" && obj.INFO ? (obj.INFO as Record<string, unknown>) : obj) as Record<string, unknown> | undefined;
+  return {
+    id: crypto.randomUUID(),
+    runId,
+    capturedAt: new Date().toISOString(),
+    snapshotId: rawSnapshotId,
+    agentId: stringField(info ?? {}, ["AgentID", "agentID", "CustomerID", "customerID"], "").trim(),
+    masterAgentId: stringField(info ?? {}, ["MasterAgentID", "masterAgentID"], "").trim() || null,
+    commissionType: stringField(info ?? {}, ["CommissionType", "commissionType"], "").trim() || null,
+    rawJson: JSON.stringify(info ?? {}),
   };
 }
 

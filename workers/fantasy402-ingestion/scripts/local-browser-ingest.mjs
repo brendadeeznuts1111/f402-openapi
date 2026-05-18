@@ -45,7 +45,7 @@ const endpoints = {
   getLineTypes: { path: "/cloud/api/Manager/getLineTypes", operation: "getLineTypes", contentType: "form" },
   getHeriarchy: { path: "/cloud/api/Manager/getHeriarchy", operation: "getHeriarchy", contentType: "form" },
   getPending: { path: "/cloud/api/Manager/getPending", operation: "getPending", contentType: "json", requiresCustomerId: true },
-  getBetTicker: { path: "/cloud/api/Manager/getBetTicker", operation: "getBetTicker", contentType: "form", omitDateRange: true },
+  getBetTicker: { path: "/cloud/api/Manager/getBetTicker", operation: "getBetTicker", contentType: "form", omitDateRange: true, extraFields: { wagerNumber: 1 } },
   getBetTickerConfig: { path: "/cloud/api/Manager/getBetTickerConfig", operation: "getBetTickerConfig", contentType: "form", omitDateRange: true },
   getAgentPositionData: { path: "/cloud/api/Manager/getAgentPositionData", operation: "getAgentPositionData", contentType: "form", omitDateRange: true },
   getAgentPositionList: { path: "/cloud/api/Manager/getAgentPositionList", operation: "getAgentPositionList", contentType: "form", omitDateRange: true },
@@ -266,6 +266,7 @@ function requestBody(endpoint, now) {
     ...(endpoint.accountMessage ? { acc: agentId } : {}),
     ...(endpoint.operation === "getMessage" ? { type: 0 } : {}),
     ...(endpoint.weeklyFigure ? { week: 0, type: "A", layout: "byDay" } : {}),
+    ...(endpoint.extraFields ?? {}),
   };
   if (!endpoint.omitDateRange) {
     body.startDate = date;

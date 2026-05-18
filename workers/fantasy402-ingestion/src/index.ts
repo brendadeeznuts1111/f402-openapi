@@ -240,6 +240,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       agentID: env.FANTASY402_AGENT_ID,
       agentOwner: env.FANTASY402_AGENT_ID,
       operation: "getBetTicker",
+      wagerNumber: 1,
     }),
   },
   getBetTickerConfig: {
@@ -2001,8 +2002,8 @@ interface BetTickerWagerRecord {
 }
 
 function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string): BetTickerWagerRecord[] {
-  const obj = firstObject(data);
-  const items = (typeof obj?.LIST === "object" && Array.isArray(obj.LIST) ? obj.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
   return items.map((item) => {
     const raw = item as Record<string, unknown>;
     return {

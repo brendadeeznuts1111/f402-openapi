@@ -5,13 +5,14 @@ const fantasyOrigin = new URL(process.env.FANTASY402_BASE_URL ?? "https://fantas
 const workerOrigin = new URL(process.env.WORKER_ORIGIN ?? defaultOrigin);
 const operatorToken = process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TOKEN || readTokenFile();
 const authFile = process.env.FANTASY402_BROWSER_AUTH_FILE ?? process.argv[2] ?? "fantasy402/browser-auth.json";
-const endpointKeys = (process.env.FANTASY402_INGESTION_ENDPOINTS ?? "getAccountInfoOwner")
+const endpointKeys = (process.env.FANTASY402_INGESTION_ENDPOINTS ?? "getAccountInfoOwner,getAuthorizations")
   .split(",")
   .map((part) => part.trim())
   .filter(Boolean);
 
 const endpoints = {
   getAccountInfoOwner: { path: "/cloud/api/Manager/getAccountInfoOwner", operation: "getAccountInfoOwner", contentType: "json", accountOwnerOnly: true },
+  getAuthorizations: { path: "/cloud/api/Manager/getAuthorizations", operation: "getAuthorizations", contentType: "form", omitDateRange: true },
   getAgentPerformance: { path: "/cloud/api/Manager/getAgentPerformance", operation: "getAgentPerformance", contentType: "form" },
   getAgentBilling: { path: "/cloud/api/Manager/getAgentBilling", operation: "getAgentBilling", contentType: "form" },
   getEnterTransactions: { path: "/cloud/api/Manager/getEnterTransactions", operation: "getEnterTransactions", contentType: "form" },

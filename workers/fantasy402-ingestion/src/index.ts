@@ -36,6 +36,7 @@ interface SecretsStoreBinding {
 
 type EndpointKey =
   | "getAccountInfoOwner"
+  | "getAuthorizations"
   | "getAgentPerformance"
   | "getAgentBilling"
   | "getEnterTransactions"
@@ -188,6 +189,16 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     buildBody: (env) => ({
       operation: "getAccountInfoOwner",
       agentOwner: env.FANTASY402_AGENT_ID,
+    }),
+  },
+  getAuthorizations: {
+    key: "getAuthorizations",
+    path: "/cloud/api/Manager/getAuthorizations",
+    buildBody: (env) => ({
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      operation: "getAuthorizations",
+      RRO: 1,
     }),
   },
   getAgentPerformance: {

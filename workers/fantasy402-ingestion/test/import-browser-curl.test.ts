@@ -45,3 +45,51 @@ test("browser cURL import accepts long header and cookie flags from copied reque
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("browser import accepts copied fetch snippets for observed header and body shape", () => {
+  const dir = mkdtempSync(join(tmpdir(), "fantasy402-fetch-"));
+  const curlPath = join(dir, "request.curl");
+  const outputPath = join(dir, "browser-auth.json");
+  writeFileSync(
+    curlPath,
+    `fetch("https://fantasy402.com/cloud/api/Manager/getAuthorizations", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "en-US,en;q=0.9",
+    "authorization": "Bearer browser-token",
+    "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "sec-ch-ua-platform": "\\"macOS\\"",
+    "user-agent": "Browser/2.0",
+    "x-requested-with": "XMLHttpRequest"
+  },
+  "referrer": "https://fantasy402.com/manager.html?v=123",
+  "body": "agentID=BILLY666&agentOwner=BILLY666&operation=getAuthorizations&RRO=1",
+  "method": "POST",
+  "credentials": "include"
+});`,
+  );
+
+  const result = spawnSync("node", ["scripts/import-browser-curl.mjs", curlPath], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      FANTASY402_BROWSER_AUTH_FILE: outputPath,
+    },
+    encoding: "utf8",
+  });
+
+  try {
+    assert.equal(result.status, 0, result.stderr);
+    const imported = JSON.parse(readFileSync(outputPath, "utf8"));
+    assert.equal(imported.authorization, "Bearer browser-token");
+    assert.equal(imported.agentId, "BILLY666");
+    assert.equal(imported.sourcePath, "/cloud/api/Manager/getAuthorizations");
+    assert.equal(imported.sourceOperation, "getAuthorizations");
+    assert.equal(imported.sourceContentType, "application/x-www-form-urlencoded; charset=UTF-8");
+    assert.equal(imported.browserHeaders.referer, "https://fantasy402.com/manager.html?v=123");
+    assert.equal(imported.browserHeaders["user-agent"], "Browser/2.0");
+    assert.equal(imported.browserHeaders["sec-ch-ua-platform"], '"macOS"');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

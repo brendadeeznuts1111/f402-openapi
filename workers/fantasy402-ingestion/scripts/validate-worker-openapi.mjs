@@ -50,6 +50,14 @@ if (!upstreamAuthShape?.properties?.ingestionReadiness) {
     findings.push("ingestionReadiness.status must enumerate ready and blocked");
   }
 }
+const browserHeaders = upstreamAuthShape?.properties?.browserHeaders;
+if (!browserHeaders) {
+  findings.push("DiagnosticsResponse.upstreamAuthShape must include sanitized browserHeaders presence diagnostics");
+} else {
+  for (const required of ["present", "missing", "count", "complete"]) {
+    if (!browserHeaders.required?.includes(required)) findings.push(`browserHeaders must require ${required}`);
+  }
+}
 
 const sessionCookie = spec.components?.schemas?.RefreshAuthRequest?.properties?.sessionCookie;
 const refreshAuthAnyOf = spec.components?.schemas?.RefreshAuthRequest?.anyOf ?? [];

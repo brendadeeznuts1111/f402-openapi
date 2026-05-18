@@ -93,6 +93,14 @@ interface UpstreamRequestDiagnostics {
   origin: string;
   referer: string;
   userAgent: string;
+  browserHeaders: HeaderPresenceDiagnostics;
+}
+
+interface HeaderPresenceDiagnostics {
+  present: string[];
+  missing: string[];
+  count: number;
+  complete: boolean;
 }
 
 interface ApiResult {
@@ -1259,23 +1267,23 @@ function fantasy402ApiHeaders(env: Env, sessionCookie: string, contentType: stri
   return headers;
 }
 
-const OBSERVED_BROWSER_HEADER_NAMES = new Map(
-  [
-    "accept",
-    "accept-language",
-    "origin",
-    "priority",
-    "referer",
-    "sec-ch-ua",
-    "sec-ch-ua-mobile",
-    "sec-ch-ua-platform",
-    "sec-fetch-dest",
-    "sec-fetch-mode",
-    "sec-fetch-site",
-    "user-agent",
-    "x-requested-with",
-  ].map((name) => [name, canonicalHeaderName(name)]),
-);
+const EXPECTED_BROWSER_HEADER_NAMES = [
+  "accept",
+  "accept-language",
+  "origin",
+  "priority",
+  "referer",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+  "sec-fetch-dest",
+  "sec-fetch-mode",
+  "sec-fetch-site",
+  "user-agent",
+  "x-requested-with",
+] as const;
+
+const OBSERVED_BROWSER_HEADER_NAMES = new Map(EXPECTED_BROWSER_HEADER_NAMES.map((name) => [name, canonicalHeaderName(name)]));
 
 function applyObservedBrowserHeaders(headers: Record<string, string>, rawJson: string | undefined): void {
   if (typeof rawJson !== "string" || rawJson.trim().length === 0) return;
@@ -1291,7 +1299,7 @@ function applyObservedBrowserHeaders(headers: Record<string, string>, rawJson: s
 
   for (const [rawName, rawValue] of Object.entries(parsed as Record<string, unknown>)) {
     if (typeof rawValue !== "string") continue;
-    const normalized = rawName.toLowerCase();
+    const normalized = rawName.toLowerCase() as (typeof EXPECTED_BROWSER_HEADER_NAMES)[number];
     const canonical = OBSERVED_BROWSER_HEADER_NAMES.get(normalized);
     if (!canonical) continue;
     const value = rawValue.trim();
@@ -1428,6 +1436,7 @@ function requestDiagnostics(headers: Record<string, string>, body: Record<string
     origin: headers.Origin ?? "",
     referer: headers.Referer ?? "",
     userAgent: headers["User-Agent"] ?? "",
+    browserHeaders: browserHeaderPresenceFromHeaders(headers),
   };
 }
 
@@ -2621,6 +2630,7 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     hasCfBm,
     cookieNames,
     browserHeaderCount: observedBrowserHeaderCount(env.FANTASY402_BROWSER_HEADERS_JSON),
+    browserHeaders: observedBrowserHeaderPresence(env.FANTASY402_BROWSER_HEADERS_JSON, optionalHeaderFallback(env)),
     ingestionReadiness: {
       status: ready ? "ready" : "blocked",
       blocker: ready ? null : "missing bearer authorization plus cf_clearance and __cf_bm",
@@ -2655,12 +2665,48 @@ function hasNonCloudflareCookieHeader(value: string | undefined): boolean {
 }
 
 function observedBrowserHeaderCount(rawJson: string | undefined): number {
-  if (typeof rawJson !== "string" || rawJson.trim().length === 0) return 0;
+  return Object.keys(parseObservedBrowserHeaders(rawJson)).length;
+}
+
+function observedBrowserHeaderPresence(
+  rawJson: string | undefined,
+  fallback: { userAgent?: string; referer?: string } = {},
+): HeaderPresenceDiagnostics {
+  const headers = parseObservedBrowserHeaders(rawJson);
+  if (fallback.userAgent && !headers["user-agent"]) headers["user-agent"] = fallback.userAgent;
+  if (fallback.referer && !headers.referer) headers.referer = fallback.referer;
+  const present = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => hasEnvValue(headers[name]));
+  const missing = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => !hasEnvValue(headers[name]));
+  return { present, missing, count: present.length, complete: missing.length === 0 };
+}
+
+function optionalHeaderFallback(env: Env): { userAgent?: string; referer?: string } {
+  const fallback: { userAgent?: string; referer?: string } = {};
+  if (env.FANTASY402_USER_AGENT) fallback.userAgent = env.FANTASY402_USER_AGENT;
+  if (env.FANTASY402_REFERER) fallback.referer = env.FANTASY402_REFERER;
+  return fallback;
+}
+
+function browserHeaderPresenceFromHeaders(headers: Record<string, string>): HeaderPresenceDiagnostics {
+  const normalized: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) normalized[name.toLowerCase()] = value;
+  const present = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => hasEnvValue(normalized[name]));
+  const missing = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => !hasEnvValue(normalized[name]));
+  return { present, missing, count: present.length, complete: missing.length === 0 };
+}
+
+function parseObservedBrowserHeaders(rawJson: string | undefined): Record<string, string> {
+  if (typeof rawJson !== "string" || rawJson.trim().length === 0) return {};
   try {
     const parsed = JSON.parse(rawJson);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? Object.keys(parsed).length : 0;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const headers: Record<string, string> = {};
+    for (const [name, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === "string" && value.trim()) headers[name.toLowerCase()] = value.trim();
+    }
+    return headers;
   } catch {
-    return 0;
+    return {};
   }
 }
 

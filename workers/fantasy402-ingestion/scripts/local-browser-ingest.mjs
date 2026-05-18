@@ -1,5 +1,21 @@
 import fs from "node:fs";
 
+const EXPECTED_BROWSER_HEADER_NAMES = [
+  "accept",
+  "accept-language",
+  "origin",
+  "priority",
+  "referer",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+  "sec-fetch-dest",
+  "sec-fetch-mode",
+  "sec-fetch-site",
+  "user-agent",
+  "x-requested-with",
+];
+
 const defaultOrigin = "https://fantasy402-ingestion.utahj4754.workers.dev";
 const fantasyOrigin = new URL(process.env.FANTASY402_BASE_URL ?? "https://fantasy402.com");
 const workerOrigin = new URL(process.env.WORKER_ORIGIN ?? defaultOrigin);
@@ -34,6 +50,7 @@ if (isPlaceholderToken(operatorToken)) {
 
 const authPayload = readAuthPayload(authFile);
 validateBrowserAuthPayload(authPayload, authFile);
+const browserHeaderShape = browserHeaderPresence(normalizeBrowserHeaders(authPayload.browserHeadersJson ?? authPayload.browserHeaders), authPayload);
 const agentId = process.env.FANTASY402_AGENT_ID || authPayload.agentId || authPayload.customerId || "";
 const customerId = process.env.FANTASY402_CUSTOMER_ID || authPayload.customerId || "";
 if (!agentId) fail("Missing agent id. Set FANTASY402_AGENT_ID or add agentId to the browser auth JSON file.");
@@ -75,6 +92,7 @@ const summary = {
     expiresAt: refresh.body?.expiresAt,
     ttlSeconds: refresh.body?.ttlSeconds,
   },
+  browserHeaderShape,
   localFetch: fetched.map((item) => ({
     endpointKey: item.endpointKey,
     httpStatus: item.httpStatus,
@@ -252,6 +270,18 @@ function upstreamHeaders(contentType) {
   const authorization = normalizeAuthorization(authPayload.authorization);
   if (authorization) headers.Authorization = authorization;
   return headers;
+}
+
+function browserHeaderPresence(headers, payload) {
+  const normalized = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === "string" && value.trim()) normalized[name.toLowerCase()] = value.trim();
+  }
+  if (payload.userAgent && !normalized["user-agent"]) normalized["user-agent"] = payload.userAgent;
+  if (payload.referer && !normalized.referer) normalized.referer = payload.referer;
+  const present = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => normalized[name]);
+  const missing = EXPECTED_BROWSER_HEADER_NAMES.filter((name) => !normalized[name]);
+  return { present, missing, count: present.length, complete: missing.length === 0 };
 }
 
 function refreshPayload(payload) {

@@ -35,6 +35,7 @@ interface SecretsStoreBinding {
 }
 
 type EndpointKey =
+  | "getAccountInfoOwner"
   | "getAgentPerformance"
   | "getAgentBilling"
   | "getEnterTransactions"
@@ -180,6 +181,15 @@ class EndpointAttemptError extends Error {
 }
 
 const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
+  getAccountInfoOwner: {
+    key: "getAccountInfoOwner",
+    path: "/cloud/api/Manager/getAccountInfoOwner",
+    contentType: "json",
+    buildBody: (env) => ({
+      operation: "getAccountInfoOwner",
+      agentOwner: env.FANTASY402_AGENT_ID,
+    }),
+  },
   getAgentPerformance: {
     key: "getAgentPerformance",
     path: "/cloud/api/Manager/getAgentPerformance",

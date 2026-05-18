@@ -2,6 +2,13 @@
   "spec": "../../.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json",
   "endpoints": [
     {
+      "key": "getAccountInfoOwner",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAccountInfoOwner",
+      "operationId": "post_cloud_api_Manager_getAccountInfoOwner",
+      "contentType": "application/json"
+    },
+    {
       "key": "getAgentPerformance",
       "method": "post",
       "path": "/cloud/api/Manager/getAgentPerformance",

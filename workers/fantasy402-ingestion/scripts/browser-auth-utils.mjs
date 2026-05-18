@@ -116,6 +116,9 @@ export function readBrowserCurlInput(path) {
 
 export function validateBrowserAuthPayload(payload, label = "browser auth") {
   const findings = [];
+  if (isCloudflareChallengePath(payload.sourcePath)) {
+    findings.push("sourcePath is Cloudflare challenge telemetry; copy a successful authenticated /cloud/api/* request instead");
+  }
   for (const field of ["authorization", "cfClearance", "cfBm"]) {
     const value = payload[field];
     if (typeof value !== "string" || !value.trim()) {
@@ -237,6 +240,10 @@ export function jwtExpiryDiagnostics(value, nowMs = Date.now()) {
 
 export function hasNonCloudflareCookie(value) {
   return cookieNames(value || "").some((name) => !isCloudflareCookieName(name));
+}
+
+function isCloudflareChallengePath(path) {
+  return String(path || "").startsWith("/cdn-cgi/challenge-platform/");
 }
 
 function decodeJwtPayload(token) {

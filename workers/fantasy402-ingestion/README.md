@@ -303,6 +303,8 @@ pbpaste | INGESTION_TRIGGER_TOKEN="$(cat .archive-auth-token)" npm run ingest:un
 
 `ingest:unblock` imports the browser auth to the ignored local auth file, rejects captures without `authorization`, `cf_clearance`, `__cf_bm`, and browser headers, refreshes the Worker auth overlay, requires `/diagnostics` to report ingestion-ready, triggers `POST /trigger`, and prints sanitized `/runs/endpoints` evidence with trace IDs, durations, and R2 keys. It never prints bearer or cookie values.
 
+Do not copy Cloudflare `/cdn-cgi/challenge-platform/*` requests. Those are browser challenge telemetry, not Fantasy402 API requests; the command rejects them even when they contain `__cf_bm`. Use the subsequent authenticated `/cloud/api/*` request that includes the browser bearer token and Cloudflare cookies.
+
 For a local-browser upload run instead, create a local untracked auth file from the template:
 
 ```bash

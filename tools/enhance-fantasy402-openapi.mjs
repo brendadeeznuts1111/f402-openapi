@@ -353,6 +353,19 @@ function addMinimalExamples(spec) {
     }
   }
 
+  const listAgenst = withExamples.paths?.['/cloud/api/Manager/getListAgenstByAgent']?.post;
+  if (listAgenst) {
+    requestContentFor('/cloud/api/Manager/getListAgenstByAgent').examples = {
+      valid: { $ref: '#/components/examples/ListAgenstByAgentRequestValid' },
+    };
+    const ok = contentFor('/cloud/api/Manager/getListAgenstByAgent', '200');
+    if (ok) {
+      ok.examples = {
+        generalList: { $ref: '#/components/examples/ListAgenstByAgentResponse' },
+      };
+    }
+  }
+
   const rateLimitedPaths = [
     '/cloud/api/Report/Pending',
     '/cloud/api/Manager/getPlayers',
@@ -363,6 +376,7 @@ function addMinimalExamples(spec) {
     '/cloud/api/System/authenticateCustomer',
     '/cloud/api/Manager/getAgentPositionList',
     '/cloud/api/Manager/getAgentPositionData',
+    '/cloud/api/Manager/getListAgenstByAgent',
   ];
   for (const apiPath of rateLimitedPaths) {
     const rateLimited = contentFor(apiPath, '429');
@@ -413,6 +427,79 @@ function addMinimalExamples(spec) {
             Login: '__REDACTED__',
             NameFirst: '__REDACTED__',
             Agent: '__REDACTED__',
+          },
+        ],
+      },
+    },
+    ListAgenstByAgentRequestValid: {
+      summary: 'List agents under the authenticated master agent',
+      value: {
+        RRO: 1,
+        agentID: 'DEMOAGENT',
+        agentOwner: 'DEMOAGENT',
+        operation: 'getListAgenstByAgent',
+        agentType: 'M',
+      },
+    },
+    ListAgenstByAgentResponse: {
+      value: {
+        GENERAL: [
+          {
+            AgentID: '__REDACTED__',
+            SeqNumber: 5743,
+            Level: 1,
+            AgentType: 'A',
+            Login: '__REDACTED__',
+            HeadCountRateM: 1,
+            InetHeadCountRateM: 0,
+            CasinoHeadCountRateM: 0,
+            LiveBettingRateM: 0,
+            LiveBetting2RateM: 0,
+            LiveCasinoRateM: 0,
+            PropBuilderRateM: 0,
+            FlashBetsRate: 0,
+            ExtPropsRate: 0,
+            CrashRate: 0,
+            FantasyRate: 0,
+            AmigoTechRate: 0,
+          },
+          {
+            AgentID: '__REDACTED__',
+            SeqNumber: 5744,
+            Level: 1,
+            AgentType: 'M',
+            Login: '__REDACTED__',
+            HeadCountRateM: 0,
+            InetHeadCountRateM: 0,
+            CasinoHeadCountRateM: 0,
+            LiveBettingRateM: 0,
+            LiveBetting2RateM: 0,
+            LiveCasinoRateM: 0,
+            PropBuilderRateM: 0,
+            FlashBetsRate: 0,
+            ExtPropsRate: 0,
+            CrashRate: 0,
+            FantasyRate: 0,
+            AmigoTechRate: 0,
+          },
+          {
+            AgentID: '__REDACTED__',
+            SeqNumber: 5749,
+            Level: 2,
+            AgentType: 'M',
+            Login: '__REDACTED__',
+            HeadCountRateM: 0,
+            InetHeadCountRateM: 3.5,
+            CasinoHeadCountRateM: 0,
+            LiveBettingRateM: 0,
+            LiveBetting2RateM: 0,
+            LiveCasinoRateM: 0,
+            PropBuilderRateM: 0.5,
+            FlashBetsRate: 0,
+            ExtPropsRate: 0,
+            CrashRate: 0,
+            FantasyRate: 0,
+            AmigoTechRate: 0,
           },
         ],
       },

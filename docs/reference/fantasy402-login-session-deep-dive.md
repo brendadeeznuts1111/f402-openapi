@@ -145,6 +145,8 @@ Content-Type: application/x-www-form-urlencoded; charset=UTF-8
 Body: agentID=<customerID>&agentOwner=<customerID>&operation=getAuthorizations&RRO=1
 ```
 
+See [fantasy402-getauthorizations-endpoint.md](fantasy402-getauthorizations-endpoint.md) for the full request/response shape and permission flag reference.
+
 The frontend request helpers can also inject fields such as `customerID`
 depending on the operation. Keep endpoint request shapes tied to observed
 browser traffic instead of assuming every route uses the same body encoding or
@@ -225,7 +227,95 @@ sequenceDiagram
     Note over Frontend,Storage: IdleTimer (30 min) -> sessionDestroy() + redirect to /
 ```
 
-## 9. Security and Operational Implications
+## 9. Session Lifecycle (Idle Timeout)
+
+The frontend includes an idle-timer mechanism observed in the legacy code:
+
+- **Timeout**: 30 minutes of inactivity.
+- **Trigger**: No user interaction (click, keypress, touch) within the window.
+- **Action**: Calls `sessionDestroy()` which clears `sessionStorage` and redirects to `/`.
+- **Workaround**: The timer resets on any user interaction. A `mousemove` listener
+  on the document body keeps the session alive in active browser tabs.
+- **Observed implementation**: A `setInterval` check every 10 seconds comparing
+  `Date.now()` against the last interaction timestamp.
+
+No corresponding Worker-side idle timeout exists — the Worker relies entirely on
+its 4-hour session cache TTL (`DEFAULT_SESSION_TTL_SECONDS`) and the proactive
+5-minute `renewToken` cron to maintain upstream access.
+
+## 10. authenticateCustomer Request Parameter Catalog
+
+The following table catalogs every observed parameter sent to
+`POST https://fantasy402.com/cloud/api/System/authenticateCustomer`. The Worker
+reproduces these exactly at `src/index.ts:1132-1144`.
+
+| Parameter | Value | Source | Sensitivity |
+|-----------|-------|--------|-------------|
+| `customerID` | Uppercase username | User input | **High** — PII |
+| `password` | Plaintext credential | User input | **High** — credential |
+| `state` | `true` | Static constant | Low |
+| `sufix` | `""` | Static constant | Low |
+| `prefix` | `""` | Static constant | Low |
+| `multiaccount` | `1` | Static constant | Low |
+| `response_type` | `code` | Static constant | Low |
+| `client_id` | Same as `customerID` | Derived | **High** — PII |
+| `domain` | `fantasy402.com` | Static constant | Low |
+| `redirect_uri` | `fantasy402.com` | Static constant | Low |
+| `operation` | `authenticateCustomer` | Static constant | Low |
+| `RRO` | `1` | Static constant | Low |
+
+### Worker Implementation (src/index.ts:1132-1144)
+
+```typescript
+const customerId = env.FANTASY402_USERNAME.toLocaleUpperCase();
+form.set("customerID", customerId);
+form.set("state", "true");
+form.set("password", env.FANTASY402_PASSWORD);
+form.set("sufix", "");
+form.set("prefix", "");
+form.set("multiaccount", "1");
+form.set("response_type", "code");
+form.set("client_id", customerId);
+form.set("domain", "fantasy402.com");
+form.set("redirect_uri", "fantasy402.com");
+form.set("operation", "authenticateCustomer");
+form.set("RRO", "1");
+```
+
+### Alternative Endpoint: authenticateCustomerforAgent
+
+- **Trigger**: Used when the page already has an `agToken` (agent token) from a
+  prior sub-agent or delegated session.
+- **Difference**: Includes additional agent-context parameters such as the
+  active `agToken` as a bearer-like header or body field.
+- **Not yet captured**: A full browser trace of this path is needed to document
+  its exact request and response shape.
+
+## 11. Login Response: accountInfo Fields
+
+The `authenticateCustomer` response includes an `accountInfo` object containing
+profile and authorization fields consumed by the frontend for redirect and UI
+decisions. Fields relevant to the login flow:
+
+| Field | Type | Login Flow Role |
+|-------|------|----------------|
+| `AgentType` | string | Determines **M** (master) vs **A** (sub-agent) redirect |
+| `DefaultSiteSkin` | string | Selects themed dashboard (Gotham, Toronto, etc.) |
+| `Office` | string | Multi-tenant routing identifier |
+| `AgentID` | string | Account owner identifier for API request bodies |
+| `UseCaptcha` | `"Y"` or `""` | If `"Y"`, triggers CAPTCHA modal before redirect |
+| `OTPEnabled` | integer | If `1`, OTP/2FA is configured for this account |
+| `OTP` | string | OTP secret or status indicator |
+| `SuspectedBot` | (present) | Observed flag; triggers bot verification |
+| `DomainRedirect` | string | Override redirect target if set |
+| `SkinOverride` | string | Per-account skin override |
+| `AgentSkinOverride` | string | Agent-forced skin override |
+
+These fields are catalogued in the OpenAPI spec at
+`.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.slim.yaml`
+under `components.schemas.AccountInfo` (line 7267).
+
+## 12. Security and Operational Implications
 
 | Issue | Severity | Operational response |
 |-------|----------|----------------------|
@@ -235,7 +325,28 @@ sequenceDiagram
 | JWT expiry is independent of Worker cache TTL | Medium | Reject expired captures locally and request a fresh browser capture |
 | Master-agent access has broad scope | High | Keep endpoint set explicit and avoid speculative ingestion expansion |
 
-## 10. Ingestion Worker Guidance
+## 13. Worker Implementation Cross-Reference
+
+Every login flow step is mapped to the Ingestion Worker source code:
+
+| Flow Step | Endpoint | Worker Source | Mechanism |
+|-----------|----------|---------------|-----------|
+| Login auth | `POST /cloud/api/System/authenticateCustomer` | `src/index.ts:1156` | `fetchWithTimeout` with form-urlencoded body |
+| Login params | 12 fields (customerID, password, RRO, etc.) | `src/index.ts:1140-1154` | `URLSearchParams` form assembly inside `authenticateFantasy402()` |
+| Password handling | Read from secret, used once, not stored | `src/index.ts:1145` | `env.FANTASY402_PASSWORD` — never in session cache |
+| Token extraction | Response field `tokenauth` / `token` / `authorization` | `src/index.ts:2132-2144` | `extractAuthToken()` recursively searches object values |
+| Session cookie extraction | `Set-Cookie` header → `app_session` | `src/index.ts:1158`, `:2146-2152` | `optionalFirstSetCookie()` filters Cloudflare cookies |
+| Session cache | KV store (`SESSION_KV`) | `src/index.ts:1129-1132` | `SESSION_KV.get<SessionRecord>()` with TTL check |
+| Auth overlay | KV store (`AUTH_CACHE`) | `src/index.ts:989-1004` | `AuthCacheRecord` built by browser-auth endpoint handler |
+| Cookie assembly | 3-layer merge (session, cf_clearance, __cf_bm) | `src/index.ts:1442-1449` | `fantasy402CookieHeader()` deduplicates by `cookieName()` |
+| Auth header | `Authorization: Bearer <JWT>` | `src/index.ts:1387-1388` | `normalizeAuthorization(env.FANTASY402_AUTHORIZATION)` |
+| Token refresh | `POST /cloud/api/System/renewToken` | `src/index.ts:1197-1212` | Empty body via `URLSearchParams`, `Auth: Bearer <existing JWT>` |
+| Scheduled renewal | `*/5 * * * *` cron trigger | `src/index.ts:378`, `:1248-1259` | `refreshAuthSchedule()` reads `AUTH_CACHE`, calls `tryRenewFantasy402Token()` |
+| Session TTL | 4-hour cache expiry | `src/index.ts:153` | `DEFAULT_SESSION_TTL_SECONDS = 14400` |
+| Agent type in bodies | `agentType: "M"` sent per-endpoint | `src/index.ts:290` | `getListAgenstByAgent` request body |
+| Agent ID/owner | `agentID` + `agentOwner` in every endpoint body | `src/index.ts:200-372` | All `buildBody()` functions include both fields (or `withDateRange` wrapper) |
+
+## 14. Ingestion Worker Guidance
 
 - Store and send the browser JWT as `Authorization: Bearer <jwt>`.
 - Preserve observed browser header names and values for upstream requests, but

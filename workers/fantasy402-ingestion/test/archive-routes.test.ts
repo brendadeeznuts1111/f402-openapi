@@ -1277,6 +1277,64 @@ test("ingestion renews near-expired cached token before upstream calls", async (
   }
 });
 
+test("five-minute schedule proactively renews cached auth without ingestion", async () => {
+  const originalFetch = globalThis.fetch;
+  const authKv = new MemoryKVNamespace();
+  await authKv.put(
+    "fantasy402:auth-overlay",
+    JSON.stringify({
+      authorization: "Bearer cached-token",
+      sessionCookie: "app_session=cached-session",
+      cfClearance: "cf_clearance=kv-clearance",
+      cfBm: "__cf_bm=kv-bm",
+      updatedAt: "2026-05-17T00:00:00.000Z",
+      expiresAt: Date.now() + 600_000,
+    }),
+  );
+  const seen: Array<{ url: string; authorization: string | null; cookie: string | null }> = [];
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push({
+      url: String(input),
+      authorization: headers.get("Authorization"),
+      cookie: headers.get("Cookie"),
+    });
+    if (String(input).endsWith("/cloud/api/System/renewToken")) {
+      return Response.json(
+        { tokenauth: "scheduled-renewed-token" },
+        { headers: { "Set-Cookie": "app_session=scheduled-renewed-session; Path=/; HttpOnly" } },
+      );
+    }
+    return Response.json({ status: "failed" }, { status: 500 });
+  };
+
+  try {
+    const scheduledTasks: Promise<unknown>[] = [];
+    await worker.scheduled(
+      { cron: "*/5 * * * *", scheduledTime: Date.now(), type: "scheduled" } as ScheduledEvent,
+      env(new MemoryR2Bucket(), new MemoryD1Database(), {
+        AUTH_CACHE: authKv,
+        FANTASY402_INGESTION_ENDPOINTS: "getAgentPerformance",
+      }),
+      {
+        waitUntil: (promise: Promise<unknown>) => {
+          scheduledTasks.push(promise);
+        },
+      } as unknown as ExecutionContext,
+    );
+    await Promise.all(scheduledTasks);
+
+    assert.deepEqual(seen.map((request) => new URL(request.url).pathname), ["/cloud/api/System/renewToken"]);
+    assert.equal(seen[0]?.authorization, "Bearer cached-token");
+    assert.equal(seen[0]?.cookie, "app_session=cached-session; cf_clearance=kv-clearance; __cf_bm=kv-bm");
+    const stored = await authKv.get("fantasy402:auth-overlay") as any;
+    assert.equal(stored.authorization, "Bearer scheduled-renewed-token");
+    assert.equal(stored.sessionCookie, "app_session=scheduled-renewed-session");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("ingestion keeps near-expired cached session when renewToken fails", async () => {
   const originalFetch = globalThis.fetch;
   const authKv = new MemoryKVNamespace();

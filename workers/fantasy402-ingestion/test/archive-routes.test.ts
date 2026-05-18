@@ -365,6 +365,24 @@ test("diagnostics reports readiness and sanitized upstream auth shape without le
   assert.equal(JSON.stringify(body).includes("browser-token"), false);
 });
 
+test("diagnostics degrades when bearer and Cloudflare cookies lack an app session", async () => {
+  const response = await worker.fetch(
+    authorized("/diagnostics"),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), {
+      FANTASY402_CF_CLEARANCE: "clearance-token",
+      FANTASY402_CF_BM: "bm-token",
+      FANTASY402_AUTHORIZATION: "browser-token",
+    }),
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json() as any;
+  assert.equal(body.status, "degraded");
+  assert.equal(body.upstreamAuthShape.hasAuthorization, true);
+  assert.equal(body.upstreamAuthShape.hasSessionCookie, false);
+  assert.equal(body.upstreamAuthShape.ingestionReadiness.status, "blocked");
+  assert.match(body.upstreamAuthShape.ingestionReadiness.blocker, /ASP\.NET_SessionId/);
+});
+
 test("diagnostics resolves account-level Secrets Store bindings", async () => {
   const response = await worker.fetch(
     authorized("/diagnostics"),
@@ -374,6 +392,7 @@ test("diagnostics resolves account-level Secrets Store bindings", async () => {
       FANTASY402_PASSWORD: { get: async () => "store-pass" },
       FANTASY402_AGENT_ID: { get: async () => "store-agent" },
       CLOUDFLARE_API_TOKEN: { get: async () => "store-cf-token" },
+      FANTASY402_SESSION_COOKIE: { get: async () => "ASP.NET_SessionId=store-session" },
     },
   );
   assert.equal(response.status, 200);
@@ -1043,6 +1062,57 @@ test("refresh-auth rejects Cloudflare-only session cookies before poisoning AUTH
   assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
 });
 
+test("refresh-auth rejects missing session cookies before poisoning AUTH_CACHE", async () => {
+  const authKv = new MemoryKVNamespace();
+  const response = await worker.fetch(
+    new Request("https://worker.test/refresh-auth", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        authorization: "Bearer refreshed-token",
+        cfClearance: "clearance-token",
+        cfBm: "bm-token",
+      }),
+    }),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), { AUTH_CACHE: authKv }),
+  );
+  assert.equal(response.status, 400);
+  const body = await response.json() as { status: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.match(body.message, /sessionCookie is required/);
+  assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
+});
+
+test("refresh-auth extracts auth fields from full Cookie header aliases", async () => {
+  const authKv = new MemoryKVNamespace();
+  const response = await worker.fetch(
+    new Request("https://worker.test/refresh-auth", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        authorization: "Bearer refreshed-token",
+        cookieHeader: "ASP.NET_SessionId=session-id; cf_clearance=clearance-token; __cf_bm=bm-token",
+      }),
+    }),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), { AUTH_CACHE: authKv }),
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json() as { status: string; accepted: string[] };
+  assert.equal(body.status, "ok");
+  assert.deepEqual(body.accepted.sort(), ["authorization", "cfBm", "cfClearance", "sessionCookie"].sort());
+  assert.doesNotMatch(JSON.stringify(body), /session-id|clearance-token|bm-token|refreshed-token/);
+  const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
+  assert.equal(stored.sessionCookie, "ASP.NET_SessionId=session-id");
+  assert.equal(stored.cfClearance, "cf_clearance=clearance-token");
+  assert.equal(stored.cfBm, "__cf_bm=bm-token");
+});
+
 test("authenticateCustomer fallback caches bearer token and app session in AUTH_CACHE", async () => {
   const originalFetch = globalThis.fetch;
   const authKv = new MemoryKVNamespace();
@@ -1134,6 +1204,7 @@ test("local ingestion upload stores browser-fetched endpoint responses", async (
   assert.equal(body.endpointsSucceeded, 1);
   assert.equal(body.stored[0].endpointKey, "getAgentPerformance");
   assert.match(body.stored[0].r2Key, /^fantasy402\/getAgentPerformance\/2026-05-17\//);
+  assert.equal(db.runs.some((bindings) => bindings[4] === "2026-05-17T12:00:00.000Z"), true);
   assert.equal(db.runs.length >= 4, true);
 });
 

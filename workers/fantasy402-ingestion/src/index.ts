@@ -95,6 +95,9 @@ interface UpstreamRequestDiagnostics {
 
 interface ApiResult {
   endpoint: EndpointConfig;
+  capturedAt: string;
+  traceId: string;
+  durationMs: number;
   status: number;
   attempts: number;
   data: unknown;
@@ -341,6 +344,20 @@ const worker = {
       return diagnostics(await materializeSecretBindings(env));
     }
 
+    if (url.pathname === "/runs" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listIngestionRuns(url, env);
+    }
+
+    if (url.pathname === "/runs/endpoints" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listIngestionRunEndpoints(url, env);
+    }
+
     if (url.pathname === "/alerts" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -489,8 +506,10 @@ async function runIngestion(env: Env): Promise<RunResult> {
     const sessionCookie = await getOrRefreshSession(env);
 
     for (const endpoint of endpointConfigs) {
+      const traceId = crypto.randomUUID();
+      const startedMs = Date.now();
       try {
-        const result = await fetchAndArchiveEndpoint(env, runId, endpoint, sessionCookie, new Date());
+        const result = await fetchAndArchiveEndpoint(env, runId, traceId, startedMs, endpoint, sessionCookie, new Date());
         await storeSnapshot(env, runId, result);
 
         if (endpoint.key === "getAgentPerformance") {
@@ -501,8 +520,9 @@ async function runIngestion(env: Env): Promise<RunResult> {
         endpointsSucceeded += 1;
       } catch (error) {
         endpointsFailed += 1;
-        await storeEndpointFailure(env, runId, endpoint, error);
-        console.error("endpoint ingestion failed", safeError(error, { endpoint: endpoint.key, runId }));
+        const durationMs = Math.max(0, Date.now() - startedMs);
+        await storeEndpointFailure(env, runId, traceId, durationMs, endpoint, error);
+        console.error("endpoint ingestion failed", safeError(error, { endpoint: endpoint.key, runId, traceId }));
       }
     }
 
@@ -619,6 +639,7 @@ function normalizeLocalIngestItem(value: unknown): LocalIngestItem | null {
 
 async function archiveLocalIngestItem(env: Env, runId: string, endpoint: EndpointConfig, item: LocalIngestItem): Promise<ApiResult> {
   const capturedAt = validDateOrNow(item.capturedAt);
+  const traceId = crypto.randomUUID();
   const data = redactResponse(item.data);
   const serialized = JSON.stringify(data);
   const responseHash = await sha256Hex(serialized);
@@ -632,14 +653,19 @@ async function archiveLocalIngestItem(env: Env, runId: string, endpoint: Endpoin
     endpoint: endpoint.key,
     path: endpoint.path,
     runId,
+    traceId,
     snapshotId,
     responseHash,
     capturedAt: capturedAt.toISOString(),
+    durationMs: "0",
     size: String(serialized.length),
   });
 
   return {
     endpoint,
+    capturedAt: capturedAt.toISOString(),
+    traceId,
+    durationMs: 0,
     status: item.httpStatus,
     attempts: 1,
     data,
@@ -823,11 +849,12 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   }
 
   const body = payload as Record<string, unknown>;
-  if (body.sessionCookie !== undefined && !hasNonCloudflareCookieHeader(String(body.sessionCookie))) {
+  applyCookieHeaderAuthAliases(body);
+  if (!hasNonCloudflareCookieHeader(String(body.sessionCookie ?? ""))) {
     return json(
       {
         status: "failed",
-        message: "sessionCookie must include a non-Cloudflare application session cookie; cf_clearance and __cf_bm alone cause upstream 403/1106",
+        message: "sessionCookie is required and must include a non-Cloudflare application session cookie such as ASP.NET_SessionId; bearer plus cf_clearance and __cf_bm alone causes upstream 403/1106",
       },
       400,
     );
@@ -869,6 +896,45 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
     },
     200,
   );
+}
+
+function applyCookieHeaderAuthAliases(body: Record<string, unknown>): void {
+  const cookieHeader = firstString(body.cookieHeader, body.cookie, body.cookies);
+  if (!cookieHeader) return;
+  if (body.sessionCookie === undefined) {
+    const sessionCookie = cookieHeaderWithoutCloudflare(cookieHeader);
+    if (sessionCookie) body.sessionCookie = sessionCookie;
+  }
+  if (body.cfClearance === undefined) {
+    const cfClearance = cookieHeaderCookie(cookieHeader, "cf_clearance");
+    if (cfClearance) body.cfClearance = cfClearance;
+  }
+  if (body.cfBm === undefined) {
+    const cfBm = cookieHeaderCookie(cookieHeader, "__cf_bm");
+    if (cfBm) body.cfBm = cfBm;
+  }
+}
+
+function firstString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function cookieHeaderWithoutCloudflare(value: string): string {
+  return splitCookieHeader(value)
+    .filter((cookie) => {
+      const name = cookieName(cookie);
+      return Boolean(name && !isCloudflareCookieName(name));
+    })
+    .join("; ");
+}
+
+function cookieHeaderCookie(value: string, wantedName: string): string {
+  return splitCookieHeader(value).find((cookie) => cookieName(cookie)?.toLowerCase() === wantedName.toLowerCase()) ?? "";
 }
 
 function authCacheTtlSeconds(value: unknown): number {
@@ -1055,10 +1121,13 @@ function applyAuthRecord(env: Env, record: AuthCacheRecord): void {
 async function fetchAndArchiveEndpoint(
   env: Env,
   runId: string,
+  traceId: string,
+  startedMs: number,
   endpoint: EndpointConfig,
   sessionCookie: string,
   now: Date,
 ): Promise<ApiResult> {
+  const startedAt = new Date(startedMs);
   const attempted = await withRetries(() => postFantasy402(env, endpoint, sessionCookie, now), MAX_ENDPOINT_ATTEMPTS);
   const data = await attempted.response.json<unknown>();
   const serialized = JSON.stringify(redactResponse(data));
@@ -1066,15 +1135,19 @@ async function fetchAndArchiveEndpoint(
   const snapshotId = crypto.randomUUID();
   const date = now.toISOString().slice(0, 10);
   const r2Key = archiveKey(endpoint.key, date, snapshotId);
+  const durationMs = Math.max(0, Date.now() - startedMs);
   const r2Object = await putArchiveObject(env, r2Key, serialized, {
     source: "fantasy402",
     archiveType: "success",
     endpoint: endpoint.key,
     path: endpoint.path,
     runId,
+    traceId,
     snapshotId,
     responseHash,
     capturedAt: now.toISOString(),
+    startedAt: startedAt.toISOString(),
+    durationMs: String(durationMs),
     size: String(serialized.length),
   });
 
@@ -1083,10 +1156,16 @@ async function fetchAndArchiveEndpoint(
     etag: r2Object.etag,
     size: r2Object.size,
     storageClass: r2Object.storageClass,
+    runId,
+    endpoint: endpoint.key,
+    traceId,
   });
 
   return {
     endpoint,
+    capturedAt: now.toISOString(),
+    traceId,
+    durationMs,
     status: attempted.response.status,
     attempts: attempted.attempts,
     data,
@@ -1351,15 +1430,15 @@ async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promis
   await env.ANALYTICS_DB.prepare(
     `INSERT INTO api_snapshots
        (id, run_id, endpoint_key, path, captured_at, http_status, r2_key, response_hash, item_count,
-        attempts, r2_etag, r2_size, r2_storage_class)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        attempts, r2_etag, r2_size, r2_storage_class, trace_id, duration_ms)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       result.snapshotId,
       runId,
       result.endpoint.key,
       result.endpoint.path,
-      new Date().toISOString(),
+      result.capturedAt,
       result.status,
       result.r2Key,
       result.responseHash,
@@ -1368,11 +1447,20 @@ async function storeSnapshot(env: Env, runId: string, result: ApiResult): Promis
       result.r2Etag,
       result.r2Size,
       result.r2StorageClass,
+      result.traceId,
+      result.durationMs,
     )
     .run();
 }
 
-async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointConfig, error: unknown): Promise<void> {
+async function storeEndpointFailure(
+  env: Env,
+  runId: string,
+  traceId: string,
+  durationMs: number,
+  endpoint: EndpointConfig,
+  error: unknown,
+): Promise<void> {
   const failureId = crypto.randomUUID();
   const failedAt = new Date();
   const attempts = error instanceof EndpointAttemptError ? error.attempts : 1;
@@ -1382,10 +1470,12 @@ async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointC
     archiveType: "failure",
     failureId,
     runId,
+    traceId,
     endpoint: endpoint.key,
     path: endpoint.path,
     attempts,
     failedAt: failedAt.toISOString(),
+    durationMs,
     error: errorMessage(error).slice(0, 1000),
     upstream: upstreamError
       ? {
@@ -1405,17 +1495,19 @@ async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointC
     endpoint: endpoint.key,
     path: endpoint.path,
     runId,
+    traceId,
     failureId,
     responseHash,
     failedAt: failedAt.toISOString(),
+    durationMs: String(durationMs),
     size: String(body.length),
   });
 
   await env.ANALYTICS_DB.prepare(
     `INSERT INTO endpoint_failures
        (id, run_id, endpoint_key, path, failed_at, attempts, error_message,
-        r2_key, r2_etag, r2_size, r2_storage_class)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        r2_key, r2_etag, r2_size, r2_storage_class, trace_id, duration_ms)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       failureId,
@@ -1429,6 +1521,8 @@ async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointC
       r2Object.etag,
       r2Object.size,
       r2Object.storageClass,
+      traceId,
+      durationMs,
     )
     .run();
 
@@ -1438,6 +1532,9 @@ async function storeEndpointFailure(env: Env, runId: string, endpoint: EndpointC
     size: r2Object.size,
     storageClass: r2Object.storageClass,
     upstreamStatus: upstreamError?.status ?? null,
+    runId,
+    endpoint: endpoint.key,
+    traceId,
   });
 }
 
@@ -1509,6 +1606,54 @@ async function finishRun(
   )
     .bind(new Date().toISOString(), status, endpointsSucceeded, endpointsFailed, error ?? null, runId)
     .run();
+}
+
+async function listIngestionRuns(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 200);
+  const result = await env.ANALYTICS_DB.prepare(
+    `SELECT id, started_at, finished_at, status, endpoints_requested, endpoints_succeeded, endpoints_failed, error_message
+     FROM ingestion_runs
+     ORDER BY started_at DESC
+     LIMIT ?`,
+  )
+    .bind(limit)
+    .all();
+  return json({ limit, runs: result.results ?? [] }, 200);
+}
+
+async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> {
+  const runId = String(url.searchParams.get("runId") ?? "").trim();
+  if (!runId) return json({ status: "failed", message: "runId is required" }, 400);
+  if (!isUuid(runId)) return json({ status: "failed", message: "runId must be a valid UUID" }, 400);
+
+  const snapshots = await env.ANALYTICS_DB.prepare(
+    `SELECT id, endpoint_key, path, captured_at, http_status, item_count, attempts,
+            r2_key, r2_etag, r2_size, r2_storage_class, trace_id, duration_ms
+     FROM api_snapshots
+     WHERE run_id = ?
+     ORDER BY captured_at DESC`,
+  )
+    .bind(runId)
+    .all();
+
+  const failures = await env.ANALYTICS_DB.prepare(
+    `SELECT id, endpoint_key, path, failed_at, attempts, error_message,
+            r2_key, r2_etag, r2_size, r2_storage_class, trace_id, duration_ms
+     FROM endpoint_failures
+     WHERE run_id = ?
+     ORDER BY failed_at DESC`,
+  )
+    .bind(runId)
+    .all();
+
+  return json(
+    {
+      runId,
+      snapshots: snapshots.results ?? [],
+      failures: failures.results ?? [],
+    },
+    200,
+  );
 }
 
 async function listAlertEvents(url: URL, env: Env): Promise<Response> {
@@ -2392,10 +2537,12 @@ function diagnostics(env: Env): Response {
   ] as const;
   const presentRequiredSecrets = requiredSecrets.filter((name) => hasEnvValue(env[name]));
   const missingRequiredSecrets = requiredSecrets.filter((name) => !hasEnvValue(env[name]));
+  const upstreamAuthShape = upstreamAuthDiagnostics(env);
+  const upstreamReady = (upstreamAuthShape.ingestionReadiness as { status?: string } | undefined)?.status === "ready";
 
   return json(
     {
-      status: missingRequiredSecrets.length === 0 && authReady ? "ready" : "degraded",
+      status: missingRequiredSecrets.length === 0 && authReady && upstreamReady ? "ready" : "degraded",
       environment: env.ENVIRONMENT,
       workerName: env.WORKER_NAME,
       cloudflare: {
@@ -2417,7 +2564,7 @@ function diagnostics(env: Env): Response {
         acceptedSecrets: ["INGESTION_TRIGGER_TOKEN", "ARCHIVE_AUTH_TOKEN"],
         preferredSecret: "INGESTION_TRIGGER_TOKEN",
       },
-      upstreamAuthShape: upstreamAuthDiagnostics(env),
+      upstreamAuthShape,
       optionalSecrets: Object.fromEntries(optionalSecrets.map((name) => [name, hasEnvValue(env[name])])),
       scanPolicy: {
         allowedHosts: [...allowedScanHosts(env)],
@@ -2441,7 +2588,6 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
   const hasAuthorization = Boolean(normalizeAuthorization(env.FANTASY402_AUTHORIZATION));
   const hasCfClearance = hasCookieName("cf_clearance");
   const hasCfBm = hasCookieName("__cf_bm");
-  const bearerCloudflareReady = hasAuthorization && hasCfClearance && hasCfBm;
   return {
     hasAuthorization,
     hasCookie: cookieNames.length > 0,
@@ -2451,8 +2597,8 @@ function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
     cookieNames,
     browserHeaderCount: observedBrowserHeaderCount(env.FANTASY402_BROWSER_HEADERS_JSON),
     ingestionReadiness: {
-      status: hasSessionCookie || bearerCloudflareReady ? "ready" : "blocked",
-      blocker: hasSessionCookie || bearerCloudflareReady ? null : "missing non-Cloudflare app session cookie or bearer plus Cloudflare cookies",
+      status: hasSessionCookie ? "ready" : "blocked",
+      blocker: hasSessionCookie ? null : "missing non-Cloudflare application session cookie such as ASP.NET_SessionId",
     },
   };
 }

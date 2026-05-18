@@ -404,13 +404,11 @@ function validateBrowserAuthPayload(payload, path) {
     if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
   }
   if (!payload.sessionCookie) {
-    if (!hasBearerCloudflareAuth(payload)) findings.push("sessionCookie is missing");
+    findings.push("sessionCookie is missing; include the app session cookie such as ASP.NET_SessionId");
   } else if (payload.sessionCookie && isPlaceholderToken(payload.sessionCookie)) {
     findings.push("sessionCookie still looks like a placeholder");
   } else if (!hasNonCloudflareCookie(payload.sessionCookie)) {
-    if (!hasBearerCloudflareAuth(payload)) {
-      findings.push("sessionCookie contains only Cloudflare cookies; include bearer auth plus Cloudflare cookies, or the app session cookie such as ASP.NET_SessionId when present");
-    }
+    findings.push("sessionCookie contains only Cloudflare cookies; include the app session cookie such as ASP.NET_SessionId");
   }
   if (!payload.browserHeaders && !payload.browserHeadersJson && !payload.userAgent) {
     findings.push("browserHeaders/browserHeadersJson or userAgent is missing");

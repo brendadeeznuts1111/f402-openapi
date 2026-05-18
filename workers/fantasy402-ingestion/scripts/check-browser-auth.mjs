@@ -15,19 +15,11 @@ for (const field of ["authorization", "cfClearance", "cfBm"]) {
 }
 
 if (!auth.sessionCookie) {
-  if (hasBearerCloudflareAuth(auth)) {
-    warnings.push("sessionCookie is missing; using observed bearer auth plus Cloudflare cookies.");
-  } else {
-    findings.push("sessionCookie is missing. Copy a successful authenticated /cloud/api browser request with bearer auth plus Cloudflare cookies, or include the app session cookie when present.");
-  }
+  findings.push("sessionCookie is missing. Copy a successful authenticated /cloud/api browser request that includes the application cookie such as ASP.NET_SessionId.");
 } else if (auth.sessionCookie && isPlaceholder(auth.sessionCookie)) {
   findings.push("sessionCookie still looks like a placeholder");
 } else if (!hasNonCloudflareCookie(auth.sessionCookie)) {
-  if (hasBearerCloudflareAuth(auth)) {
-    warnings.push("sessionCookie contains only Cloudflare cookies; using observed bearer auth plus Cloudflare cookies.");
-  } else {
-    findings.push("sessionCookie contains only Cloudflare cookies. Include bearer auth plus Cloudflare cookies, or the browser application cookie such as ASP.NET_SessionId when present.");
-  }
+  findings.push("sessionCookie contains only Cloudflare cookies. Include the browser application cookie such as ASP.NET_SessionId.");
 }
 
 if (!auth.browserHeaders && !auth.browserHeadersJson && !auth.userAgent) {

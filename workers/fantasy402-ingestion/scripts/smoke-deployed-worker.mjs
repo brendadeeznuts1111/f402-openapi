@@ -37,6 +37,31 @@ if (token) {
     headers: { Authorization: `Bearer ${token}` },
     forbidden: [token],
   });
+  const strictRuns = process.env.STRICT_RUNS_CHECK === "1" || process.env.STRICT_RUNS_CHECK === "true";
+  await check("runs authenticated", "/runs?limit=1", {
+    status: strictRuns ? 200 : [200, 404],
+    includes: '"runs"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (!Array.isArray(body.runs)) findings.push("expected runs to be an array");
+      if (typeof body.limit !== "number") findings.push("expected limit to be a number");
+      return findings;
+    },
+  });
+  await check("run endpoints authenticated", "/runs/endpoints?runId=00000000-0000-4000-8000-000000000000", {
+    status: strictRuns ? 200 : [200, 404],
+    includes: '"snapshots"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (!Array.isArray(body.snapshots)) findings.push("expected snapshots to be an array");
+      if (!Array.isArray(body.failures)) findings.push("expected failures to be an array");
+      return findings;
+    },
+  });
   await check("scanner diagnostics authenticated", "/scanner/diagnostics", {
     status: 200,
     includes: '"cloudflare-url-scanner"',
@@ -75,13 +100,16 @@ async function check(name, path, expectation) {
     });
     const body = await response.text();
     const findings = [];
-    if (response.status !== expectation.status) {
-      findings.push(`expected HTTP ${expectation.status}, got ${response.status}`);
+    const expectedStatuses = Array.isArray(expectation.status) ? expectation.status : [expectation.status];
+    if (!expectedStatuses.includes(response.status)) {
+      findings.push(`expected HTTP ${expectedStatuses.join(" or ")}, got ${response.status}`);
     }
-    if (expectation.includes && !body.includes(expectation.includes)) {
+    const matchedExpected = expectedStatuses.includes(response.status);
+    const shouldValidateBody = matchedExpected && response.status !== 404;
+    if (expectation.includes && shouldValidateBody && !body.includes(expectation.includes)) {
       findings.push(`response did not include ${JSON.stringify(expectation.includes)}`);
     }
-    if (expectation.validateJson) {
+    if (expectation.validateJson && shouldValidateBody) {
       try {
         findings.push(...expectation.validateJson(JSON.parse(body)));
       } catch (error) {

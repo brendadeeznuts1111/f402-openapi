@@ -104,7 +104,7 @@ Recommended runtime auth inputs:
 - `FANTASY402_BROWSER_HEADERS_JSON`
 - `FANTASY402_SESSION_COOKIE` only when browser traffic includes a non-Cloudflare app session cookie
 
-`cf_clearance` and `__cf_bm` remain the Cloudflare WAF/challenge layer. The Worker can manage app-level auth with `authenticateCustomer` and `renewToken` once it can reach the upstream application.
+`cf_clearance` and `__cf_bm` remain the Cloudflare WAF/challenge layer. Production ingestion also needs the upstream application session cookie, such as `ASP.NET_SessionId`, when Fantasy402 requires it. The Worker can manage app-level auth with `authenticateCustomer` and `renewToken` once it can reach the upstream application.
 
 ## Local Auth And Ingestion Checks
 

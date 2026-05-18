@@ -34,17 +34,9 @@ if (!auth.authorization || isPlaceholder(auth.authorization)) findings.push("aut
 if (!auth.cfClearance || isPlaceholder(auth.cfClearance)) findings.push("cfClearance is missing or placeholder");
 if (!auth.cfBm || isPlaceholder(auth.cfBm)) findings.push("cfBm is missing or placeholder");
 if (!auth.sessionCookie || isPlaceholder(auth.sessionCookie)) {
-  if (authShape.hasBearerCloudflareAuth) {
-    warnings.push("sessionCookie is missing; dry-run will use observed bearer auth plus Cloudflare cookies");
-  } else {
-    findings.push("sessionCookie is missing or placeholder");
-  }
+  findings.push("sessionCookie is missing or placeholder; include the app session cookie such as ASP.NET_SessionId");
 } else if (!authShape.hasSessionCookie) {
-  if (authShape.hasBearerCloudflareAuth) {
-    warnings.push("sessionCookie contains only Cloudflare cookie names; dry-run will use observed bearer auth plus Cloudflare cookies");
-  } else {
-    findings.push("sessionCookie contains only Cloudflare cookie names; include bearer auth plus Cloudflare cookies, or the app session cookie such as ASP.NET_SessionId when present");
-  }
+  findings.push("sessionCookie contains only Cloudflare cookie names; include the app session cookie such as ASP.NET_SessionId");
 }
 if (browserHeaderCount === 0) findings.push("browser headers/userAgent are missing");
 
@@ -85,8 +77,8 @@ const output = {
   endpointCount: endpointsOut.length,
   authShape,
   ingestionReadiness: {
-    status: authShape.hasSessionCookie || authShape.hasBearerCloudflareAuth ? "ready" : "blocked",
-    blocker: authShape.hasSessionCookie || authShape.hasBearerCloudflareAuth ? null : "missing non-Cloudflare app session cookie or bearer plus Cloudflare cookies",
+    status: authShape.hasSessionCookie ? "ready" : "blocked",
+    blocker: authShape.hasSessionCookie ? null : "missing non-Cloudflare app session cookie such as ASP.NET_SessionId",
   },
   browserHeaderCount,
   findings: allFindings,

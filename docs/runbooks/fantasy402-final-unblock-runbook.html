@@ -416,11 +416,11 @@
     <div class="panel-body">
       <div class="success-banner">
         <span class="check">OK</span>
-        <span><code>ingestionReadiness.status</code>: ready via browser bearer plus Cloudflare cookies.</span>
+        <span><code>ingestionReadiness.status</code>: ready only when a non-Cloudflare app session cookie is present.</span>
       </div>
       <div class="warning-banner">
         <span>!</span>
-        <span>Do not require an app session cookie for the current capture shape. The accepted path is bearer + <code>cf_clearance</code> + <code>__cf_bm</code>.</span>
+        <span>Require an app session cookie such as <code>ASP.NET_SessionId</code> alongside bearer + <code>cf_clearance</code> + <code>__cf_bm</code>.</span>
       </div>
 
       <div class="auth-grid">
@@ -480,7 +480,7 @@
       <ul class="checklist">
         <li><span class="check">OK</span> <code>npm run smoke:remote</code> <span class="detail">passed</span></li>
         <li><span class="check">OK</span> <code>/diagnostics</code> ingestion readiness <span class="detail">ready</span></li>
-        <li><span class="check">OK</span> bearer plus Cloudflare cookies <span class="detail">accepted</span></li>
+        <li><span class="check">OK</span> app session plus bearer and Cloudflare cookies <span class="detail">accepted</span></li>
         <li><span class="check">OK</span> <code>getListAgenstByAgent</code> fetch <span class="detail">2,293 items</span></li>
         <li><span class="check">OK</span> <code>npm run verify</code> <span class="detail">passed</span></li>
         <li><span class="check">OK</span> <code>npm run verify:contract</code> <span class="detail">passed</span></li>
@@ -491,7 +491,7 @@
       <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
         <h2 style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:10px;">Next Session Refresh</h2>
         <p style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-bottom:10px;">
-          When the browser capture expires, capture a fresh Fantasy402 API cURL that includes the bearer token and both Cloudflare cookies. A non-Cloudflare app session cookie is useful if present, but no longer required for readiness.
+          When the browser capture expires, capture a fresh Fantasy402 API cURL that includes the bearer token, both Cloudflare cookies, and a non-Cloudflare app session cookie such as <code>ASP.NET_SessionId</code>.
         </p>
         <div class="cmd-block">
           <button class="copy-btn" type="button" data-copy-command>Copy</button>
@@ -539,7 +539,7 @@ pbpaste | INGESTION_TRIGGER_TOKEN="$(cat workers/fantasy402-ingestion/.archive-a
         <div class="timeline-item">
           <div class="timeline-time">16:13 UTC</div>
           <div class="timeline-event">Original 403/1106 blocker identified</div>
-          <div class="timeline-detail">The earlier implementation required app session auth and rejected the bearer plus Cloudflare-only capture.</div>
+          <div class="timeline-detail">The runtime now rejects bearer plus Cloudflare-only refresh payloads because endpoint calls fail with upstream 403/1106 without app session auth.</div>
         </div>
       </div>
     </div>

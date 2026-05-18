@@ -257,6 +257,9 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `GET /runs?limit=<n>` lists recent ingestion runs (D1) including success/failure totals.
 - `GET /runs/endpoints?runId=<uuid>` lists per-endpoint snapshots and failures for a run, including `trace_id` and `duration_ms` when available.
 - `GET /bet-ticker-wagers?limit=<n>&agent_id=<id>&wager_type=<S|P|M|L>&since=<iso>&min_amount=<cents>&max_amount=<cents>` queries the `bet_ticker_wagers` D1 table. Returns wagers sorted by recency. Filters are optional.
+- `GET /graded-wagers` same filter interface as bet-ticker-wagers, queries `graded_wagers` D1 table (includes grade_date_time, result, net_amount).
+- `GET /prop-wagers` same filter interface, queries `prop_wagers` D1 table.
+- `GET /position-data?limit=<n>&sport_id=<id>` queries the `agent_position_data` D1 table (sport_id, sport_name, total_wagered, total_to_win, wager_count).
 - `GET /performance?limit=<n>&agent_id=<id>&since=<iso>` queries the `agent_performance` D1 table (total_wagers, total_volume, win_rate).
 - `GET /authorizations?limit=<n>&agent_id=<id>&since=<iso>` queries the `authorization_permissions` D1 table (agent_id, master_agent_id, commission_type).
 - `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.

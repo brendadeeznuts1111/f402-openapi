@@ -136,6 +136,475 @@
       "path": "/cloud/api/Manager/getHeriarchy",
       "operationId": "post_cloud_api_Manager_getHeriarchy",
       "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "leagueGet_SportsLeagues",
+      "method": "post",
+      "path": "/cloud/api/League/Get_SportsLeagues",
+      "operationId": "post_cloud_api_League_Get_SportsLeagues",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "crashGetLimits",
+      "method": "post",
+      "path": "/cloud/api/Manager/crashGetLimits",
+      "operationId": "post_cloud_api_Manager_crashGetLimits",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentAccountingDetailed",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentAccountingDetailed",
+      "operationId": "post_cloud_api_Manager_getAgentAccountingDetailed",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentAccountingDetailedPlayerCount",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentAccountingDetailedPlayerCount",
+      "operationId": "post_cloud_api_Manager_getAgentAccountingDetailedPlayerCount",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentAccountingDetailedRules",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentAccountingDetailedRules",
+      "operationId": "post_cloud_api_Manager_getAgentAccountingDetailedRules",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentAccountingDetailedTransactions",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentAccountingDetailedTransactions",
+      "operationId": "post_cloud_api_Manager_getAgentAccountingDetailedTransactions",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentManagement",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentManagement",
+      "operationId": "post_cloud_api_Manager_getAgentManagement",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentPrefix",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentPrefix",
+      "operationId": "post_cloud_api_Manager_getAgentPrefix",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getCircleLimits",
+      "method": "post",
+      "path": "/cloud/api/Manager/getCircleLimits",
+      "operationId": "post_cloud_api_Manager_getCircleLimits",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getColorsSelections",
+      "method": "post",
+      "path": "/cloud/api/Manager/getColorsSelections",
+      "operationId": "post_cloud_api_Manager_getColorsSelections",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getConfigWebReportsCustomerAdmin",
+      "method": "post",
+      "path": "/cloud/api/Manager/getConfigWebReportsCustomerAdmin",
+      "operationId": "post_cloud_api_Manager_getConfigWebReportsCustomerAdmin",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getCryptoAvailable",
+      "method": "post",
+      "path": "/cloud/api/Manager/getCryptoAvailable",
+      "operationId": "post_cloud_api_Manager_getCryptoAvailable",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getDynamicLive",
+      "method": "post",
+      "path": "/cloud/api/Manager/getDynamicLive",
+      "operationId": "post_cloud_api_Manager_getDynamicLive",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getDynamicLiveLeagues",
+      "method": "post",
+      "path": "/cloud/api/Manager/getDynamicLiveLeagues",
+      "operationId": "post_cloud_api_Manager_getDynamicLiveLeagues",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getExtendedProps",
+      "method": "post",
+      "path": "/cloud/api/Manager/getExtendedProps",
+      "operationId": "post_cloud_api_Manager_getExtendedProps",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGameVolume",
+      "method": "post",
+      "path": "/cloud/api/Manager/getGameVolume",
+      "operationId": "post_cloud_api_Manager_getGameVolume",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGames",
+      "method": "post",
+      "path": "/cloud/api/Manager/getGames",
+      "operationId": "post_cloud_api_Manager_getGames",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGamesCustom",
+      "method": "post",
+      "path": "/cloud/api/Manager/getGamesCustom",
+      "operationId": "post_cloud_api_Manager_getGamesCustom",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGamesPosition",
+      "method": "post",
+      "path": "/cloud/api/Manager/getGamesPosition",
+      "operationId": "post_cloud_api_Manager_getGamesPosition",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGetSubAgentByMaster",
+      "method": "post",
+      "path": "/cloud/api/Manager/getGetSubAgentByMaster",
+      "operationId": "post_cloud_api_Manager_getGetSubAgentByMaster",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getHeriarchyRates",
+      "method": "post",
+      "path": "/cloud/api/Manager/getHeriarchyRates",
+      "operationId": "post_cloud_api_Manager_getHeriarchyRates",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getLastIDPlayer",
+      "method": "post",
+      "path": "/cloud/api/Manager/getLastIDPlayer",
+      "operationId": "post_cloud_api_Manager_getLastIDPlayer",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getLinesProps",
+      "method": "post",
+      "path": "/cloud/api/Manager/getLinesProps",
+      "operationId": "post_cloud_api_Manager_getLinesProps",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getListVip",
+      "method": "post",
+      "path": "/cloud/api/Manager/getListVip",
+      "operationId": "post_cloud_api_Manager_getListVip",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getMasterSheet",
+      "method": "post",
+      "path": "/cloud/api/Manager/getMasterSheet",
+      "operationId": "post_cloud_api_Manager_getMasterSheet",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getMessagesByParent",
+      "method": "post",
+      "path": "/cloud/api/Manager/getMessagesByParent",
+      "operationId": "post_cloud_api_Manager_getMessagesByParent",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getPeriodsBySport",
+      "method": "post",
+      "path": "/cloud/api/Manager/getPeriodsBySport",
+      "operationId": "post_cloud_api_Manager_getPeriodsBySport",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getPlayerCount",
+      "method": "post",
+      "path": "/cloud/api/Manager/getPlayerCount",
+      "operationId": "post_cloud_api_Manager_getPlayerCount",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getProps",
+      "method": "post",
+      "path": "/cloud/api/Manager/getProps",
+      "operationId": "post_cloud_api_Manager_getProps",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getReportDeletedTransactions",
+      "method": "post",
+      "path": "/cloud/api/Manager/getReportDeletedTransactions",
+      "operationId": "post_cloud_api_Manager_getReportDeletedTransactions",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getReportPlayerAnalysis",
+      "method": "post",
+      "path": "/cloud/api/Manager/getReportPlayerAnalysis",
+      "operationId": "post_cloud_api_Manager_getReportPlayerAnalysis",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getSettleBalance",
+      "method": "post",
+      "path": "/cloud/api/Manager/getSettleBalance",
+      "operationId": "post_cloud_api_Manager_getSettleBalance",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getSportsTypesLive",
+      "method": "post",
+      "path": "/cloud/api/Manager/getSportsTypesLive",
+      "operationId": "post_cloud_api_Manager_getSportsTypesLive",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getStores",
+      "method": "post",
+      "path": "/cloud/api/Manager/getStores",
+      "operationId": "post_cloud_api_Manager_getStores",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getTotalActiveCustomer",
+      "method": "post",
+      "path": "/cloud/api/Manager/getTotalActiveCustomer",
+      "operationId": "post_cloud_api_Manager_getTotalActiveCustomer",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getTransactionDetail",
+      "method": "post",
+      "path": "/cloud/api/Manager/getTransactionDetail",
+      "operationId": "post_cloud_api_Manager_getTransactionDetail",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getWebLog",
+      "method": "post",
+      "path": "/cloud/api/Manager/getWebLog",
+      "operationId": "post_cloud_api_Manager_getWebLog",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getWeeklyFigureByAgent",
+      "method": "post",
+      "path": "/cloud/api/Manager/getWeeklyFigureByAgent",
+      "operationId": "post_cloud_api_Manager_getWeeklyFigureByAgent",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "liveCasinoGetLimits",
+      "method": "post",
+      "path": "/cloud/api/Manager/liveCasinoGetLimits",
+      "operationId": "post_cloud_api_Manager_liveCasinoGetLimits",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "primaryAgents",
+      "method": "post",
+      "path": "/cloud/api/Manager/primaryAgents",
+      "operationId": "post_cloud_api_Manager_primaryAgents",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "primaryAgentsGetAgents",
+      "method": "post",
+      "path": "/cloud/api/Manager/primaryAgentsGetAgents",
+      "operationId": "post_cloud_api_Manager_primaryAgentsGetAgents",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "primaryAgentsGetTransactions",
+      "method": "post",
+      "path": "/cloud/api/Manager/primaryAgentsGetTransactions",
+      "operationId": "post_cloud_api_Manager_primaryAgentsGetTransactions",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "searchCustomerAdmin",
+      "method": "post",
+      "path": "/cloud/api/Manager/searchCustomerAdmin",
+      "operationId": "post_cloud_api_Manager_searchCustomerAdmin",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "providerGetAppsCashierURL",
+      "method": "post",
+      "path": "/cloud/api/Provider/getAppsCashierURL",
+      "operationId": "post_cloud_api_Provider_getAppsCashierURL",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "providerGetCryptoWalletURL",
+      "method": "post",
+      "path": "/cloud/api/Provider/getCryptoWalletURL",
+      "operationId": "post_cloud_api_Provider_getCryptoWalletURL",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "reportGetDailyFiguresByCustomer",
+      "method": "post",
+      "path": "/cloud/api/Report/getDailyFiguresByCustomer",
+      "operationId": "post_cloud_api_Report_getDailyFiguresByCustomer",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "reportGetGrading",
+      "method": "post",
+      "path": "/cloud/api/Report/getGrading",
+      "operationId": "post_cloud_api_Report_getGrading",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "reportGetLeaderBoard",
+      "method": "post",
+      "path": "/cloud/api/Report/getLeaderBoard",
+      "operationId": "post_cloud_api_Report_getLeaderBoard",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "reportGetScoresLiveDynamic",
+      "method": "post",
+      "path": "/cloud/api/Report/getScoresLiveDynamic",
+      "operationId": "post_cloud_api_Report_getScoresLiveDynamic",
+      "contentType": "application/json"
+    },
+    {
+      "key": "reportGetTicketDetailPrint",
+      "method": "post",
+      "path": "/cloud/api/Report/getTicketDetailPrint",
+      "operationId": "post_cloud_api_Report_getTicketDetailPrint",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "reportGetTransactions",
+      "method": "post",
+      "path": "/cloud/api/Report/getTransactions",
+      "operationId": "post_cloud_api_Report_getTransactions",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getBetTicker",
+      "method": "post",
+      "path": "/cloud/api/Manager/getBetTicker",
+      "operationId": "post_cloud_api_Manager_getBetTicker",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getBetTickerConfig",
+      "method": "post",
+      "path": "/cloud/api/Manager/getBetTickerConfig",
+      "operationId": "post_cloud_api_Manager_getBetTickerConfig",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentPositionData",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentPositionData",
+      "operationId": "post_cloud_api_Manager_getAgentPositionData",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentPositionList",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentPositionList",
+      "operationId": "post_cloud_api_Manager_getAgentPositionList",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getSubSportByReport",
+      "method": "post",
+      "path": "/cloud/api/Manager/getSubSportByReport",
+      "operationId": "post_cloud_api_Manager_getSubSportByReport",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getPropWagers",
+      "method": "post",
+      "path": "/cloud/api/Manager/getPropWagers",
+      "operationId": "post_cloud_api_Manager_getPropWagers",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGraded",
+      "method": "post",
+      "path": "/cloud/api/Manager/getGraded",
+      "operationId": "post_cloud_api_Manager_getGraded",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getWagaerDetailShort",
+      "method": "post",
+      "path": "/cloud/api/Manager/getWagaerDetailShort",
+      "operationId": "post_cloud_api_Manager_getWagaerDetailShort",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getAgentPermissionSetting",
+      "method": "post",
+      "path": "/cloud/api/Manager/getAgentPermissionSetting",
+      "operationId": "post_cloud_api_Manager_getAgentPermissionSetting",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getTransactionHistory",
+      "method": "post",
+      "path": "/cloud/api/Manager/getTransactionHistory",
+      "operationId": "post_cloud_api_Manager_getTransactionHistory",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getTransactionList",
+      "method": "post",
+      "path": "/cloud/api/Manager/getTransactionList",
+      "operationId": "post_cloud_api_Manager_getTransactionList",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getGradedWagerByCustomer",
+      "method": "post",
+      "path": "/cloud/api/Report/getGradedWagerByCustomer",
+      "operationId": "post_cloud_api_Report_getGradedWagerByCustomer",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getWagersByFigureDate",
+      "method": "post",
+      "path": "/cloud/api/Report/getWagersByFigureDate",
+      "operationId": "post_cloud_api_Report_getWagersByFigureDate",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getWagerDetailTransaction",
+      "method": "post",
+      "path": "/cloud/api/Report/getWagerDetailTransaction",
+      "operationId": "post_cloud_api_Report_getWagerDetailTransaction",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getPendingByTicket",
+      "method": "post",
+      "path": "/cloud/api/Report/getPendingByTicket",
+      "operationId": "post_cloud_api_Report_getPendingByTicket",
+      "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "customerGetHeriarchy",
+      "method": "post",
+      "path": "/cloud/api/Customer/getHeriarchy",
+      "operationId": "post_cloud_api_Customer_getHeriarchy",
+      "contentType": "application/x-www-form-urlencoded"
     }
   ]
 }

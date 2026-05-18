@@ -1,5 +1,6 @@
 import { diagnoseUrlScanner, submitAndWait, UrlScannerApiError } from "./url-scanner";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
+import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema } from "./schemas";
 
 export interface Env {
   SESSION_KV: KVNamespace;
@@ -35,40 +36,31 @@ interface SecretsStoreBinding {
 }
 
 type EndpointKey =
-  | "getAccountInfoOwner"
-  | "getAuthorizations"
-  | "getAgentPerformance"
-  | "getAgentBilling"
-  | "getEnterTransactions"
-  | "getPending"
-  | "Pending"
-  | "getPlayers"
-  | "getAddedInfo"
-  | "getCommunicationMessages"
-  | "getListAgenstByAgent"
-  | "getLineTypes"
-  | "getHeriarchy"
-  | "getConfigWebReports"
-  | "getConfigWebReportsPending"
-  | "getSportsType"
-  | "getMessage"
-  | "getNewEmailsCount"
-  | "getWeeklyFigureByAgentLite"
-  | "getBetTicker"
-  | "getBetTickerConfig"
-  | "getAgentPositionData"
-  | "getAgentPositionList"
-  | "getSubSportByReport"
-  | "getPropWagers"
-  | "getGraded"
-  | "getWagaerDetailShort"
-  | "getAgentPermissionSetting"
-  | "getTransactionHistory"
-  | "getTransactionList"
-  | "getGradedWagerByCustomer"
-  | "getWagersByFigureDate"
-  | "getWagerDetailTransaction"
-  | "getPendingByTicket";
+  | "getAccountInfoOwner" | "getAuthorizations" | "getAgentPerformance" | "getAgentBilling"
+  | "getEnterTransactions" | "getPending" | "Pending" | "getPlayers" | "getAddedInfo"
+  | "getCommunicationMessages" | "getListAgenstByAgent" | "getLineTypes" | "getHeriarchy"
+  | "getConfigWebReports" | "getConfigWebReportsPending" | "getSportsType" | "getMessage"
+  | "getNewEmailsCount" | "getWeeklyFigureByAgentLite" | "getBetTicker" | "getBetTickerConfig"
+  | "getAgentPositionData" | "getAgentPositionList" | "getSubSportByReport" | "getPropWagers"
+  | "getGraded" | "getWagaerDetailShort" | "getAgentPermissionSetting" | "getTransactionHistory"
+  | "getTransactionList" | "getGradedWagerByCustomer" | "getWagersByFigureDate"
+  | "getWagerDetailTransaction" | "getPendingByTicket"
+  | "customerGetHeriarchy" | "leagueGet_SportsLeagues"
+  | "crashGetLimits" | "getAgentAccountingDetailed" | "getAgentAccountingDetailedPlayerCount"
+  | "getAgentAccountingDetailedRules" | "getAgentAccountingDetailedTransactions"
+  | "getAgentManagement" | "getAgentPrefix" | "getCircleLimits" | "getColorsSelections"
+  | "getConfigWebReportsCustomerAdmin" | "getCryptoAvailable" | "getDynamicLive"
+  | "getDynamicLiveLeagues" | "getExtendedProps" | "getGameVolume" | "getGames" | "getGamesCustom"
+  | "getGamesPosition" | "getGetSubAgentByMaster" | "getHeriarchyRates" | "getLastIDPlayer"
+  | "getLinesProps" | "getListVip" | "getMasterSheet" | "getMessagesByParent" | "getPeriodsBySport"
+  | "getPlayerCount" | "getProps" | "getReportDeletedTransactions" | "getReportPlayerAnalysis"
+  | "getSettleBalance" | "getSportsTypesLive" | "getStores" | "getTotalActiveCustomer"
+  | "getTransactionDetail" | "getWebLog" | "getWeeklyFigureByAgent" | "liveCasinoGetLimits"
+  | "primaryAgents" | "primaryAgentsGetAgents" | "primaryAgentsGetTransactions"
+  | "searchCustomerAdmin"
+  | "providerGetAppsCashierURL" | "providerGetCryptoWalletURL"
+  | "reportGetDailyFiguresByCustomer" | "reportGetGrading" | "reportGetLeaderBoard"
+  | "reportGetScoresLiveDynamic" | "reportGetTicketDetailPrint" | "reportGetTransactions";
 
 interface SessionRecord {
   cookie: string;
@@ -530,6 +522,353 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     path: "/cloud/api/Manager/getHeriarchy",
     buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getHeriarchy" }),
   },
+  customerGetHeriarchy: {
+    key: "customerGetHeriarchy",
+    path: "/cloud/api/Customer/getHeriarchy",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getHeriarchy" }),
+  },
+  leagueGet_SportsLeagues: {
+    key: "leagueGet_SportsLeagues",
+    path: "/cloud/api/League/Get_SportsLeagues",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "Get_SportsLeagues",
+    }),
+  },
+  crashGetLimits: {
+    key: "crashGetLimits",
+    path: "/cloud/api/Manager/crashGetLimits",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "crashGetLimits",
+    }),
+  },
+  getAgentAccountingDetailed: {
+    key: "getAgentAccountingDetailed",
+    path: "/cloud/api/Manager/getAgentAccountingDetailed",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAgentAccountingDetailed",
+    }),
+  },
+  getAgentAccountingDetailedPlayerCount: {
+    key: "getAgentAccountingDetailedPlayerCount",
+    path: "/cloud/api/Manager/getAgentAccountingDetailedPlayerCount",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAgentAccountingDetailedPlayerCount",
+    }),
+  },
+  getAgentAccountingDetailedRules: {
+    key: "getAgentAccountingDetailedRules",
+    path: "/cloud/api/Manager/getAgentAccountingDetailedRules",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAgentAccountingDetailedRules",
+    }),
+  },
+  getAgentAccountingDetailedTransactions: {
+    key: "getAgentAccountingDetailedTransactions",
+    path: "/cloud/api/Manager/getAgentAccountingDetailedTransactions",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAgentAccountingDetailedTransactions",
+    }),
+  },
+  getAgentManagement: {
+    key: "getAgentManagement",
+    path: "/cloud/api/Manager/getAgentManagement",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAgentManagement",
+    }),
+  },
+  getAgentPrefix: {
+    key: "getAgentPrefix",
+    path: "/cloud/api/Manager/getAgentPrefix",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAgentPrefix",
+    }),
+  },
+  getCircleLimits: {
+    key: "getCircleLimits",
+    path: "/cloud/api/Manager/getCircleLimits",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getCircleLimits",
+    }),
+  },
+  getColorsSelections: {
+    key: "getColorsSelections",
+    path: "/cloud/api/Manager/getColorsSelections",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getColorsSelections",
+    }),
+  },
+  getConfigWebReportsCustomerAdmin: {
+    key: "getConfigWebReportsCustomerAdmin",
+    path: "/cloud/api/Manager/getConfigWebReportsCustomerAdmin",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getConfigWebReportsCustomerAdmin",
+    }),
+  },
+  getCryptoAvailable: {
+    key: "getCryptoAvailable",
+    path: "/cloud/api/Manager/getCryptoAvailable",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getCryptoAvailable",
+    }),
+  },
+  getDynamicLive: {
+    key: "getDynamicLive",
+    path: "/cloud/api/Manager/getDynamicLive",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getDynamicLive",
+    }),
+  },
+  getDynamicLiveLeagues: {
+    key: "getDynamicLiveLeagues",
+    path: "/cloud/api/Manager/getDynamicLiveLeagues",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getDynamicLiveLeagues",
+    }),
+  },
+  getExtendedProps: {
+    key: "getExtendedProps",
+    path: "/cloud/api/Manager/getExtendedProps",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getExtendedProps",
+    }),
+  },
+  getGameVolume: {
+    key: "getGameVolume",
+    path: "/cloud/api/Manager/getGameVolume",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getGameVolume",
+    }),
+  },
+  getGames: {
+    key: "getGames",
+    path: "/cloud/api/Manager/getGames",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getGames",
+    }),
+  },
+  getGamesCustom: {
+    key: "getGamesCustom",
+    path: "/cloud/api/Manager/getGamesCustom",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getGamesCustom",
+    }),
+  },
+  getGamesPosition: {
+    key: "getGamesPosition",
+    path: "/cloud/api/Manager/getGamesPosition",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getGamesPosition",
+    }),
+  },
+  getGetSubAgentByMaster: {
+    key: "getGetSubAgentByMaster",
+    path: "/cloud/api/Manager/getGetSubAgentByMaster",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getGetSubAgentByMaster",
+    }),
+  },
+  getHeriarchyRates: {
+    key: "getHeriarchyRates",
+    path: "/cloud/api/Manager/getHeriarchyRates",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getHeriarchyRates" }),
+  },
+  getLastIDPlayer: {
+    key: "getLastIDPlayer",
+    path: "/cloud/api/Manager/getLastIDPlayer",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getLastIDPlayer",
+    }),
+  },
+  getLinesProps: {
+    key: "getLinesProps",
+    path: "/cloud/api/Manager/getLinesProps",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getLinesProps",
+    }),
+  },
+  getListVip: {
+    key: "getListVip",
+    path: "/cloud/api/Manager/getListVip",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getListVip",
+    }),
+  },
+  getMasterSheet: {
+    key: "getMasterSheet",
+    path: "/cloud/api/Manager/getMasterSheet",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getMasterSheet",
+    }),
+  },
+  getMessagesByParent: {
+    key: "getMessagesByParent",
+    path: "/cloud/api/Manager/getMessagesByParent",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getMessagesByParent",
+    }),
+  },
+  getPeriodsBySport: {
+    key: "getPeriodsBySport",
+    path: "/cloud/api/Manager/getPeriodsBySport",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getPeriodsBySport",
+    }),
+  },
+  getPlayerCount: {
+    key: "getPlayerCount",
+    path: "/cloud/api/Manager/getPlayerCount",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getPlayerCount",
+    }),
+  },
+  getProps: {
+    key: "getProps",
+    path: "/cloud/api/Manager/getProps",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getProps",
+    }),
+  },
+  getReportDeletedTransactions: {
+    key: "getReportDeletedTransactions",
+    path: "/cloud/api/Manager/getReportDeletedTransactions",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getReportDeletedTransactions" }),
+  },
+  getReportPlayerAnalysis: {
+    key: "getReportPlayerAnalysis",
+    path: "/cloud/api/Manager/getReportPlayerAnalysis",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getReportPlayerAnalysis" }),
+  },
+  getSettleBalance: {
+    key: "getSettleBalance",
+    path: "/cloud/api/Manager/getSettleBalance",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getSettleBalance",
+    }),
+  },
+  getSportsTypesLive: {
+    key: "getSportsTypesLive",
+    path: "/cloud/api/Manager/getSportsTypesLive",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getSportsTypesLive",
+    }),
+  },
+  getStores: {
+    key: "getStores",
+    path: "/cloud/api/Manager/getStores",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getStores",
+    }),
+  },
+  getTotalActiveCustomer: {
+    key: "getTotalActiveCustomer",
+    path: "/cloud/api/Manager/getTotalActiveCustomer",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getTotalActiveCustomer",
+    }),
+  },
+  getTransactionDetail: {
+    key: "getTransactionDetail",
+    path: "/cloud/api/Manager/getTransactionDetail",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getTransactionDetail",
+    }),
+  },
+  getWebLog: {
+    key: "getWebLog",
+    path: "/cloud/api/Manager/getWebLog",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getWebLog",
+    }),
+  },
+  getWeeklyFigureByAgent: {
+    key: "getWeeklyFigureByAgent",
+    path: "/cloud/api/Manager/getWeeklyFigureByAgent",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getWeeklyFigureByAgent",
+    }),
+  },
+  liveCasinoGetLimits: {
+    key: "liveCasinoGetLimits",
+    path: "/cloud/api/Manager/liveCasinoGetLimits",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "liveCasinoGetLimits",
+    }),
+  },
+  primaryAgents: {
+    key: "primaryAgents",
+    path: "/cloud/api/Manager/primaryAgents",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "primaryAgents",
+    }),
+  },
+  primaryAgentsGetAgents: {
+    key: "primaryAgentsGetAgents",
+    path: "/cloud/api/Manager/primaryAgentsGetAgents",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "primaryAgentsGetAgents",
+    }),
+  },
+  primaryAgentsGetTransactions: {
+    key: "primaryAgentsGetTransactions",
+    path: "/cloud/api/Manager/primaryAgentsGetTransactions",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "primaryAgentsGetTransactions",
+    }),
+  },
+  searchCustomerAdmin: {
+    key: "searchCustomerAdmin",
+    path: "/cloud/api/Manager/searchCustomerAdmin",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "searchCustomerAdmin",
+    }),
+  },
+  providerGetAppsCashierURL: {
+    key: "providerGetAppsCashierURL",
+    path: "/cloud/api/Provider/getAppsCashierURL",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getAppsCashierURL",
+    }),
+  },
+  providerGetCryptoWalletURL: {
+    key: "providerGetCryptoWalletURL",
+    path: "/cloud/api/Provider/getCryptoWalletURL",
+    buildBody: (env) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getCryptoWalletURL",
+    }),
+  },
+  reportGetDailyFiguresByCustomer: {
+    key: "reportGetDailyFiguresByCustomer",
+    path: "/cloud/api/Report/getDailyFiguresByCustomer",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getDailyFiguresByCustomer" }),
+  },
+  reportGetGrading: {
+    key: "reportGetGrading",
+    path: "/cloud/api/Report/getGrading",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getGrading" }),
+  },
+  reportGetLeaderBoard: {
+    key: "reportGetLeaderBoard",
+    path: "/cloud/api/Report/getLeaderBoard",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getLeaderBoard" }),
+  },
+  reportGetScoresLiveDynamic: {
+    key: "reportGetScoresLiveDynamic",
+    path: "/cloud/api/Report/getScoresLiveDynamic",
+    contentType: "json",
+    buildBody: (env, now) => ({
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getScoresLiveDynamic",
+    }),
+  },
+  reportGetTicketDetailPrint: {
+    key: "reportGetTicketDetailPrint",
+    path: "/cloud/api/Report/getTicketDetailPrint",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getTicketDetailPrint" }),
+  },
+  reportGetTransactions: {
+    key: "reportGetTransactions",
+    path: "/cloud/api/Report/getTransactions",
+    buildBody: (env, now) => withDateRange(env, now, { agentID: env.FANTASY402_AGENT_ID, operation: "getTransactions" }),
+  },
 };
 
 const worker = {
@@ -645,6 +984,27 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return queryAuthorizations(url, env);
+    }
+
+    if (url.pathname === "/graded-wagers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryGradedWagers(url, env);
+    }
+
+    if (url.pathname === "/prop-wagers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryPropWagers(url, env);
+    }
+
+    if (url.pathname === "/position-data" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryPositionData(url, env);
     }
 
     if (url.pathname === "/alerts" && request.method === "GET") {
@@ -811,6 +1171,15 @@ async function runIngestion(env: Env): Promise<RunResult> {
         if (endpoint.key === "getBetTicker") {
           await storeBetTickerWagers(env, mapBetTickerWagers(result.data, result.snapshotId, runId));
         }
+        if (endpoint.key === "getGraded") {
+          await storeGradedWagers(env, mapGradedWagers(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getPropWagers") {
+          await storePropWagers(env, mapPropWagers(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getAgentPositionData") {
+          await storeAgentPositionData(env, mapAgentPositionData(result.data, result.snapshotId, runId));
+        }
 
         endpointsSucceeded += 1;
       } catch (error) {
@@ -853,14 +1222,11 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
   } catch {
     return json({ status: "failed", message: "Expected JSON body" }, 400);
   }
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return json({ status: "failed", message: "Expected JSON object" }, 400);
+  const parsed = localIngestSchema.safeParse(payload);
+  if (!parsed.success) {
+    return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
   }
-
-  const items = (payload as { results?: unknown }).results;
-  if (!Array.isArray(items) || items.length === 0 || items.length > 25) {
-    return json({ status: "failed", message: "results must contain 1-25 endpoint response objects" }, 400);
-  }
+  const items = parsed.data.results;
 
   const runId = crypto.randomUUID();
   const startedAt = new Date();
@@ -895,6 +1261,15 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         }
         if (endpoint.key === "getBetTicker") {
           await storeBetTickerWagers(env, mapBetTickerWagers(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getGraded") {
+          await storeGradedWagers(env, mapGradedWagers(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getPropWagers") {
+          await storePropWagers(env, mapPropWagers(result.data, result.snapshotId, runId));
+        }
+        if (endpoint.key === "getAgentPositionData") {
+          await storeAgentPositionData(env, mapAgentPositionData(result.data, result.snapshotId, runId));
         }
         endpointsSucceeded += 1;
         stored.push({
@@ -1145,11 +1520,12 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   } catch {
     return json({ status: "failed", message: "Expected JSON body" }, 400);
   }
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return json({ status: "failed", message: "Expected JSON object" }, 400);
+  const parsed = refreshAuthSchema.safeParse(payload);
+  if (!parsed.success) {
+    return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
   }
 
-  const body = payload as Record<string, unknown>;
+  const body = parsed.data as Record<string, unknown>;
   applyCookieHeaderAuthAliases(body);
   const authorizationExpiry = authorizationExpiryDiagnostics(firstString(body.authorization));
   if (authorizationExpiry.status === "expired") {
@@ -2063,6 +2439,181 @@ async function storeBetTickerWagers(env: Env, records: BetTickerWagerRecord[]): 
   }
 }
 
+interface GradedWagerRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  capturedAt: string;
+  wagerNumber: number;
+  agentId: string;
+  customerId: string;
+  login: string;
+  wagerType: string;
+  amountWagered: number;
+  toWinAmount: number | null;
+  gradeDateTime: string | null;
+  result: string | null;
+  netAmount: number | null;
+  insertDateTime: string | null;
+  ticketWriter: string | null;
+  volumeAmount: number | null;
+  shortDesc: string | null;
+  agentLogin: string | null;
+  rawJson: string;
+}
+
+function mapGradedWagers(data: unknown, rawSnapshotId: string, runId: string): GradedWagerRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  return items.map((item) => {
+    const raw = item as Record<string, unknown>;
+    return {
+      id: crypto.randomUUID(),
+      snapshotId: rawSnapshotId,
+      runId,
+      capturedAt: new Date().toISOString(),
+      wagerNumber: numberField(item, ["WagerNumber"], 0),
+      agentId: stringField(item, ["AgentID", "agentID"], "").trim(),
+      customerId: stringField(item, ["CustomerID", "customerID"], "").trim(),
+      login: stringField(item, ["Login", "login"], "").trim(),
+      wagerType: stringField(item, ["WagerType", "wagerType"], "").trim(),
+      amountWagered: numberField(item, ["AmountWagered", "amountWagered"], 0),
+      toWinAmount: typeof raw.ToWinAmount === "number" ? raw.ToWinAmount : null,
+      gradeDateTime: typeof raw.GradeDateTime === "string" ? raw.GradeDateTime.trim() : null,
+      result: typeof raw.Result === "string" ? raw.Result.trim() : null,
+      netAmount: typeof raw.NetAmount === "number" ? raw.NetAmount : null,
+      insertDateTime: typeof raw.InsertDateTime === "string" ? raw.InsertDateTime.trim() : null,
+      ticketWriter: typeof raw.TicketWriter === "string" ? raw.TicketWriter.trim() : null,
+      volumeAmount: typeof raw.VolumeAmount === "number" ? raw.VolumeAmount : null,
+      shortDesc: typeof raw.ShortDesc === "string" ? raw.ShortDesc.trim() : null,
+      agentLogin: typeof raw.AgentLogin === "string" ? raw.AgentLogin.trim() : null,
+      rawJson: JSON.stringify(item),
+    };
+  });
+}
+
+async function storeGradedWagers(env: Env, records: GradedWagerRecord[]): Promise<void> {
+  if (records.length === 0) return;
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO graded_wagers
+       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, grade_date_time, result, net_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const record of records) {
+    await stmt
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.gradeDateTime, record.result, record.netAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
+      .run();
+  }
+}
+
+interface PropWagerRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  capturedAt: string;
+  wagerNumber: number;
+  agentId: string;
+  customerId: string;
+  login: string;
+  wagerType: string;
+  amountWagered: number;
+  toWinAmount: number | null;
+  insertDateTime: string | null;
+  ticketWriter: string | null;
+  volumeAmount: number | null;
+  shortDesc: string | null;
+  agentLogin: string | null;
+  rawJson: string;
+}
+
+function mapPropWagers(data: unknown, rawSnapshotId: string, runId: string): PropWagerRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = ((root as Record<string, unknown>).list ? (root as Record<string, unknown>).list : Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  return items.map((item) => {
+    const raw = item as Record<string, unknown>;
+    return {
+      id: crypto.randomUUID(),
+      snapshotId: rawSnapshotId,
+      runId,
+      capturedAt: new Date().toISOString(),
+      wagerNumber: numberField(item, ["WagerNumber"], 0),
+      agentId: stringField(item, ["AgentID", "agentID"], "").trim(),
+      customerId: stringField(item, ["CustomerID", "customerID"], "").trim(),
+      login: stringField(item, ["Login", "login"], "").trim(),
+      wagerType: stringField(item, ["WagerType", "wagerType"], "").trim(),
+      amountWagered: numberField(item, ["AmountWagered", "amountWagered"], 0),
+      toWinAmount: typeof raw.ToWinAmount === "number" ? raw.ToWinAmount : null,
+      insertDateTime: typeof raw.InsertDateTime === "string" ? raw.InsertDateTime.trim() : null,
+      ticketWriter: typeof raw.TicketWriter === "string" ? raw.TicketWriter.trim() : null,
+      volumeAmount: typeof raw.VolumeAmount === "number" ? raw.VolumeAmount : null,
+      shortDesc: typeof raw.ShortDesc === "string" ? raw.ShortDesc.trim() : null,
+      agentLogin: typeof raw.AgentLogin === "string" ? raw.AgentLogin.trim() : null,
+      rawJson: JSON.stringify(item),
+    };
+  });
+}
+
+async function storePropWagers(env: Env, records: PropWagerRecord[]): Promise<void> {
+  if (records.length === 0) return;
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO prop_wagers
+       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const record of records) {
+    await stmt
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
+      .run();
+  }
+}
+
+interface AgentPositionRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  capturedAt: string;
+  sportId: number | null;
+  sportName: string | null;
+  totalWagered: number | null;
+  totalToWin: number | null;
+  wagerCount: number | null;
+  rawJson: string;
+}
+
+function mapAgentPositionData(data: unknown, rawSnapshotId: string, runId: string): AgentPositionRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  return items.map((item) => {
+    const raw = item as Record<string, unknown>;
+    return {
+      id: crypto.randomUUID(),
+      snapshotId: rawSnapshotId,
+      runId,
+      capturedAt: new Date().toISOString(),
+      sportId: typeof raw.SportID === "number" ? raw.SportID : null,
+      sportName: typeof raw.SportName === "string" ? raw.SportName.trim() : null,
+      totalWagered: numberField(item, ["TotalWagered", "totalWagered"], 0) || null,
+      totalToWin: numberField(item, ["TotalToWin", "totalToWin"], 0) || null,
+      wagerCount: numberField(item, ["WagerCount", "wagerCount"], 0) || null,
+      rawJson: JSON.stringify(item),
+    };
+  });
+}
+
+async function storeAgentPositionData(env: Env, records: AgentPositionRecord[]): Promise<void> {
+  if (records.length === 0) return;
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO agent_position_data
+       (id, snapshot_id, run_id, captured_at, sport_id, sport_name, total_wagered, total_to_win, wager_count, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const record of records) {
+    await stmt
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.sportId, record.sportName, record.totalWagered, record.totalToWin, record.wagerCount, record.rawJson)
+      .run();
+  }
+}
+
 async function finishRun(
   env: Env,
   runId: string,
@@ -2129,68 +2680,145 @@ async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> 
 }
 
 async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 500);
-  const agentId = String(url.searchParams.get("agent_id") ?? "").trim();
-  const wagerType = String(url.searchParams.get("wager_type") ?? "").trim().toUpperCase();
-  const since = String(url.searchParams.get("since") ?? "").trim();
-  const minAmount = Number(url.searchParams.get("min_amount") ?? "0");
-  const maxAmount = Number(url.searchParams.get("max_amount") ?? "0");
+  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const limit = filters.limit;
+  const agentId = (filters.agent_id ?? "").trim();
+  const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
+  const since = (filters.since ?? "").trim();
+  const minAmount = filters.min_amount ?? 0;
+  const maxAmount = filters.max_amount ?? 0;
 
   let sql = `SELECT id, wager_number, agent_id, customer_id, login, wager_type,
                     amount_wagered, to_win_amount, insert_date_time, ticket_writer,
                     volume_amount, short_desc, agent_login, captured_at
              FROM bet_ticker_wagers
              WHERE 1=1`;
-  const params: (string | number)[] = [];
+  const bindings: (string | number)[] = [];
 
-  if (agentId) { sql += " AND agent_id = ?"; params.push(agentId); }
-  if (wagerType) { sql += " AND wager_type = ?"; params.push(wagerType); }
-  if (since) { sql += " AND captured_at >= ?"; params.push(since); }
-  if (minAmount > 0) { sql += " AND amount_wagered >= ?"; params.push(minAmount); }
-  if (maxAmount > 0) { sql += " AND amount_wagered <= ?"; params.push(maxAmount); }
+  if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (wagerType) { sql += " AND wager_type = ?"; bindings.push(wagerType); }
+  if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
+  if (minAmount > 0) { sql += " AND amount_wagered >= ?"; bindings.push(minAmount); }
+  if (maxAmount > 0) { sql += " AND amount_wagered <= ?"; bindings.push(maxAmount); }
 
   sql += " ORDER BY captured_at DESC, wager_number DESC LIMIT ?";
-  params.push(limit);
+  bindings.push(limit);
 
-  const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
   return json({ limit, total: result.results?.length ?? 0, wagers: result.results ?? [] }, 200);
 }
 
 async function queryAgentPerformance(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 200);
-  const agentId = String(url.searchParams.get("agent_id") ?? "").trim();
-  const since = String(url.searchParams.get("since") ?? "").trim();
+  const filters = performanceQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const agentId = (filters.agent_id ?? "").trim();
+  const since = (filters.since ?? "").trim();
+  const limit = filters.limit;
 
   let sql = `SELECT id, run_id, captured_at, agent_id, total_wagers, total_volume, win_rate
              FROM agent_performance WHERE 1=1`;
-  const params: (string | number)[] = [];
+  const bindings: (string | number)[] = [];
 
-  if (agentId) { sql += " AND agent_id = ?"; params.push(agentId); }
-  if (since) { sql += " AND captured_at >= ?"; params.push(since); }
+  if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
 
   sql += " ORDER BY captured_at DESC LIMIT ?";
-  params.push(limit);
+  bindings.push(limit);
 
-  const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
 async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 200);
-  const agentId = String(url.searchParams.get("agent_id") ?? "").trim();
-  const since = String(url.searchParams.get("since") ?? "").trim();
+  const filters = authorizationsQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const agentId = (filters.agent_id ?? "").trim();
+  const since = (filters.since ?? "").trim();
+  const limit = filters.limit;
 
   let sql = `SELECT id, snapshot_id, run_id, captured_at, agent_id, master_agent_id, commission_type
              FROM authorization_permissions WHERE 1=1`;
-  const params: (string | number)[] = [];
+  const bindings: (string | number)[] = [];
 
-  if (agentId) { sql += " AND agent_id = ?"; params.push(agentId); }
-  if (since) { sql += " AND captured_at >= ?"; params.push(since); }
+  if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
 
   sql += " ORDER BY captured_at DESC LIMIT ?";
-  params.push(limit);
+  bindings.push(limit);
 
-  const result = await env.ANALYTICS_DB.prepare(sql).bind(...params).all();
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function queryGradedWagers(url: URL, env: Env): Promise<Response> {
+  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const limit = filters.limit;
+  const agentId = (filters.agent_id ?? "").trim();
+  const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
+  const since = (filters.since ?? "").trim();
+  const minAmount = filters.min_amount ?? 0;
+  const maxAmount = filters.max_amount ?? 0;
+
+  let sql = `SELECT id, wager_number, agent_id, customer_id, login, wager_type,
+                    amount_wagered, to_win_amount, grade_date_time, result, net_amount,
+                    insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, captured_at
+             FROM graded_wagers WHERE 1=1`;
+  const bindings: (string | number)[] = [];
+
+  if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (wagerType) { sql += " AND wager_type = ?"; bindings.push(wagerType); }
+  if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
+  if (minAmount > 0) { sql += " AND amount_wagered >= ?"; bindings.push(minAmount); }
+  if (maxAmount > 0) { sql += " AND amount_wagered <= ?"; bindings.push(maxAmount); }
+
+  sql += " ORDER BY captured_at DESC, wager_number DESC LIMIT ?";
+  bindings.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return json({ limit, total: result.results?.length ?? 0, wagers: result.results ?? [] }, 200);
+}
+
+async function queryPropWagers(url: URL, env: Env): Promise<Response> {
+  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const limit = filters.limit;
+  const agentId = (filters.agent_id ?? "").trim();
+  const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
+  const since = (filters.since ?? "").trim();
+  const minAmount = filters.min_amount ?? 0;
+  const maxAmount = filters.max_amount ?? 0;
+
+  let sql = `SELECT id, wager_number, agent_id, customer_id, login, wager_type,
+                    amount_wagered, to_win_amount, insert_date_time, ticket_writer,
+                    volume_amount, short_desc, agent_login, captured_at
+             FROM prop_wagers WHERE 1=1`;
+  const bindings: (string | number)[] = [];
+
+  if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (wagerType) { sql += " AND wager_type = ?"; bindings.push(wagerType); }
+  if (since) { sql += " AND captured_at >= ?"; bindings.push(since); }
+  if (minAmount > 0) { sql += " AND amount_wagered >= ?"; bindings.push(minAmount); }
+  if (maxAmount > 0) { sql += " AND amount_wagered <= ?"; bindings.push(maxAmount); }
+
+  sql += " ORDER BY captured_at DESC, wager_number DESC LIMIT ?";
+  bindings.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return json({ limit, total: result.results?.length ?? 0, wagers: result.results ?? [] }, 200);
+}
+
+async function queryPositionData(url: URL, env: Env): Promise<Response> {
+  const filters = paginationSchema.parse(Object.fromEntries(url.searchParams));
+  const limit = filters.limit;
+  const sportId = Number(url.searchParams.get("sport_id") ?? "0");
+
+  let sql = `SELECT id, sport_id, sport_name, total_wagered, total_to_win, wager_count, captured_at
+             FROM agent_position_data WHERE 1=1`;
+  const bindings: (string | number)[] = [];
+
+  if (sportId > 0) { sql += " AND sport_id = ?"; bindings.push(sportId); }
+
+  sql += " ORDER BY captured_at DESC LIMIT ?";
+  bindings.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 

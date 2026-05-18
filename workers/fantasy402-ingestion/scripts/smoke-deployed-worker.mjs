@@ -4,7 +4,7 @@ const origin = new URL(process.env.WORKER_ORIGIN ?? "https://fantasy402-ingestio
 const token = process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TOKEN || readTokenFile();
 const results = [];
 
-await check("health", "/health?smoke=1", { status: 200, includes: '"status":"ok"' });
+await check("health", "/health?smoke=1", { status: 200, includes: '"worker":"ok"' });
 await check("viewer", "/archive/viewer", { status: 200, includes: "Fantasy402 Archive Viewer" });
 
 for (const route of [

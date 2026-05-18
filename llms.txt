@@ -11,7 +11,16 @@
 1. authenticateCustomer -> cached bearer/session auth for ingestion.
 2. getPlayers -> Pending -> getWagerDetailTransaction for player and wager workflows.
 3. getAgentPositionList -> getAgentPositionData for risk-management workflows.
-4. URL Scanner evidence -> scan verdicts, screenshots, HAR summaries, and alert metadata.
+4. Ingestion cron -> D1 storage -> notifyLiveWager() -> LiveWagerBroadcaster DO broadcasts SSE to dashboard clients.
+5. URL Scanner evidence -> scan verdicts, screenshots, HAR summaries, and alert metadata.
+
+## Visual Reference
+- ANSI wiring diagram: `./endpoint_frontend_wiring_ansi_v2.sh` — run in a true‑color terminal for a color‑coded map of all components and API flows.
+
+## Key Components
+- **Dashboard:** Single-file SPA at `dashboard/index.html` with SSE live-wager ticker, performance tables, and alerting. Design docs: `dashboard/DESIGN.md`
+- **LiveWagerBroadcaster:** Durable Object (`workers/fantasy402-ingestion/src/live-wager-broadcaster.ts`) managing persistent SSE connections for real-time wager delivery.
+- **notifyLiveWager:** Called after D1 wager insert; POSTs `{ id, login, wager_type, amount_wagered, captured_at }` to the DO for SSE broadcast.
 
 ## Contract Artifacts
 - Secured examples spec: ./.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json

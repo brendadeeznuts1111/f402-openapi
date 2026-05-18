@@ -61,8 +61,16 @@ binding = "FANTASY402_BROWSER_HEADERS_JSON"
 store_id = "ebb0809bc1ba45b0b1b081282c6a7bcc"
 secret_name = "FANTASY402_BROWSER_HEADERS_JSON"
 
+[[durable_objects.bindings]]
+name = "LIVE_WAGER_BROADCASTER"
+class_name = "LiveWagerBroadcaster"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveWagerBroadcaster"]
+
 [triggers]
-crons = ["*/5 * * * *", "*/15 * * * *", "0 */6 * * *"]
+crons = ["*/2 * * * *", "*/5 * * * *", "*/15 * * * *", "0 */6 * * *"]
 
 [vars]
 ENVIRONMENT = "production"
@@ -70,7 +78,7 @@ WORKER_NAME = "fantasy402-ingestion"
 CLOUDFLARE_ACCOUNT_ID = "7a470541a704caaf91e71efccc78fd36"
 CLOUDFLARE_ZONE_ID = "a3b7ba4bb62cb1b177b04b8675250674"
 FANTASY402_BASE_URL = "https://fantasy402.com"
-FANTASY402_INGESTION_ENDPOINTS = "getAccountInfoOwner,getAuthorizations,getBetTicker,getAgentPositionData,getAgentPositionList,getGraded,getPropWagers,getSubSportByReport,getWagersByFigureDate"
+FANTASY402_INGESTION_ENDPOINTS = "getAccountInfoOwner,getAuthorizations,getBetTicker,getAgentPositionData,getAgentPositionList,getGraded,getPropWagers,getSubSportByReport,getWagersByFigureDate,getListAgenstByAgent,getWeeklyFigureByAgent"
 FANTASY402_ALLOWED_SCAN_HOSTS = "fantasy402.com,www.fantasy402.com"
 FANTASY402_REFERER = "https://fantasy402.com/manager.html"
 FANTASY402_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"

@@ -21,6 +21,9 @@ export class LiveWagerBroadcaster {
     if (request.method === "POST") {
       return this.handleBroadcast(request);
     }
+    if (request.method === "HEAD") {
+      return new Response(null, { status: 204 });
+    }
     return new Response(null, { status: 405 });
   }
 

@@ -8,6 +8,7 @@ Cloudflare Worker for scheduled ingestion from the secured Fantasy402 read-only 
 - `AUTH_CACHE`: short-lived browser-derived auth overlay used by `/refresh-auth`.
 - `ANALYTICS_DB`: D1 database for run metadata, raw snapshot pointers, and normalized metrics.
 - `RAW_ARCHIVE`: R2 bucket for raw JSON response and failure archives.
+- `LIVE_WAGER_BROADCASTER`: Durable Object for SSE live-wager broadcast to dashboard clients.
 
 Endpoint calls retry up to three times for transient upstream failures. Final endpoint failures are written to the `endpoint_failures` D1 table and archived to R2 for operator review.
 
@@ -261,6 +262,7 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `GET /prop-wagers` same filter interface, queries `prop_wagers` D1 table.
 - `GET /position-data?limit=<n>&sport_id=<id>` queries the `agent_position_data` D1 table (sport_id, sport_name, total_wagered, total_to_win, wager_count).
 - `GET /performance?limit=<n>&agent_id=<id>&since=<iso>` queries the `agent_performance` D1 table (total_wagers, total_volume, win_rate).
+- `GET /live-wagers` opens an SSE stream via `LiveWagerBroadcaster` Durable Object. Messages use the format `data: {"id":"...","login":"...","wager_type":"...","amount_wagered":<int>,"captured_at":"..."}\n\n`. No authentication required (CORS allowed).
 - `GET /authorizations?limit=<n>&agent_id=<id>&since=<iso>` queries the `authorization_permissions` D1 table (agent_id, master_agent_id, commission_type).
 - `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.
 - `GET /scans/screenshot?scanId=<uuid>` streams the archived scan screenshot from R2 with no-store cache headers.
@@ -269,6 +271,7 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `GET /scans/network-diff?baseScanId=<uuid>&compareScanId=<uuid>` compares two network summaries and reports host/status/method/MIME deltas.
 - `POST /scans/trigger` runs a protected manual URL scan.
 - `POST /trigger-scan` is a compatibility alias for manual URL scans.
+- `GET /summary` returns aggregated dashboard data: today's live wager count/volume/agents/types, graded wager P&L, top 5 agents by performance, top 5 sports by volume.
 - `GET /alerts/summary?days=<n>&severity=<level>&type=<alert_type>` returns filtered totals, daily buckets, and top affected scans.
 - `POST /alerts/policy-test` creates synthetic network-policy alerts and archives their full payloads to R2.
 
@@ -398,5 +401,55 @@ To force stdin:
 ```bash
 pbpaste | INGESTION_TRIGGER_TOKEN="$(cat .archive-auth-token)" npm run ingest:curl -- -
 ```
+
+## Live Dashboard
+
+A real-time monitoring dashboard is deployed at:
+
+**https://fantasy402-dashboard-5q6.pages.dev**
+
+The dashboard loads live from the Worker API through a Cloudflare Pages Function proxy (`dashboard/_worker.js`):
+
+- **Summary cards** — today's live wager count, volume, active agents, graded P&L
+- **Live wager ticker** — receives wagers in real-time via SSE (`/api/live-wagers`), with 5s polling fallback. Filterable by wager type and minimum amount.
+- **Agent performance table** — from `/api/performance`, sortable by volume/win%
+- **Graded wagers log** — from `/api/graded-wagers`, filterable by result and agent
+- **Authorization status grid** — from `/api/authorizations`
+- **Threshold alerts** — client-side toast + browser notification for wagers >$500 or daily loss >$1,000
+
+### Real-time pipeline
+
+1. Ingestion stores wagers in D1, then calls `notifyLiveWager()` which POSTs to a `LiveWagerBroadcaster` Durable Object.
+2. The DO broadcasts the wager via SSE to all connected dashboard sessions.
+3. The dashboard's `onmessage` handler adds each wager to the in-memory ticker (max 100) and re-renders.
+4. If SSE fails to connect within 10s, the dashboard falls back to polling `/api/bet-ticker-wagers` every 5s.
+
+The proxy is a single-file ES Module Worker (`dashboard/_worker.js`) that routes `/api/*` requests to the Worker origin with `INGESTION_TRIGGER_TOKEN` injected server-side. Static assets are served directly by Cloudflare Pages.
+
+### Local development
+
+```bash
+cd dashboard
+npx wrangler pages dev . --binding INGESTION_TRIGGER_TOKEN=your_token_here
+```
+
+### Deployment
+
+```bash
+cd dashboard
+npx wrangler pages deploy . --project-name fantasy402-dashboard
+```
+
+The `INGESTION_TRIGGER_TOKEN` secret must be set as a Pages secret:
+
+```bash
+npx wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name fantasy402-dashboard
+```
+
+### Source files
+
+- `dashboard/index.html` — Single-file SPA (no build step)
+- `dashboard/_worker.js` — Pages Function proxy
+- `dashboard/wrangler.toml` — Pages project configuration
 
 Run `npm run validate:openapi` before publishing API docs for this Worker.

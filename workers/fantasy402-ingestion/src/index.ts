@@ -28,6 +28,7 @@ export interface Env {
   FANTASY402_CUSTOMER_ID?: string;
   LIVE_WAGER_BROADCASTER: DurableObjectNamespace;
   FANTASY402_ALLOWED_SCAN_HOSTS?: string;
+  UPSTREAM_TOKEN?: string;
   INGESTION_TRIGGER_TOKEN?: string;
   ARCHIVE_AUTH_TOKEN?: string;
   ALERT_WEBHOOK_URL?: string;
@@ -786,7 +787,9 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     key: "getWeeklyFigureByAgent",
     path: "/cloud/api/Manager/getWeeklyFigureByAgent",
     buildBody: (env) => ({
-      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getWeeklyFigureByAgent",
+      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID,
+      week: 0, type: "O", layout: "byDay", bigAmount: 500,
+      operation: "getWeeklyFigureByAgent",
     }),
   },
   liveCasinoGetLimits: {
@@ -896,7 +899,36 @@ const worker = {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return json({ status: "ok", environment: env.ENVIRONMENT }, 200);
+      const checks: Record<string, string> = {};
+
+      checks.worker = "ok";
+
+      try {
+        await env.ANALYTICS_DB.prepare("SELECT 1").run();
+        checks.d1 = "ok";
+      } catch {
+        checks.d1 = "error";
+      }
+
+      try {
+        const doId = env.LIVE_WAGER_BROADCASTER.idFromName("health-check");
+        const stub = env.LIVE_WAGER_BROADCASTER.get(doId);
+        await stub.fetch("http://do/health", { method: "HEAD", signal: AbortSignal.timeout(5_000) });
+        checks.durable_object = "ok";
+      } catch {
+        checks.durable_object = "error";
+      }
+
+      try {
+        const upRes = await fetch(env.FANTASY402_BASE_URL, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
+        checks.upstream = upRes.ok ? "ok" : "unreachable";
+      } catch {
+        checks.upstream = "unreachable";
+      }
+
+      checks.timestamp = new Date().toISOString();
+      const status = Object.values(checks).some(v => v === "error") ? 503 : 200;
+      return json(checks, status);
     }
 
     if (url.pathname === "/archive/viewer" && request.method === "GET") {
@@ -1091,9 +1123,6 @@ const worker = {
     }
 
     if (url.pathname === "/live-wagers" && request.method === "GET") {
-      if (!isAuthorized(request, env)) {
-        return json({ status: "failed", message: "Unauthorized" }, 401);
-      }
       const doId = env.LIVE_WAGER_BROADCASTER.idFromName("global");
       const stub = env.LIVE_WAGER_BROADCASTER.get(doId);
       return stub.fetch(request);
@@ -1222,6 +1251,11 @@ async function runIngestion(env: Env): Promise<RunResult> {
       const traceId = crypto.randomUUID();
       const startedMs = Date.now();
       try {
+        if (await shouldCircuitBreak(endpoint, env)) {
+          endpointsFailed += 1;
+          console.error("endpoint ingestion skipped", safeError(new Error("circuit breaker open"), { endpoint: endpoint.key, runId, traceId }));
+          continue;
+        }
         const result = await fetchAndArchiveEndpoint(env, runId, traceId, startedMs, endpoint, sessionCookie, new Date());
         await storeSnapshot(env, runId, result);
 
@@ -1259,12 +1293,18 @@ async function runIngestion(env: Env): Promise<RunResult> {
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
+        if (endpoint.key === "getWeeklyFigureByAgent") {
+          const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
+          await storeWeeklyFigures(env, records);
+        }
 
         endpointsSucceeded += 1;
+        recordCircuitStatus(endpoint, true, env);
       } catch (error) {
         endpointsFailed += 1;
         const durationMs = Math.max(0, Date.now() - startedMs);
         await storeEndpointFailure(env, runId, traceId, durationMs, endpoint, error);
+        recordCircuitStatus(endpoint, false, env);
         console.error("endpoint ingestion failed", safeError(error, { endpoint: endpoint.key, runId, traceId }));
       }
     }
@@ -1364,6 +1404,10 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         }
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
+        }
+        if (endpoint.key === "getWeeklyFigureByAgent") {
+          const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
+          await storeWeeklyFigures(env, records);
         }
         endpointsSucceeded += 1;
         stored.push({
@@ -2042,7 +2086,7 @@ function fantasy402ApiHeaders(env: Env, sessionCookie: string, contentType: stri
   applyObservedBrowserHeaders(headers, env.FANTASY402_BROWSER_HEADERS_JSON);
   headers["Content-Type"] = contentType;
   headers.Cookie = fantasy402CookieHeader(env, sessionCookie);
-  const authorization = normalizeAuthorization(env.FANTASY402_AUTHORIZATION);
+  const authorization = normalizeAuthorization(env.UPSTREAM_TOKEN) ?? normalizeAuthorization(env.FANTASY402_AUTHORIZATION);
   if (authorization) headers.Authorization = authorization;
   return headers;
 }
@@ -2530,6 +2574,7 @@ interface BetTickerWagerRecord {
   shortDesc: string | null;
   agentLogin: string | null;
   rawJson: string;
+  idempotencyKey: string;
 }
 
 function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string): BetTickerWagerRecord[] {
@@ -2537,13 +2582,15 @@ function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string)
   const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
   return items.map((item) => {
     const raw = item as Record<string, unknown>;
+    const wagerNumber = numberField(item, ["WagerNumber"], 0);
+    const agentId = stringField(item, ["AgentID", "agentID"], "").trim();
     return {
       id: crypto.randomUUID(),
       snapshotId: rawSnapshotId,
       runId,
       capturedAt: new Date().toISOString(),
-      wagerNumber: numberField(item, ["WagerNumber"], 0),
-      agentId: stringField(item, ["AgentID", "agentID"], "").trim(),
+      wagerNumber,
+      agentId,
       customerId: stringField(item, ["CustomerID", "customerID"], "").trim(),
       login: stringField(item, ["Login", "login"], "").trim(),
       wagerType: stringField(item, ["WagerType", "wagerType"], "").trim(),
@@ -2555,6 +2602,7 @@ function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string)
       shortDesc: typeof raw.ShortDesc === "string" ? raw.ShortDesc.trim() : null,
       agentLogin: typeof raw.AgentLogin === "string" ? raw.AgentLogin.trim() : null,
       rawJson: JSON.stringify(item),
+      idempotencyKey: `betTicker:${agentId}:${wagerNumber}`,
     };
   });
 }
@@ -2562,13 +2610,90 @@ function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string)
 async function storeBetTickerWagers(env: Env, records: BetTickerWagerRecord[]): Promise<void> {
   if (records.length === 0) return;
   const stmt = env.ANALYTICS_DB.prepare(
-    `INSERT INTO bet_ticker_wagers
-       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO bet_ticker_wagers
+       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json, idempotency_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const record of records) {
     await stmt
-      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson, record.idempotencyKey)
+      .run();
+  }
+}
+
+async function shouldCircuitBreak(endpoint: EndpointConfig, env: Env): Promise<boolean> {
+  try {
+    const key = `cb:${endpoint.key}`;
+    const state = await env.SESSION_KV.get<{ failures: number; lastFailure: number }>(key, "json");
+    if (!state || state.failures < 3) return false;
+    const elapsed = Date.now() - state.lastFailure;
+    return elapsed < 120_000;
+  } catch {
+    return false;
+  }
+}
+
+async function recordCircuitStatus(endpoint: EndpointConfig, success: boolean, env: Env): Promise<void> {
+  try {
+    const key = `cb:${endpoint.key}`;
+    if (success) {
+      await env.SESSION_KV.delete(key);
+      return;
+    }
+    const state = await env.SESSION_KV.get<{ failures: number; lastFailure: number }>(key, "json") ?? { failures: 0, lastFailure: 0 };
+    state.failures += 1;
+    state.lastFailure = Date.now();
+    await env.SESSION_KV.put(key, JSON.stringify(state), { expirationTtl: 600 });
+  } catch { /* circuit breaker state is best-effort */ }
+}
+
+interface WeeklyFigureRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  agentId: string;
+  week: number;
+  type: string;
+  figureDate: string;
+  wagerCount: number;
+  volume: number;
+  netAmount: number;
+  bigWagers: number;
+  rawJson: string;
+  capturedAt: string;
+}
+
+function mapWeeklyFigures(data: unknown, snapshotId: string, runId: string): WeeklyFigureRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  return items.map((item) => {
+    const raw = item as Record<string, unknown>;
+    return {
+      id: crypto.randomUUID(),
+      snapshotId,
+      runId,
+      agentId: stringField(item, ["AgentID", "agentID", "Agent"], "").trim() || "unknown",
+      week: numberField(item, ["Week"], 0),
+      type: stringField(item, ["Type", "type"], "O"),
+      figureDate: stringField(item, ["Date", "date", "FigureDate", "figureDate"], ""),
+      wagerCount: numberField(item, ["WagerCount", "wagerCount", "TotalWagers", "totalWagers"], 0),
+      volume: numberField(item, ["Volume", "volume", "TotalVolume", "totalVolume"], 0),
+      netAmount: numberField(item, ["NetAmount", "netAmount", "Net", "net"], 0),
+      bigWagers: numberField(item, ["BigWagers", "bigWagers", "BigAmountCount"], 0),
+      rawJson: JSON.stringify(item),
+      capturedAt: new Date().toISOString(),
+    };
+  });
+}
+
+async function storeWeeklyFigures(env: Env, records: WeeklyFigureRecord[]): Promise<void> {
+  for (const r of records) {
+    await env.ANALYTICS_DB.prepare(
+      `INSERT INTO weekly_figures
+         (id, snapshot_id, run_id, agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, raw_json, captured_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(r.id, r.snapshotId, r.runId, r.agentId, r.week, r.type, r.figureDate, r.wagerCount, r.volume, r.netAmount, r.bigWagers, r.rawJson, r.capturedAt)
       .run();
   }
 }
@@ -2607,6 +2732,7 @@ interface GradedWagerRecord {
   shortDesc: string | null;
   agentLogin: string | null;
   rawJson: string;
+  idempotencyKey: string;
 }
 
 function mapGradedWagers(data: unknown, rawSnapshotId: string, runId: string): GradedWagerRecord[] {
@@ -2614,13 +2740,15 @@ function mapGradedWagers(data: unknown, rawSnapshotId: string, runId: string): G
   const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
   return items.map((item) => {
     const raw = item as Record<string, unknown>;
+    const wagerNumber = numberField(item, ["WagerNumber"], 0);
+    const agentId = stringField(item, ["AgentID", "agentID"], "").trim();
     return {
       id: crypto.randomUUID(),
       snapshotId: rawSnapshotId,
       runId,
       capturedAt: new Date().toISOString(),
-      wagerNumber: numberField(item, ["WagerNumber"], 0),
-      agentId: stringField(item, ["AgentID", "agentID"], "").trim(),
+      wagerNumber,
+      agentId,
       customerId: stringField(item, ["CustomerID", "customerID"], "").trim(),
       login: stringField(item, ["Login", "login"], "").trim(),
       wagerType: stringField(item, ["WagerType", "wagerType"], "").trim(),
@@ -2635,6 +2763,7 @@ function mapGradedWagers(data: unknown, rawSnapshotId: string, runId: string): G
       shortDesc: typeof raw.ShortDesc === "string" ? raw.ShortDesc.trim() : null,
       agentLogin: typeof raw.AgentLogin === "string" ? raw.AgentLogin.trim() : null,
       rawJson: JSON.stringify(item),
+      idempotencyKey: `graded:${agentId}:${wagerNumber}`,
     };
   });
 }
@@ -2642,13 +2771,13 @@ function mapGradedWagers(data: unknown, rawSnapshotId: string, runId: string): G
 async function storeGradedWagers(env: Env, records: GradedWagerRecord[]): Promise<void> {
   if (records.length === 0) return;
   const stmt = env.ANALYTICS_DB.prepare(
-    `INSERT INTO graded_wagers
-       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, grade_date_time, result, net_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO graded_wagers
+       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, grade_date_time, result, net_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json, idempotency_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const record of records) {
     await stmt
-      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.gradeDateTime, record.result, record.netAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.gradeDateTime, record.result, record.netAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson, record.idempotencyKey)
       .run();
   }
 }
@@ -2671,6 +2800,7 @@ interface PropWagerRecord {
   shortDesc: string | null;
   agentLogin: string | null;
   rawJson: string;
+  idempotencyKey: string;
 }
 
 function mapPropWagers(data: unknown, rawSnapshotId: string, runId: string): PropWagerRecord[] {
@@ -2678,13 +2808,15 @@ function mapPropWagers(data: unknown, rawSnapshotId: string, runId: string): Pro
   const items = ((root as Record<string, unknown>).list ? (root as Record<string, unknown>).list : Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
   return items.map((item) => {
     const raw = item as Record<string, unknown>;
+    const wagerNumber = numberField(item, ["WagerNumber"], 0);
+    const agentId = stringField(item, ["AgentID", "agentID"], "").trim();
     return {
       id: crypto.randomUUID(),
       snapshotId: rawSnapshotId,
       runId,
       capturedAt: new Date().toISOString(),
-      wagerNumber: numberField(item, ["WagerNumber"], 0),
-      agentId: stringField(item, ["AgentID", "agentID"], "").trim(),
+      wagerNumber,
+      agentId,
       customerId: stringField(item, ["CustomerID", "customerID"], "").trim(),
       login: stringField(item, ["Login", "login"], "").trim(),
       wagerType: stringField(item, ["WagerType", "wagerType"], "").trim(),
@@ -2696,6 +2828,7 @@ function mapPropWagers(data: unknown, rawSnapshotId: string, runId: string): Pro
       shortDesc: typeof raw.ShortDesc === "string" ? raw.ShortDesc.trim() : null,
       agentLogin: typeof raw.AgentLogin === "string" ? raw.AgentLogin.trim() : null,
       rawJson: JSON.stringify(item),
+      idempotencyKey: `prop:${agentId}:${wagerNumber}`,
     };
   });
 }
@@ -2703,13 +2836,13 @@ function mapPropWagers(data: unknown, rawSnapshotId: string, runId: string): Pro
 async function storePropWagers(env: Env, records: PropWagerRecord[]): Promise<void> {
   if (records.length === 0) return;
   const stmt = env.ANALYTICS_DB.prepare(
-    `INSERT INTO prop_wagers
-       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO prop_wagers
+       (id, snapshot_id, run_id, captured_at, wager_number, agent_id, customer_id, login, wager_type, amount_wagered, to_win_amount, insert_date_time, ticket_writer, volume_amount, short_desc, agent_login, raw_json, idempotency_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const record of records) {
     await stmt
-      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson)
+      .bind(record.id, record.snapshotId, record.runId, record.capturedAt, record.wagerNumber, record.agentId, record.customerId, record.login, record.wagerType, record.amountWagered, record.toWinAmount, record.insertDateTime, record.ticketWriter, record.volumeAmount, record.shortDesc, record.agentLogin, record.rawJson, record.idempotencyKey)
       .run();
   }
 }

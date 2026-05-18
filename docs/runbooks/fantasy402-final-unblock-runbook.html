@@ -496,9 +496,9 @@
         <div class="cmd-block">
           <button class="copy-btn" type="button" data-copy-command>Copy</button>
 # 1. Capture fresh browser cURL from a Fantasy402 /cloud/api request.
-# 2. Import to the ignored local auth file.
-# 3. Refresh the Worker overlay and run a focused ingestion check.
-pbpaste | INGESTION_TRIGGER_TOKEN="$(cat workers/fantasy402-ingestion/.archive-auth-token)" npm run --prefix workers/fantasy402-ingestion ingest:curl -- -
+# 2. Refresh Worker auth, require ready diagnostics, trigger ingestion.
+# 3. Print sanitized /runs/endpoints evidence with trace IDs and R2 keys.
+pbpaste | INGESTION_TRIGGER_TOKEN="$(cat workers/fantasy402-ingestion/.archive-auth-token)" npm run --prefix workers/fantasy402-ingestion ingest:unblock -- -
         </div>
         <p style="font-size:11px; color:var(--text-muted);">
           Keep raw bearer and cookie values out of tracked files. The importer writes to ignored local auth files and the Worker stores only the refresh overlay needed at runtime.

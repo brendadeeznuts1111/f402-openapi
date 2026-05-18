@@ -1,0 +1,282 @@
+import fs from "node:fs";
+import { execFileSync } from "node:child_process";
+
+export function parseBrowserCurl(text) {
+  const headers = {};
+  const headerMatches = text.matchAll(/(?:^|\s)(?:-H|--header)\s+(["'])(.*?)\1/gms);
+  for (const match of headerMatches) {
+    const raw = unescapeShell(match[2]).trim();
+    const index = raw.indexOf(":");
+    if (index <= 0) continue;
+    headers[raw.slice(0, index).trim().toLowerCase()] = raw.slice(index + 1).trim();
+  }
+
+  const cookie = parseCookieFlag(text) || headers.cookie || "";
+  const cookies = parseCookies(cookie);
+  const bodyText = parseDataRaw(text);
+  const form = parseFormBody(bodyText);
+
+  const browserHeaders = {};
+  for (const name of [
+    "accept",
+    "accept-language",
+    "origin",
+    "priority",
+    "referer",
+    "sec-ch-ua",
+    "sec-ch-ua-mobile",
+    "sec-ch-ua-platform",
+    "sec-fetch-dest",
+    "sec-fetch-mode",
+    "sec-fetch-site",
+    "user-agent",
+    "x-requested-with",
+  ]) {
+    if (headers[name]) browserHeaders[name] = headers[name];
+  }
+
+  const result = {
+    sourcePath: parseCurlUrl(text)?.pathname || "",
+    sourceOperation: form.operation || "",
+    sourceContentType: headers["content-type"] || "",
+    agentId: form.agentID || form.agentOwner || form.customerID || "",
+    customerId: form.customerID || "",
+    authorization: headers.authorization || "",
+    sessionCookie: cookieWithoutCloudflare(cookies),
+    cfClearance: cookies.cf_clearance || "",
+    cfBm: cookies.__cf_bm || "",
+    browserHeaders,
+    expiresInSeconds: 3600,
+  };
+
+  for (const key of Object.keys(result)) {
+    if (result[key] === "" || (key === "browserHeaders" && Object.keys(result[key]).length === 0)) {
+      delete result[key];
+    }
+  }
+  return result;
+}
+
+export function readBrowserCurlInput(path) {
+  if (path === "-") {
+    return fs.readFileSync(0, "utf8");
+  }
+  try {
+    return fs.readFileSync(path, "utf8");
+  } catch (error) {
+    if (path === "fantasy402/browser-request.curl") {
+      const pasted = readMacClipboard();
+      if (pasted) return pasted;
+      throw new Error(
+        `Could not read ${path}, and the macOS clipboard did not contain a curl command. Copy a successful browser request as cURL, then rerun this command, or pipe it with: pbpaste | npm run auth:import-curl -- -`,
+      );
+    }
+    throw new Error(`Could not read ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+export function validateBrowserAuthPayload(payload, label = "browser auth") {
+  const findings = [];
+  for (const field of ["authorization", "cfClearance", "cfBm"]) {
+    const value = payload[field];
+    if (typeof value !== "string" || !value.trim()) {
+      findings.push(`${field} is missing`);
+      continue;
+    }
+    if (isPlaceholderToken(value)) findings.push(`${field} still looks like a placeholder`);
+  }
+
+  if (!payload.sessionCookie) {
+    findings.push("sessionCookie is missing; include the app session cookie such as ASP.NET_SessionId");
+  } else if (isPlaceholderToken(payload.sessionCookie)) {
+    findings.push("sessionCookie still looks like a placeholder");
+  } else if (!hasNonCloudflareCookie(payload.sessionCookie)) {
+    findings.push("sessionCookie contains only Cloudflare cookies; include the app session cookie such as ASP.NET_SessionId");
+  }
+
+  if (!payload.browserHeaders && !payload.browserHeadersJson && !payload.userAgent) {
+    findings.push("browserHeaders/browserHeadersJson or userAgent is missing");
+  }
+
+  if (findings.length > 0) {
+    throw new Error(`${label} is not ingestion-ready: ${findings.join("; ")}`);
+  }
+}
+
+export function refreshPayload(payload) {
+  const out = {};
+  for (const key of [
+    "authorization",
+    "sessionCookie",
+    "cfClearance",
+    "cfBm",
+    "browserHeadersJson",
+    "browserHeaders",
+    "userAgent",
+    "referer",
+    "customerId",
+    "expiresInSeconds",
+  ]) {
+    if (payload[key] !== undefined) out[key] = payload[key];
+  }
+  return out;
+}
+
+export function authShape(payload) {
+  return {
+    hasAuthorization: Boolean(normalizeAuthorization(payload.authorization)),
+    hasSessionCookie: hasNonCloudflareCookie(payload.sessionCookie),
+    hasCfClearance: Boolean(normalizeCookieValue("cf_clearance", payload.cfClearance)),
+    hasCfBm: Boolean(normalizeCookieValue("__cf_bm", payload.cfBm)),
+    cookieNames: cookieNames(cookieHeader(payload)),
+    browserHeaderCount: Object.keys(normalizeBrowserHeaders(payload.browserHeadersJson ?? payload.browserHeaders)).length,
+  };
+}
+
+export function cookieHeader(payload) {
+  const cookies = splitCookieHeader(payload.sessionCookie || "");
+  appendCookieIfMissing(cookies, "cf_clearance", payload.cfClearance);
+  appendCookieIfMissing(cookies, "__cf_bm", payload.cfBm);
+  return cookies.join("; ");
+}
+
+export function readTokenFile(path = ".archive-auth-token") {
+  try {
+    return fs.readFileSync(path, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function isPlaceholderToken(value) {
+  const trimmed = String(value).trim();
+  return trimmed === "..." || /^<.+>$/.test(trimmed) || /redacted|placeholder|changeme/i.test(trimmed);
+}
+
+export function parseJson(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: String(text).slice(0, 500) };
+  }
+}
+
+export function normalizeBrowserHeaders(value) {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+export function normalizeAuthorization(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const trimmed = value.trim();
+  return /^Bearer\s+/i.test(trimmed) ? trimmed : `Bearer ${trimmed}`;
+}
+
+export function hasNonCloudflareCookie(value) {
+  return cookieNames(value || "").some((name) => !isCloudflareCookieName(name));
+}
+
+function parseCurlUrl(text) {
+  const match = text.match(/curl\s+(["'])(.*?)\1/ms) || text.match(/curl\s+(\S+)/m);
+  const raw = match?.[2] || match?.[1] || "";
+  try {
+    return new URL(unescapeShell(raw));
+  } catch {
+    return null;
+  }
+}
+
+function parseCookieFlag(text) {
+  const match = text.match(/(?:^|\s)(?:-b|--cookie)\s+(["'])(.*?)\1/ms);
+  return match ? unescapeShell(match[2]).trim() : "";
+}
+
+function parseDataRaw(text) {
+  const match = text.match(/(?:^|\s)(?:--data-raw|--data)\s+(["'])(.*?)\1/ms);
+  return match ? unescapeShell(match[2]).trim() : "";
+}
+
+function parseFormBody(text) {
+  if (!text) return {};
+  if (text.startsWith("{")) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  }
+  const output = {};
+  const params = new URLSearchParams(text);
+  for (const [key, value] of params.entries()) output[key] = value;
+  return output;
+}
+
+function parseCookies(value) {
+  const output = {};
+  for (const part of value.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const index = trimmed.indexOf("=");
+    if (index <= 0) continue;
+    output[trimmed.slice(0, index)] = trimmed.slice(index + 1);
+  }
+  return output;
+}
+
+function cookieWithoutCloudflare(cookies) {
+  return Object.entries(cookies)
+    .filter(([name]) => !isCloudflareCookieName(name))
+    .map(([name, value]) => `${name}=${value}`)
+    .join("; ");
+}
+
+function unescapeShell(value) {
+  return value.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+}
+
+function readMacClipboard() {
+  try {
+    const pasted = execFileSync("pbpaste", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return pasted.includes("curl ") ? pasted : "";
+  } catch {
+    return "";
+  }
+}
+
+function splitCookieHeader(value) {
+  return String(value).split(";").map((part) => part.trim()).filter(Boolean);
+}
+
+function appendCookieIfMissing(cookies, name, value) {
+  const clean = normalizeCookieValue(name, value);
+  if (!clean) return;
+  if (cookies.some((cookie) => cookieName(cookie)?.toLowerCase() === name.toLowerCase())) return;
+  cookies.push(clean);
+}
+
+function cookieNames(header) {
+  return splitCookieHeader(header).map(cookieName).filter(Boolean);
+}
+
+function cookieName(cookie) {
+  const index = String(cookie).indexOf("=");
+  return index > 0 ? String(cookie).slice(0, index).trim() : null;
+}
+
+function isCloudflareCookieName(name) {
+  const normalized = String(name).toLowerCase();
+  return normalized === "cf_clearance" || normalized === "__cf_bm";
+}
+
+function normalizeCookieValue(name, value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const trimmed = value.trim();
+  return trimmed.includes("=") ? trimmed : `${name}=${trimmed}`;
+}

@@ -126,6 +126,14 @@ npm run auth:check
 
 The generated `fantasy402/browser-auth.json` is ignored and must not be committed.
 
+To unblock production after a browser session expires, copy a successful authenticated Fantasy402 `/cloud/api/*` request as cURL and run:
+
+```bash
+pbpaste | INGESTION_TRIGGER_TOKEN="$(cat .archive-auth-token)" npm run ingest:unblock -- -
+```
+
+`ingest:unblock` imports the browser auth, rejects captures without an app session cookie such as `ASP.NET_SessionId`, refreshes `/refresh-auth`, requires `/diagnostics` to be ready, triggers ingestion, then prints sanitized `/runs/endpoints` evidence.
+
 ## Deploy
 
 Validate before deploy:

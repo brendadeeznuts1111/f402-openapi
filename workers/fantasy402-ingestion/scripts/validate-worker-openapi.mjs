@@ -4,32 +4,59 @@ const specPath = new URL("../openapi.worker.json", import.meta.url);
 const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
 const findings = [];
 
+const expectedOperations = [
+  ["GET", "/alerts"],
+  ["POST", "/alerts/policy-test"],
+  ["GET", "/alerts/summary"],
+  ["POST", "/alerts/test"],
+  ["GET", "/archive"],
+  ["GET", "/archive/object"],
+  ["GET", "/archive/viewer"],
+  ["GET", "/diagnostics"],
+  ["GET", "/health"],
+  ["POST", "/ingest/local"],
+  ["POST", "/refresh-auth"],
+  ["GET", "/runs"],
+  ["GET", "/runs/endpoints"],
+  ["GET", "/scanner/diagnostics"],
+  ["GET", "/scans"],
+  ["GET", "/scans/detail"],
+  ["GET", "/scans/export"],
+  ["GET", "/scans/har"],
+  ["GET", "/scans/network-diff"],
+  ["GET", "/scans/network-summary"],
+  ["GET", "/scans/screenshot"],
+  ["GET", "/scans/summary"],
+  ["POST", "/scans/trigger"],
+  ["POST", "/trigger"],
+  ["POST", "/trigger-scan"],
+];
+const publicOperations = new Set(["GET /archive/viewer", "GET /health"]);
+const expectedOperationKeys = new Set(expectedOperations.map(([method, path]) => `${method} ${path}`));
+
 if (spec.openapi !== "3.1.0") findings.push("openapi must be 3.1.0");
-if (!spec.paths?.["/health"]?.get) findings.push("missing GET /health operation");
-if (!spec.paths?.["/trigger"]?.post) findings.push("missing POST /trigger operation");
-if (!spec.paths?.["/archive"]?.get) findings.push("missing GET /archive operation");
-if (!spec.paths?.["/archive/object"]?.get) findings.push("missing GET /archive/object operation");
-if (!spec.paths?.["/scans"]?.get) findings.push("missing GET /scans operation");
-if (!spec.paths?.["/scans/trigger"]?.post) findings.push("missing POST /scans/trigger operation");
-if (!spec.paths?.["/refresh-auth"]?.post) findings.push("missing POST /refresh-auth operation");
-if (!spec.paths?.["/ingest/local"]?.post) findings.push("missing POST /ingest/local operation");
 if (!spec.components?.securitySchemes?.triggerToken) findings.push("missing triggerToken security scheme");
 
-const triggerSecurity = spec.paths?.["/trigger"]?.post?.security ?? [];
-if (!JSON.stringify(triggerSecurity).includes("triggerToken")) {
-  findings.push("POST /trigger must require triggerToken security");
+for (const [method, path] of expectedOperations) {
+  const key = `${method} ${path}`;
+  const operation = spec.paths?.[path]?.[method.toLowerCase()];
+  if (!operation) {
+    findings.push(`missing ${key} operation`);
+    continue;
+  }
+  const security = operation.security ?? [];
+  if (publicOperations.has(key)) {
+    if (JSON.stringify(security).includes("triggerToken")) findings.push(`${key} must remain public`);
+  } else if (!JSON.stringify(security).includes("triggerToken")) {
+    findings.push(`${key} must require triggerToken security`);
+  }
 }
 
-for (const [method, operation] of [
-  ["GET /archive", spec.paths?.["/archive"]?.get],
-  ["GET /archive/object", spec.paths?.["/archive/object"]?.get],
-  ["GET /scans", spec.paths?.["/scans"]?.get],
-  ["POST /scans/trigger", spec.paths?.["/scans/trigger"]?.post],
-  ["POST /refresh-auth", spec.paths?.["/refresh-auth"]?.post],
-  ["POST /ingest/local", spec.paths?.["/ingest/local"]?.post],
-]) {
-  if (!JSON.stringify(operation?.security ?? []).includes("triggerToken")) {
-    findings.push(`${method} must require triggerToken security`);
+for (const [path, pathItem] of Object.entries(spec.paths ?? {})) {
+  for (const method of ["get", "post", "put", "patch", "delete"]) {
+    if (pathItem?.[method] && !expectedOperationKeys.has(`${method.toUpperCase()} ${path}`)) {
+      findings.push(`unexpected OpenAPI operation ${method.toUpperCase()} ${path}`);
+    }
   }
 }
 

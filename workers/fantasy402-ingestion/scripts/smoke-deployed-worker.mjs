@@ -6,8 +6,38 @@ const results = [];
 
 await check("health", "/health?smoke=1", { status: 200, includes: '"status":"ok"' });
 await check("viewer", "/archive/viewer", { status: 200, includes: "Fantasy402 Archive Viewer" });
-await check("diagnostics unauthenticated", "/diagnostics", { status: 401, includes: "Unauthorized" });
-await check("archive unauthenticated", "/archive?prefix=fantasy402/&limit=1", { status: 401, includes: "Unauthorized" });
+
+for (const route of [
+  ["GET", "/alerts?limit=1"],
+  ["POST", "/alerts/policy-test"],
+  ["GET", "/alerts/summary?days=1"],
+  ["POST", "/alerts/test"],
+  ["GET", "/archive?prefix=fantasy402/&limit=1"],
+  ["GET", "/archive/object"],
+  ["GET", "/diagnostics"],
+  ["POST", "/ingest/local"],
+  ["POST", "/refresh-auth"],
+  ["GET", "/runs?limit=1"],
+  ["GET", "/runs/endpoints?runId=00000000-0000-4000-8000-000000000000"],
+  ["GET", "/scanner/diagnostics"],
+  ["GET", "/scans?limit=1"],
+  ["GET", "/scans/detail"],
+  ["GET", "/scans/export"],
+  ["GET", "/scans/har"],
+  ["GET", "/scans/network-diff"],
+  ["GET", "/scans/network-summary"],
+  ["GET", "/scans/screenshot"],
+  ["GET", "/scans/summary?days=1"],
+  ["POST", "/scans/trigger"],
+  ["POST", "/trigger"],
+  ["POST", "/trigger-scan"],
+]) {
+  await check(`${route[0]} ${route[1]} unauthenticated`, route[1], {
+    method: route[0],
+    status: 401,
+    includes: "Unauthorized",
+  });
+}
 
 if (token) {
   await check("diagnostics authenticated", "/diagnostics", {
@@ -31,9 +61,40 @@ if (token) {
       return findings;
     },
   });
+  await check("alerts authenticated", "/alerts?limit=1", {
+    status: 200,
+    includes: '"events"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (!Array.isArray(body.events)) findings.push("expected events to be an array");
+      if (!body.filters || typeof body.filters !== "object") findings.push("expected filters object");
+      return findings;
+    },
+  });
+  await check("alerts summary authenticated", "/alerts/summary?days=1", {
+    status: 200,
+    includes: '"total"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (typeof body.total !== "number") findings.push("expected total to be a number");
+      if (!body.bySeverity || typeof body.bySeverity !== "object") findings.push("expected bySeverity object");
+      if (!body.byType || typeof body.byType !== "object") findings.push("expected byType object");
+      return findings;
+    },
+  });
   await check("archive authenticated", "/archive?prefix=fantasy402/&limit=5", {
     status: 200,
     includes: '"objects"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+  });
+  await check("archive object validation authenticated", "/archive/object", {
+    status: 400,
+    includes: "Missing key",
     headers: { Authorization: `Bearer ${token}` },
     forbidden: [token],
   });
@@ -62,6 +123,46 @@ if (token) {
       return findings;
     },
   });
+  await check("scans authenticated", "/scans?limit=1", {
+    status: 200,
+    includes: '"results"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (!Array.isArray(body.results)) findings.push("expected results to be an array");
+      if (!body.filters || typeof body.filters !== "object") findings.push("expected filters object");
+      return findings;
+    },
+  });
+  await check("scans summary authenticated", "/scans/summary?days=1", {
+    status: 200,
+    includes: '"totals"',
+    headers: { Authorization: `Bearer ${token}` },
+    forbidden: [token],
+    validateJson: (body) => {
+      const findings = [];
+      if (!body.window || typeof body.window !== "object") findings.push("expected window object");
+      if (!body.totals || typeof body.totals !== "object") findings.push("expected totals object");
+      if (typeof body.status !== "string") findings.push("expected status string");
+      return findings;
+    },
+  });
+  for (const [name, path, expectedMessage] of [
+    ["scan detail validation authenticated", "/scans/detail", "Missing scanId"],
+    ["scan export validation authenticated", "/scans/export", "Missing scanId"],
+    ["scan har validation authenticated", "/scans/har", "Missing scanId"],
+    ["scan network diff validation authenticated", "/scans/network-diff", "Missing baseScanId or compareScanId"],
+    ["scan network summary validation authenticated", "/scans/network-summary", "Missing scanId"],
+    ["scan screenshot validation authenticated", "/scans/screenshot", "Missing scanId"],
+  ]) {
+    await check(name, path, {
+      status: 400,
+      includes: expectedMessage,
+      headers: { Authorization: `Bearer ${token}` },
+      forbidden: [token],
+    });
+  }
   await check("scanner diagnostics authenticated", "/scanner/diagnostics", {
     status: 200,
     includes: '"cloudflare-url-scanner"',
@@ -94,7 +195,9 @@ async function check(name, path, expectation) {
   const url = new URL(path, origin);
   try {
     const response = await fetch(url, {
+      method: expectation.method ?? "GET",
       headers: expectation.headers ?? {},
+      body: expectation.body,
       redirect: "manual",
       signal: AbortSignal.timeout(15_000),
     });

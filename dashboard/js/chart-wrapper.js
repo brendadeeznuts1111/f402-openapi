@@ -1,6 +1,5 @@
 // dashboard/js/chart-wrapper.js
-// Lightweight Chart.js wrapper with theme-aware defaults.
-// Loads Chart.js from CDN if not already present.
+// Lightweight Chart.js wrapper with theme-aware defaults and deferred rendering for hidden canvases.
 
 const CHART_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
 
@@ -32,18 +31,40 @@ export class ChartWrapper {
     this.data = data;
     this.options = options;
     this.chart = null;
+    this._deferred = false;
+    this._pendingData = null;
   }
 
-  async render() {
+  async render(data) {
     const Chart = await ensureChartJs();
     const canvas = document.getElementById(this.canvasId);
     if (!canvas) throw new Error(`Canvas #${this.canvasId} not found`);
-    if (this.chart) this.chart.destroy();
+    if (data) this.data = data;
+
+    // Destroy previous instance
+    if (this.chart) { this.chart.destroy(); this.chart = null; }
+
+    // Check visibility — canvas or any parent may be display:none
+    if (canvas.offsetParent === null && !canvas.hasAttribute('data-chart-force')) {
+      this._deferred = true;
+      return;
+    }
+    this._deferred = false;
+
+    // Set explicit pixel dimensions before Chart.js init
+    // Chart.js needs non-zero width/height at creation time for proper sizing
+    const htmlW = parseInt(canvas.getAttribute('width'));
+    const htmlH = parseInt(canvas.getAttribute('height'));
+    const pw = canvas.parentElement?.clientWidth || htmlW || 800;
+    const ph = canvas.parentElement?.clientHeight || htmlH || 400;
+    canvas.width = pw * 2;
+    canvas.height = ph * 2;
 
     const theme = getThemeColors();
     const defaults = {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 300 },
       plugins: {
         legend: {
           labels: { color: theme.text, font: { family: "'JetBrains Mono', monospace", size: 11 } },
@@ -70,16 +91,27 @@ export class ChartWrapper {
 
     this.chart = new Chart(canvas, {
       type: this.type,
-      data: this.data,
+      data: this._pendingData || this.data,
       options: { ...defaults, ...this.options },
     });
+    this._pendingData = null;
+
+    if (this.chart) this.chart.resize();
     return this.chart;
   }
 
   update(data) {
-    if (!this.chart) return;
+    if (!this.chart) {
+      this._pendingData = data;
+      return;
+    }
+    this.data = data;
     this.chart.data = data;
     this.chart.update('none');
+  }
+
+  resize() {
+    if (this.chart) this.chart.resize();
   }
 
   destroy() {
@@ -87,5 +119,7 @@ export class ChartWrapper {
       this.chart.destroy();
       this.chart = null;
     }
+    this._deferred = false;
+    this._pendingData = null;
   }
 }

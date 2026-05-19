@@ -618,8 +618,7 @@ async function renderVolumeChart() {
     if (!volumeChart) volumeChart = new ChartWrapper('volumeChart', 'line');
     $('volumeChartWrap').style.display = 'none';
     $('volumeChart').style.display = 'block';
-    await volumeChart.render();
-    volumeChart.update({
+    volumeChart.data = {
       labels,
       datasets: [{
         label: 'Volume ($)',
@@ -629,7 +628,8 @@ async function renderVolumeChart() {
         fill: true,
         tension: 0.4,
       }],
-    });
+    };
+    await volumeChart.render();
   } catch (e) { $('volumeChartWrap').innerHTML = renderErrorState(e.message); }
 }
 
@@ -696,6 +696,70 @@ async function renderAnalyticsCharts() {
       return;
     }
 
+    // Build chart data (do this once, apply per-chart)
+    const hourBuckets = {};
+    for (const w of wagers) { const h = w.captured_at?.slice(11, 13) + ':00'; hourBuckets[h] = (hourBuckets[h] || 0) + 1; }
+    const hours = Object.keys(hourBuckets).sort();
+    const trafficData = { labels: hours, datasets: [{ label: 'Wagers', data: hours.map((h) => hourBuckets[h]), backgroundColor: '#00BFFF' }] };
+
+    const latencyData = {
+      labels: ['/summary', '/performance', '/graded', '/auth', '/alerts'],
+      datasets: [{ label: 'Latency (ms)', data: [45, 120, 80, 30, 60], borderColor: '#FFD700', tension: 0.4 }],
+    };
+
+    const typeBuckets = { S: 0, P: 0, M: 0, L: 0 };
+    for (const w of wagers) typeBuckets[w.wager_type] = (typeBuckets[w.wager_type] || 0) + 1;
+    const typeData = {
+      labels: ['Straight', 'Parlay', 'Moneyline', 'Live'],
+      datasets: [{ data: [typeBuckets.S, typeBuckets.P, typeBuckets.M, typeBuckets.L], backgroundColor: ['#00FF88', '#FFD700', '#00BFFF', '#DA70D6'] }],
+    };
+
+    const agentBuckets = {};
+    for (const w of wagers) agentBuckets[w.agent_id] = (agentBuckets[w.agent_id] || 0) + (w.amount_wagered || 0);
+    const topAgents = Object.entries(agentBuckets).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const agentData = {
+      labels: topAgents.map((a) => a[0]),
+      datasets: [{ label: 'Volume', data: topAgents.map((a) => a[1] / 100), backgroundColor: '#FF6B35' }],
+    };
+
+    // Traffic — always visible (default active tab). Render immediately.
+    if (!trafficChart) trafficChart = new ChartWrapper('trafficChart', 'bar');
+    $('trafficChartWrap').style.display = 'none';
+    $('trafficChart').style.display = 'block';
+    trafficChart.data = trafficData;
+    await trafficChart.render();
+
+    // Latency, Type, Agent — hidden tabs. Store data, ChartWrapper will defer via update().
+    if (!latencyChart) latencyChart = new ChartWrapper('latencyChart', 'line');
+    $('latencyChartWrap').style.display = 'none';
+    $('latencyChart').style.display = 'block';
+    latencyChart.data = latencyData;
+    if ($('tab-latency').style.display === 'block') {
+      await latencyChart.render();
+    }
+
+    if (!typeChart) typeChart = new ChartWrapper('typeChart', 'doughnut');
+    $('typeChartWrap').style.display = 'none';
+    $('typeChart').style.display = 'block';
+    typeChart.data = typeData;
+    if ($('tab-distribution')?.style.display === 'block') {
+      await typeChart.render();
+    }
+
+    if (!agentChart) agentChart = new ChartWrapper('agentChart', 'bar');
+    $('agentChartWrap').style.display = 'none';
+    $('agentChart').style.display = 'block';
+    agentChart.data = agentData;
+    if ($('tab-distribution')?.style.display === 'block') {
+      await agentChart.render();
+    }
+  } catch (e) {
+    ['trafficChartWrap', 'latencyChartWrap', 'typeChartWrap', 'agentChartWrap'].forEach((id) => {
+      $(id).innerHTML = renderErrorState(e.message);
+    });
+  }
+}
+
     // Traffic chart (wagers per hour)
     const hourBuckets = {};
     for (const w of wagers) {
@@ -706,15 +770,13 @@ async function renderAnalyticsCharts() {
     if (!trafficChart) trafficChart = new ChartWrapper('trafficChart', 'bar');
     $('trafficChartWrap').style.display = 'none';
     $('trafficChart').style.display = 'block';
-    await trafficChart.render();
-    trafficChart.update({ labels: hours, datasets: [{ label: 'Wagers', data: hours.map((h) => hourBuckets[h]), backgroundColor: '#00BFFF' }] });
+    await trafficChart.render({ labels: hours, datasets: [{ label: 'Wagers', data: hours.map((h) => hourBuckets[h]), backgroundColor: '#00BFFF' }] });
 
     // Latency chart (mock — no real latency data yet)
     if (!latencyChart) latencyChart = new ChartWrapper('latencyChart', 'line');
     $('latencyChartWrap').style.display = 'none';
     $('latencyChart').style.display = 'block';
-    await latencyChart.render();
-    latencyChart.update({
+    await latencyChart.render({
       labels: ['/summary', '/performance', '/graded', '/auth', '/alerts'],
       datasets: [{ label: 'Latency (ms)', data: [45, 120, 80, 30, 60], borderColor: '#FFD700', tension: 0.4 }],
     });
@@ -725,8 +787,7 @@ async function renderAnalyticsCharts() {
     if (!typeChart) typeChart = new ChartWrapper('typeChart', 'doughnut');
     $('typeChartWrap').style.display = 'none';
     $('typeChart').style.display = 'block';
-    await typeChart.render();
-    typeChart.update({
+    await typeChart.render({
       labels: ['Straight', 'Parlay', 'Moneyline', 'Live'],
       datasets: [{ data: [typeBuckets.S, typeBuckets.P, typeBuckets.M, typeBuckets.L], backgroundColor: ['#00FF88', '#FFD700', '#00BFFF', '#DA70D6'] }],
     });
@@ -738,8 +799,7 @@ async function renderAnalyticsCharts() {
     if (!agentChart) agentChart = new ChartWrapper('agentChart', 'bar');
     $('agentChartWrap').style.display = 'none';
     $('agentChart').style.display = 'block';
-    await agentChart.render();
-    agentChart.update({
+    await agentChart.render({
       labels: topAgents.map((a) => a[0]),
       datasets: [{ label: 'Volume', data: topAgents.map((a) => a[1] / 100), backgroundColor: '#FF6B35' }],
     });
@@ -928,11 +988,25 @@ function switchChartTab(name) {
     c.style.display = c.id === `tab-${name}` ? 'block' : 'none';
   });
   updateBreadcrumbs('analytics', name);
+
+  // Render the chart for the newly visible tab (deferred from first load since it was hidden)
   if (name === 'traffic' && trafficChart) trafficChart.render();
-  if (name === 'latency' && latencyChart) latencyChart.render();
+  if (name === 'latency' && latencyChart) {
+    $('latencyChartWrap').style.display = 'none';
+    $('latencyChart').style.display = 'block';
+    latencyChart.render();
+  }
   if (name === 'distribution') {
-    if (typeChart) typeChart.render();
-    if (agentChart) agentChart.render();
+    if (typeChart) {
+      $('typeChartWrap').style.display = 'none';
+      $('typeChart').style.display = 'block';
+      typeChart.render();
+    }
+    if (agentChart) {
+      $('agentChartWrap').style.display = 'none';
+      $('agentChart').style.display = 'block';
+      agentChart.render();
+    }
   }
 }
 

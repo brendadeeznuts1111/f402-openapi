@@ -29,6 +29,7 @@ export interface Env {
   FANTASY402_CUSTOMER_ID?: string;
   LIVE_WAGER_BROADCASTER: DurableObjectNamespace;
   FANTASY402_ALLOWED_SCAN_HOSTS?: string;
+  FANTASY402_DASHBOARD_URL?: string;
   UPSTREAM_TOKEN?: string;
   INGESTION_TRIGGER_TOKEN?: string;
   ARCHIVE_AUTH_TOKEN?: string;
@@ -902,6 +903,10 @@ const worker = {
 
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/" && request.method === "GET") {
+      return workerRoot(env, request);
+    }
 
     if (url.pathname === "/health") {
       const checks: Record<string, string> = {};
@@ -4923,6 +4928,114 @@ async function safeJson(request: Request): Promise<Record<string, unknown> | nul
   } catch {
     return null;
   }
+}
+
+const DEFAULT_DASHBOARD_URL = "https://fantasy402-dashboard-5q6.pages.dev";
+
+function dashboardUrl(env: Env): string {
+  const configured = env.FANTASY402_DASHBOARD_URL?.trim();
+  return configured && isHttpUrl(configured) ? configured : DEFAULT_DASHBOARD_URL;
+}
+
+function prefersHtml(request: Request): boolean {
+  const accept = request.headers.get("Accept") ?? "";
+  if (!accept.includes("text/html")) return false;
+  const htmlQ = qualityValue(accept, "text/html");
+  const jsonQ = qualityValue(accept, "application/json");
+  return htmlQ >= jsonQ;
+}
+
+function qualityValue(accept: string, mime: string): number {
+  const parts = accept.split(",").map((part) => part.trim());
+  for (const part of parts) {
+    const [type, ...params] = part.split(";").map((piece) => piece.trim());
+    if (type !== mime) continue;
+    const qParam = params.find((param) => param.startsWith("q="));
+    if (!qParam) return 1;
+    const q = Number.parseFloat(qParam.slice(2));
+    return Number.isFinite(q) ? q : 1;
+  }
+  return 0;
+}
+
+function workerRoot(env: Env, request: Request): Response {
+  if (prefersHtml(request)) {
+    return workerRootHtml(env);
+  }
+  return workerRootJson(env);
+}
+
+function workerRootJson(env: Env): Response {
+  const dashboard = dashboardUrl(env);
+  return json(
+    {
+      service: env.WORKER_NAME,
+      environment: env.ENVIRONMENT,
+      message: "Fantasy402 ingestion API. Use Bearer auth for protected routes.",
+      links: {
+        dashboard,
+        health: "/health",
+        archiveViewer: "/archive/viewer",
+        endpoints: "/endpoints",
+        upstreamEndpoints: "/upstream-endpoints",
+      },
+    },
+    200,
+  );
+}
+
+function workerRootHtml(env: Env): Response {
+  const dashboard = dashboardUrl(env);
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(env.WORKER_NAME)}</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f8fafc; color: #111827; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    p { margin: 0 0 20px; color: #475569; line-height: 1.5; }
+    ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    a { display: block; padding: 14px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; text-decoration: none; }
+    a:hover { border-color: #94a3b8; background: #f1f5f9; }
+    a strong { display: block; margin-bottom: 4px; }
+    a span { font-size: 13px; color: #64748b; }
+    .primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .primary span { color: #cbd5e1; }
+    .meta { margin-top: 24px; font-size: 13px; color: #64748b; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(env.WORKER_NAME)}</h1>
+    <p>Ingestion and query API for Fantasy402. Protected routes require <code>Authorization: Bearer …</code>.</p>
+    <ul>
+      <li><a class="primary" href="${escapeHtml(dashboard)}"><strong>Monitoring dashboard</strong><span>Live wagers, charts, endpoints, logs</span></a></li>
+      <li><a href="/health"><strong>Health</strong><span>Worker, D1, Durable Object, upstream probe</span></a></li>
+      <li><a href="/archive/viewer"><strong>Archive viewer</strong><span>Browse R2 ingestion archives</span></a></li>
+    </ul>
+    <p class="meta">Environment: <code>${escapeHtml(env.ENVIRONMENT)}</code> · API discovery: <code>GET /</code> with <code>Accept: application/json</code></p>
+  </main>
+</body>
+</html>`;
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function archiveViewer(): Response {

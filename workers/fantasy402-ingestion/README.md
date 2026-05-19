@@ -321,6 +321,7 @@ Returns:
 
 The Worker's own operational API is documented in `openapi.worker.json`.
 
+- `GET /` serves a browser landing page (links to dashboard, `/health`, `/archive/viewer`) or JSON service discovery when `Accept: application/json`.
 - `GET /health` is unauthenticated and returns runtime health.
 - `POST /refresh-auth` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>` and writes short-lived browser-derived upstream auth to `AUTH_CACHE` without echoing secret values.
 - `POST /ingest/local` requires the same bearer token and stores locally fetched Fantasy402 responses into R2/D1 without upstream Worker fetches.

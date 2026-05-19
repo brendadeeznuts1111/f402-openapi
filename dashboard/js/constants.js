@@ -5,6 +5,9 @@
 // Backward-compat globals set on window for the existing inline <script>.
 
 /** Semantic colors for Chart.js and inline charts (matches :root tokens). */
+/** Worker routes reachable without bearer token via Pages proxy (see dashboard/_worker.js). */
+export const PUBLIC_API_PATHS = ['/health', '/live-wagers'];
+
 export const CHART_COLORS = {
   success: '#00FF88',
   warning: '#FFD700',

@@ -1,35 +1,85 @@
 const WORKER_ORIGIN = "https://fantasy402-ingestion.utahj4754.workers.dev";
 
+/** Routes the Worker exposes without bearer auth (must match worker/src/index.ts). */
+function isPublicWorkerPath(pathname) {
+  if (pathname === "/health") return true;
+  if (pathname === "/live-wagers" || pathname.startsWith("/live-wagers/")) return true;
+  return false;
+}
+
+function workerPathFromApiUrl(pathname) {
+  const path = pathname.replace(/^\/api/, "") || "/";
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+function jsonError(status, message, extra = {}) {
+  return new Response(JSON.stringify({ status: "failed", message, ...extra }), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, max-age=0",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
+function buildUpstreamHeaders(request, token, pathname, hasBody) {
+  const headers = new Headers();
+  const isStream = pathname === "/live-wagers" || pathname.startsWith("/live-wagers/");
+
+  if (isStream) {
+    headers.set("Accept", "text/event-stream");
+  } else {
+    headers.set("Accept", request.headers.get("Accept") || "application/json");
+  }
+
+  if (hasBody) {
+    headers.set("Content-Type", request.headers.get("Content-Type") || "application/json");
+  }
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return { headers, isStream };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (url.pathname.startsWith("/api/")) {
+    if (url.pathname.startsWith("/api")) {
+      const pathname = workerPathFromApiUrl(url.pathname);
       const token = env.INGESTION_TRIGGER_TOKEN;
-      if (!token) {
-        return new Response(JSON.stringify({ status: "failed", message: "Server misconfigured: missing token" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
+      const isPublic = isPublicWorkerPath(pathname);
+
+      if (!token && !isPublic) {
+        return jsonError(500, "Server misconfigured: missing token", {
+          code: "MISSING_PAGES_TOKEN",
+          hint: "Set INGESTION_TRIGGER_TOKEN on Cloudflare Pages (production and preview), then redeploy.",
         });
       }
 
-      const target = new URL(url.pathname.replace("/api", ""), WORKER_ORIGIN);
+      const target = new URL(pathname, WORKER_ORIGIN);
       target.search = url.search;
 
-      const contentType = request.headers.get("Content-Type") || "application/json";
-      const reqBody = request.method === "GET" || request.method === "HEAD" ? undefined : await request.text();
+      const hasBody = request.method !== "GET" && request.method !== "HEAD";
+      const reqBody = hasBody ? await request.text() : undefined;
+      const { headers, isStream } = buildUpstreamHeaders(request, token, pathname, hasBody);
 
-      const response = await fetch(target, {
-        method: request.method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": contentType,
-          Accept: "application/json",
-        },
-        body: reqBody,
-      });
-
-      const isStream = response.headers.get("Content-Type")?.includes("text/event-stream");
+      let response;
+      try {
+        response = await fetch(target.toString(), {
+          method: request.method,
+          headers,
+          body: reqBody,
+        });
+      } catch (err) {
+        return jsonError(502, "Worker upstream unreachable", {
+          code: "UPSTREAM_ERROR",
+          detail: err?.message || String(err),
+        });
+      }
 
       const responseHeaders = new Headers({
         "Cache-Control": "no-store, max-age=0",
@@ -37,7 +87,7 @@ export default {
       });
 
       if (isStream) {
-        responseHeaders.set("Content-Type", "text/event-stream");
+        responseHeaders.set("Content-Type", response.headers.get("Content-Type") || "text/event-stream");
         responseHeaders.set("Connection", "keep-alive");
         return new Response(response.body, {
           status: response.status,

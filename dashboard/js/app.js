@@ -1,6 +1,6 @@
 // dashboard/js/app.js — Fantasy402 Dashboard entry
 
-import { api, apiPost, setGlobalErrorHandler } from './api-client.js';
+import { api, apiPost, setGlobalErrorHandler, checkApiHealth, isMissingTokenError } from './api-client.js';
 import { WagerSocket, PollingFallback } from './websocket-client.js';
 import { getRefreshInterval } from './design-system.js';
 import { AutoRefreshManager } from './utils.js';
@@ -60,8 +60,24 @@ const ticker = createTicker({
 
 wagerSocket.onWager = (wager) => ticker.add(wager);
 wagerSocket.onStatusChange = (status) => {
+  if (status === 'connected') {
+    wagerSocket.cancelFallback();
+    pollFallback.stop();
+    ticker.updateConn('connected');
+    return;
+  }
+  if (status === 'polling') {
+    ticker.updateConn('polling');
+    return;
+  }
+  if (status === 'degraded') {
+    ticker.updateConn('degraded');
+    return;
+  }
   ticker.updateConn(status);
-  if (status === 'connected') pollFallback.stop();
+};
+pollFallback.onStatusChange = (status) => {
+  if (status === 'polling') ticker.updateConn('polling');
 };
 pollFallback.onWager = (wager) => ticker.add(wager);
 
@@ -97,7 +113,16 @@ const ctx = {
   registerOverviewRefresh,
 };
 
-setGlobalErrorHandler((err, path) => ctx.showAlert(`${path || 'API'}: ${err.message}`, 'error'));
+setGlobalErrorHandler((err, path) => {
+  if (isMissingTokenError(err)) {
+    ctx.showAlert(
+      'API proxy missing INGESTION_TRIGGER_TOKEN. Run dashboard/scripts/set-pages-secrets.sh then redeploy. Live wagers (SSE) may still work.',
+      'error',
+    );
+    return;
+  }
+  ctx.showAlert(`${path || 'API'}: ${err.message}`, 'error');
+});
 
 statusPoller.onUpdate = (status) => {
   renderSidebarStatus(status);
@@ -226,6 +251,16 @@ async function init() {
   document.getElementById('view-overview').style.display = 'block';
   updateBreadcrumbs('overview');
   syncDrawerFromSettings(ctx);
+
+  const health = await checkApiHealth();
+  if (!health.ok) {
+    ctx.showAlert('Worker health check failed — proxy or Worker may be down.', 'error');
+    ticker.updateConn('error');
+  } else if (health.worker?.durable_object !== 'ok') {
+    ticker.updateConn('error');
+    ctx.showAlert('Live wager broadcaster unavailable (Durable Object). SSE may not connect.', 'warn');
+  }
+
   await loadOverview(ctx);
   ticker.startSSE();
   registerOverviewRefresh();

@@ -57,7 +57,7 @@ export class StatusPoller {
       this._store.set(ENDPOINT_STATUS_KEY, { ...this._status }, this._interval * 1.5);
       this._onUpdate?.({ ...this._status });
     } catch (e) {
-      console.warn('[StatusPoller] poll failed', e);
+      console.warn('[StatusPoller] poll failed', e?.message || e);
     }
   }
 

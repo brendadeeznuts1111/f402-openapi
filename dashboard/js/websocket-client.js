@@ -1,14 +1,21 @@
 // dashboard/js/websocket-client.js
-// Robust SSE manager with auto-reconnect (exponential backoff) and since-aware reconnection.
-// Also provides a polling fallback for when SSE is unavailable.
+// SSE live-wager stream + polling fallback when SSE is unavailable.
 
 const BASE = '/api';
+
+function parseWagerPayload(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const wager = raw.wager || raw;
+  if (!wager || typeof wager !== 'object') return null;
+  if (!wager.captured_at && !wager.id && !wager.login) return null;
+  return wager;
+}
 
 // ── SSE Client ─────────────────────────────────────────────────
 
 export class WagerSocket {
   constructor(baseUrl = BASE, options = {}) {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.replace(/\/$/, '');
     this.source = null;
     this.reconnectDelay = 1000;
     this.maxReconnectDelay = 30000;
@@ -19,6 +26,7 @@ export class WagerSocket {
     this._onStatusChange = null;
     this._reconnectTimer = null;
     this._closed = false;
+    this._fallbackTimer = null;
   }
 
   set onWager(fn) { this._onWager = fn; }
@@ -32,30 +40,42 @@ export class WagerSocket {
     return `${this.baseUrl}/live-wagers?since=${encodeURIComponent(this.since)}`;
   }
 
+  _emit(status) {
+    this._onStatusChange?.(status);
+  }
+
   connect() {
     if (this._closed) return;
+    this._emit('connecting');
+    this.source?.close();
     this.source = new EventSource(this._buildUrl());
-
-    this.source.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const wager = data.wager || data;
-        if (wager.captured_at) this.updateSince(wager.captured_at);
-        this._onWager?.(wager);
-      } catch (e) {
-        console.error('[SSE] Parse error:', e);
-      }
-    };
 
     this.source.onopen = () => {
       this.reconnectDelay = 1000;
       this._reconnectCount = 0;
-      this._onStatusChange?.('connected');
+      this._emit('connected');
+    };
+
+    this.source.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const wager = parseWagerPayload(data);
+        if (!wager) return;
+        if (wager.captured_at) this.updateSince(wager.captured_at);
+        this._onWager?.(wager);
+      } catch (e) {
+        console.warn('[SSE] Parse error:', e);
+      }
     };
 
     this.source.onerror = () => {
-      this._onStatusChange?.('error');
-      this.source.close();
+      const state = this.source?.readyState;
+      if (state === EventSource.CONNECTING) {
+        this._emit('reconnecting');
+        return;
+      }
+      this._emit('error');
+      this.source?.close();
       this._scheduleReconnect();
     };
   }
@@ -64,10 +84,11 @@ export class WagerSocket {
     if (this._closed) return;
     this._reconnectCount += 1;
     if (this._reconnectCount > this.maxReconnectAttempts) {
-      this._onStatusChange?.('failed');
+      this._emit('failed');
       return;
     }
-    this._onStatusChange?.('reconnecting');
+    this._emit('reconnecting');
+    if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
     this._reconnectTimer = setTimeout(() => this.connect(), this.reconnectDelay);
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
   }
@@ -75,11 +96,16 @@ export class WagerSocket {
   disconnect() {
     this._closed = true;
     this.source?.close();
+    this.source = null;
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
     }
-    this._onStatusChange?.('disconnected');
+    if (this._fallbackTimer) {
+      clearTimeout(this._fallbackTimer);
+      this._fallbackTimer = null;
+    }
+    this._emit('disconnected');
   }
 
   reconnect() {
@@ -89,50 +115,88 @@ export class WagerSocket {
     this.source?.close();
     this.connect();
   }
+
+  /** Start polling fallback if SSE has not connected within ms. */
+  scheduleFallback(ms, onStart) {
+    if (this._fallbackTimer) clearTimeout(this._fallbackTimer);
+    this._fallbackTimer = setTimeout(() => {
+      if (this._closed) return;
+      if (this.source?.readyState === EventSource.OPEN) return;
+      onStart?.();
+    }, ms);
+  }
+
+  cancelFallback() {
+    if (this._fallbackTimer) {
+      clearTimeout(this._fallbackTimer);
+      this._fallbackTimer = null;
+    }
+  }
 }
 
 // ── Polling Fallback ──────────────────────────────────────────
 
 export class PollingFallback {
   constructor(baseUrl = BASE, interval = 5000) {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.replace(/\/$/, '');
     this.interval = interval;
     this.timer = null;
-    this.since = new Date(Date.now() - 60000).toISOString();
+    this.since = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     this._onWager = null;
+    this._onStatusChange = null;
     this._tickerItems = [];
+    this._seenIds = new Set();
   }
 
   set onWager(fn) { this._onWager = fn; }
+  set onStatusChange(fn) { this._onStatusChange = fn; }
 
   setTickerItems(items) {
     this._tickerItems = items;
+    this._seenIds = new Set(items.map((w) => w.id).filter(Boolean));
+  }
+
+  updateSince(iso) {
+    if (iso && iso > this.since) this.since = iso;
+  }
+
+  async pollOnce() {
+    const url = `${this.baseUrl}/bet-ticker-wagers?since=${encodeURIComponent(this.since)}&limit=50`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body.message) detail = body.message;
+      } catch {}
+      throw new Error(detail);
+    }
+    return res.json();
   }
 
   start() {
     this.stop();
-    this.timer = setInterval(async () => {
+    this._onStatusChange?.('polling');
+    const tick = async () => {
       try {
-        const res = await fetch(
-          `${this.baseUrl}/bet-ticker-wagers?since=${encodeURIComponent(this.since)}&limit=50`
-        );
-        if (!res.ok) return;
-        const d = await res.json();
+        const d = await this.pollOnce();
         if (d.wagers?.length) {
           for (const w of d.wagers) {
-            const exists = this._tickerItems.some((item) => item.id === w.id);
-            if (!exists) {
-              if (w.captured_at && w.captured_at > this.since) {
-                this.since = w.captured_at;
-              }
-              this._onWager?.(w);
+            const key = w.id || `${w.login}-${w.captured_at}-${w.wager_number}`;
+            if (this._seenIds.has(key)) continue;
+            this._seenIds.add(key);
+            if (w.captured_at && w.captured_at > this.since) {
+              this.since = w.captured_at;
             }
+            this._onWager?.(w);
           }
         }
       } catch (e) {
-        console.error('[PollFallback] Error:', e);
+        console.warn('[PollFallback]', e.message);
       }
-    }, this.interval);
+    };
+    tick();
+    this.timer = setInterval(tick, this.interval);
   }
 
   stop() {

@@ -8,9 +8,19 @@
   margin-right: 0.5rem;
 }
 
-.ds-conn-status--connected { background: var(--green); }
-.ds-conn-status--error     { background: var(--red); }
-.ds-conn-status--polling   { background: var(--amber); }
+.ds-conn-status--connected    { background: var(--green); }
+.ds-conn-status--connecting   { background: var(--amber); animation: ds-conn-pulse 1s ease infinite; }
+.ds-conn-status--reconnecting { background: var(--amber); animation: ds-conn-pulse 0.8s ease infinite; }
+.ds-conn-status--polling      { background: var(--amber); }
+.ds-conn-status--degraded     { background: var(--info); }
+.ds-conn-status--error        { background: var(--red); }
+.ds-conn-status--failed       { background: var(--red); }
+.ds-conn-status--disconnected { background: var(--tertiary-text); }
+
+@keyframes ds-conn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
 /* backward-compat aliases */
 .ds-conn-connected { background: var(--green); }
 .ds-conn-error     { background: var(--red); }

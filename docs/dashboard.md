@@ -86,7 +86,7 @@ npm run deploy
 
 If `wrangler` fails with API token auth errors, run without `CLOUDFLARE_API_TOKEN` in the environment so Wrangler uses OAuth (`unset CLOUDFLARE_API_TOKEN`).
 
-Without this secret, `/api/*` returns **500** `Server misconfigured: missing token` from `dashboard/_worker.js`.
+Without this secret, protected `/api/*` routes return **500** with `code: MISSING_PAGES_TOKEN`. Public routes **`/api/health`** and **`/api/live-wagers`** (SSE) work without the secret so live wagers and health checks still function.
 
 Redeploy the Worker when adding new API fields (e.g. `routeLatency` on `/endpoint-status`).
 

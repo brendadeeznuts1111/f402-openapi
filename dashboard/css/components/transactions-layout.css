@@ -1,0 +1,41 @@
+/* Manager-style transactions type control */
+.transactions-type-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.transactions-type-bar__toggle {
+  flex: 0 0 auto;
+}
+
+.transactions-type-select {
+  min-width: 220px;
+  height: 32px;
+  border: 1px solid var(--color-border, #cccccc);
+  border-radius: 4px;
+  padding: 0 0.5rem;
+  background: var(--color-surface, #1a1a1a);
+  color: inherit;
+  font: inherit;
+}
+
+.transactions-history-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.transactions-history-flags label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+}
+
+.transactions-history-flags.ds-hidden {
+  display: none;
+}

@@ -82,6 +82,10 @@
         <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M14 20c0-2 2-3.5 4-3.5"/></svg></span>
         <span class="ds-sidebar__label">Customers</span>
       </button>
+      <button class="ds-sidebar__item" data-view="transactions">
+        <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
+        <span class="ds-sidebar__label">Transactions</span>
+      </button>
     </div>
     <div class="ds-sidebar__status" id="sidebarStatus">
       <div class="ds-skeleton ds-skeleton-row"></div>
@@ -448,7 +452,27 @@
           <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
         </div>
       </div>
-    </div>
+      <div class="ds-card ds-mt-0 ds-hidden" id="activityTransactionsWrap">
+        <div class="ds-flex-row">
+          <h2>Transactions</h2>
+          <div class="ds-form-row ds-ml-auto">
+            <select id="activityTxType" class="ds-input-narrow">
+              <option value="player">Player Transactions</option>
+              <option value="agent">Agent Transactions</option>
+              <option value="deleted">Deleted Transactions</option>
+              <option value="free-play">Free Play Transactions</option>
+              <option value="free-play-analysis">Free Play Analysis</option>
+              <option value="summary">Player Summary</option>
+            </select>
+            <label>From <input type="date" id="activityTxStart" class="ds-input-narrow"></label>
+            <label>To <input type="date" id="activityTxEnd" class="ds-input-narrow"></label>
+            <button class="ds-btn ds-btn--sm" id="activityTxRefresh">⟳ Load</button>
+          </div>
+        </div>
+        <div id="activityTransactions">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+        </div>
+      </div>
 
     <!-- ═══ Data View ═══ -->
     <div class="ds-view" id="view-data">
@@ -714,6 +738,47 @@
         </div>
       </div>
 
+    <!-- ═══ Transactions View ═══ -->
+    <div class="ds-view" id="view-transactions">
+      <div class="ds-card">
+        <div class="ds-flex-row">
+          <h2>Transactions <span class="ds-subtitle" id="transactionsMeta"></span></h2>
+        </div>
+        <p class="ds-help-text">Mirrors manager <strong>Transactions Type</strong> — live <code>getTransactionHistory</code>, <code>getReportDeletedTransactions</code>, and related Manager reports.</p>
+        <div class="transactions-type-bar">
+          <button type="button" class="ds-btn ds-btn--sm ds-btn--info transactions-type-bar__toggle" id="transactionsTypeToggle" data-action="toggleList" aria-haspopup="true" aria-expanded="false">Transactions Type</button>
+          <label class="ds-filter-label">Type
+            <select id="transactionsType" class="transactions-type-select" data-list="type-trans" aria-label="Transactions type">
+              <option value="player" selected>Player Transactions</option>
+              <option value="agent">Agent Transactions</option>
+              <option value="deleted">Deleted Transactions</option>
+              <option value="free-play">Free Play Transactions</option>
+              <option value="free-play-analysis">Free Play Analysis</option>
+              <option value="summary">Player Summary</option>
+            </select>
+          </label>
+          <label>Customer <input type="text" id="transactionsCustomerId" class="ds-input-narrow" placeholder="Login or customer ID" autocomplete="off"></label>
+          <label>Start <input type="date" id="transactionsStart" class="ds-input-narrow"></label>
+          <label>End <input type="date" id="transactionsEnd" class="ds-input-narrow"></label>
+          <button type="button" class="ds-btn ds-btn--sm" id="transactionsApplyBtn">⟳ Load</button>
+          <button type="button" class="ds-btn ds-btn--sm ds-btn--ghost" id="transactionsResetBtn">Reset</button>
+        </div>
+        <div id="transactionsHistoryFlags" class="transactions-history-flags" aria-label="Transaction history filters">
+          <label><input type="checkbox" id="transactionsDeposits" checked> Deposits</label>
+          <label><input type="checkbox" id="transactionsWithdrawals" checked> Withdrawals</label>
+          <label><input type="checkbox" id="transactionsAdjustments" checked> Adjustments</label>
+          <label><input type="checkbox" id="transactionsTransfers" checked> Transfers</label>
+          <label><input type="checkbox" id="transactionsFees" checked> Fees</label>
+          <label><input type="checkbox" id="transactionsPromotional" checked> Promotional</label>
+          <label><input type="checkbox" id="transactionsBalances" checked> Balances</label>
+          <label><input type="checkbox" id="transactionsDistribution"> Distribution</label>
+        </div>
+        <div id="transactionsTable" class="ds-mt-sm">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ Pending Wagers View ═══ -->
     <div class="ds-view" id="view-pending">
       <div class="ds-card">
@@ -778,6 +843,6 @@
 <div class="ds-drawer__backdrop" id="drawerBackdrop" aria-hidden="true"></div>
 
 <script src="vendor/chart.umd.min.js"></script>
-<script type="module" src="js/app.js?v=3.12.0"></script>
+<script type="module" src="js/app.js?v=3.13.0"></script>
 </body>
 </html>

@@ -9,6 +9,8 @@ export {
   customerProfileSeedSchema,
   localIngestSchema,
   pendingWagersQuerySchema,
+  transactionReportTypeSchema,
+  transactionsLiveQuerySchema,
   refreshAuthSchema,
   searchCustomersQuerySchema,
   updateCookiesSchema,

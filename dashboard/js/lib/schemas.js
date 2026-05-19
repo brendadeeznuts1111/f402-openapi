@@ -60,6 +60,47 @@ export const pendingWagersFiltersSchema = z.object({
   }
 });
 
+export const transactionReportTypeSchema = z.enum([
+  'player',
+  'agent',
+  'deleted',
+  'free-play',
+  'free-play-analysis',
+  'summary',
+]);
+
+export const transactionCheckboxSchema = z.enum(['checked', 'unchecked']);
+
+export const transactionsLiveFiltersSchema = z
+  .object({
+    type: transactionReportTypeSchema,
+    customer_id: optionalTrimmed,
+    agent_id: optionalTrimmed,
+    start_date: z.preprocess(emptyToUndefined, isoDateOnlySchema.optional()),
+    end_date: z.preprocess(emptyToUndefined, isoDateOnlySchema.optional()),
+    free_flag: z.preprocess(emptyToUndefined, z.enum(['player', 'agent']).optional()),
+    deposits: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    withdrawals: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    adjustments: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    transfers: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    fees: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    promotional: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    balances: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    distribution: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    limit: z.coerce.number().int().min(1).max(2000).default(500),
+  })
+  .superRefine((data, ctx) => {
+    const start = data.start_date;
+    const end = data.end_date;
+    if (start && end && start > end) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'start_date must be on or before end_date',
+        path: ['end_date'],
+      });
+    }
+  });
+
 export const agentPerformanceFiltersSchema = z.object({
   type: z.preprocess(
     (v) => String(v ?? 'CP').trim().toUpperCase(),

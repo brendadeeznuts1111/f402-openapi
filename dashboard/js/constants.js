@@ -96,6 +96,7 @@ export const ENDPOINT_ZONE_MAP = {
   '/agent-performance-live': 'query',
   '/weekly-figures':     'query',
   '/pending-wagers':     'query',
+  '/transactions-live':  'query',
 };
 
 export const REFRESH_INTERVALS = {
@@ -116,6 +117,7 @@ export const REFRESH_INTERVALS = {
   '/agent-performance-live': 45000,
   '/weekly-figures':     30000,
   '/pending-wagers':     15000,
+  '/transactions-live':  45000,
   '/health':             30000,
   '/auth/health':        30000,
   '/diagnostics':        60000,

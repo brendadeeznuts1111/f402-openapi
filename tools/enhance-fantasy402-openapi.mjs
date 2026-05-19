@@ -2,7 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { toYaml } from './yaml.mjs';
-import { pendingWagersQuerySchema, customerProfileQuerySchema } from './lib/f402-schemas.mjs';
+import {
+  pendingWagersQuerySchema,
+  customerProfileQuerySchema,
+  transactionsLiveQuerySchema,
+} from './lib/f402-schemas.mjs';
 import { validateQuery } from './lib/validate-generator.mjs';
 
 const root = process.cwd();
@@ -1115,6 +1119,11 @@ function main() {
 
   validateQuery(pendingWagersQuerySchema, { date: '2026-05-17', customer_id: '0', limit: 200 }, 'generator/pending');
   validateQuery(customerProfileQuerySchema, { customer_id: 'GX195', live: '1' }, 'generator/profile');
+  validateQuery(
+    transactionsLiveQuerySchema,
+    { type: 'agent', start_date: '2026-05-19', end_date: '2026-05-19', deposits: 'checked' },
+    'generator/transactions',
+  );
 
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(outputJson, `${JSON.stringify(spec, null, 2)}\n`);

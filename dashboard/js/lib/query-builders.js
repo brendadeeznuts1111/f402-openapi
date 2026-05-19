@@ -4,6 +4,7 @@ import {
   customerProfilePathSchema,
   pendingWagersFiltersSchema,
   searchCustomersQuerySchema,
+  transactionsLiveFiltersSchema,
   parseOrThrow,
 } from './schemas.js';
 
@@ -52,6 +53,40 @@ export function buildAgentPerfQueryString(rawFilters) {
     parts.push(`end_date=${encodeURIComponent(data.end)}`, `end=${encodeURIComponent(data.end)}`);
   }
   return parts.join('&');
+}
+
+export function buildTransactionsLiveQuery(rawFilters) {
+  const today = new Date().toISOString().slice(0, 10);
+  const data = parseOrThrow(
+    transactionsLiveFiltersSchema,
+    {
+      ...rawFilters,
+      start_date: rawFilters.start_date ?? today,
+      end_date: rawFilters.end_date ?? today,
+    },
+    'transactions-live',
+  );
+  const q = new URLSearchParams();
+  q.set('type', data.type);
+  if (data.agent_id) q.set('agent_id', data.agent_id);
+  if (data.customer_id) q.set('customer_id', data.customer_id);
+  q.set('start_date', data.start_date ?? today);
+  q.set('end_date', data.end_date ?? today);
+  if (data.free_flag) q.set('free_flag', data.free_flag);
+  for (const key of [
+    'deposits',
+    'withdrawals',
+    'adjustments',
+    'transfers',
+    'fees',
+    'promotional',
+    'balances',
+    'distribution',
+  ]) {
+    if (data[key]) q.set(key, data[key]);
+  }
+  q.set('limit', String(data.limit));
+  return q.toString();
 }
 
 export function buildCustomerProfilePath(customerId, options = {}) {

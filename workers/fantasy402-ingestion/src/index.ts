@@ -60,14 +60,26 @@ import {
   createAlertRuleBodySchema,
   patchAlertRuleBodySchema,
   syntheticAlertBodySchema,
+  transactionsLiveQuerySchema,
 } from "./schemas";
+import {
+  buildTransactionsBody,
+  normalizeTransactionRows,
+  TRANSACTION_REPORT_TYPES,
+  transactionPathForType,
+} from "./transactions-live";
 import { parseBody, parseQuery } from "./validate";
 import {
   AGENT_PERFORMANCE_TYPES,
   buildGetAgentPerformanceBody,
   normalizeAgentPerformanceRows,
 } from "./agent-performance-live";
-import { ingestCustomerProfileSnapshot, loadCustomerProfile, CUSTOMER_PROFILE_FACET_KEYS } from "./customer-profile";
+import {
+  ingestCustomerProfileSnapshot,
+  loadCustomerProfile,
+  CUSTOMER_PROFILE_FACET_KEYS,
+} from "./customer-profile";
+// transactionHistoryQuerySchema is unused — kept for manifest reference
 import { buildCustomerProfileSources } from "./customer-profile-sources";
 import {
   getProfileLiveCache,
@@ -1330,6 +1342,13 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return queryAgentPerformanceLive(url, env);
+    }
+
+    if (url.pathname === "/transactions-live" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryTransactionsLive(url, env);
     }
 
     if (url.pathname === "/authorizations" && request.method === "GET") {
@@ -4309,6 +4328,111 @@ async function queryAgentPerformanceLive(url: URL, env: Env): Promise<Response> 
       fetched_at: fetchedAt,
       total: rows.length,
       rows,
+    },
+    200,
+  );
+}
+
+const TRANSACTIONS_LIVE_CACHE_PREFIX = "fantasy402:transactions-live:";
+
+async function queryTransactionsLive(url: URL, env: Env): Promise<Response> {
+  const parsed = parseQuery(transactionsLiveQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
+  const agentId = (filters.agent_id ?? env.FANTASY402_AGENT_ID ?? "").trim().toUpperCase();
+  if (!agentId) {
+    return json({ status: "failed", message: "agent_id required (set FANTASY402_AGENT_ID on Worker)" }, 400);
+  }
+
+  const typeMeta = TRANSACTION_REPORT_TYPES[filters.type];
+  const body = buildTransactionsBody({
+    type: filters.type,
+    agentId,
+    customerId: filters.customer_id,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    freeFlag: filters.free_flag,
+    reportType: filters.report_type,
+    lineType: filters.line_type,
+    historyFlags: {
+      deposits: filters.deposits,
+      withdrawals: filters.withdrawals,
+      adjustments: filters.adjustments,
+      transfers: filters.transfers,
+      fees: filters.fees,
+      promotional: filters.promotional,
+      balances: filters.balances,
+      distribution: filters.distribution,
+    },
+  });
+  const path = transactionPathForType(filters.type);
+
+  const cacheKey = `${TRANSACTIONS_LIVE_CACHE_PREFIX}${filters.type}:${agentId}:${filters.startDate}:${filters.endDate}:${filters.customer_id ?? ""}`;
+  type Cached = { rows: Array<Record<string, unknown>>; fetchedAt: string };
+  const cached = await getProfileLiveCache<Cached>(env, cacheKey);
+  if (cached) {
+    const rows = cached.rows.slice(0, filters.limit);
+    return json(
+      {
+        status: "ok",
+        source: "live",
+        cached: true,
+        type: filters.type,
+        type_label: typeMeta.label,
+        operation: typeMeta.operation,
+        path,
+        agent_id: agentId,
+        filters: {
+          start_date: filters.startDate,
+          end_date: filters.endDate,
+          customer_id: filters.customer_id ?? null,
+        },
+        fetched_at: cached.fetchedAt,
+        total: rows.length,
+        rows,
+      },
+      200,
+    );
+  }
+
+  const res = await postManagerForm(env, path, body);
+  if (!res.ok) {
+    return json(
+      {
+        status: "failed",
+        message: res.message,
+        type: filters.type,
+        operation: typeMeta.operation,
+        upstreamStatus: res.status,
+        hint: "Refresh auth via Endpoints or POST /refresh-auth",
+      },
+      res.status >= 500 ? 503 : 400,
+    );
+  }
+
+  const rows = normalizeTransactionRows(res.data);
+  const fetchedAt = new Date().toISOString();
+  await putProfileLiveCache(env, cacheKey, { rows, fetchedAt });
+
+  const limited = rows.slice(0, filters.limit);
+  return json(
+    {
+      status: "ok",
+      source: "live",
+      cached: false,
+      type: filters.type,
+      type_label: typeMeta.label,
+      operation: typeMeta.operation,
+      path,
+      agent_id: agentId,
+      filters: {
+        start_date: filters.startDate,
+        end_date: filters.endDate,
+        customer_id: filters.customer_id ?? null,
+      },
+      fetched_at: fetchedAt,
+      total: limited.length,
+      rows: limited,
     },
     200,
   );
@@ -7561,6 +7685,7 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/players': 'query',
   '/search-customers': 'query',
   '/customer-profile': 'query',
+  '/transactions-live': 'query',
   '/weekly-figures': 'query',
   '/customer-activity': 'query',
   '/customer-activity-search': 'query',
@@ -7605,6 +7730,7 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/customer-profile', method: 'GET', description: 'Customer profile (D1 seeded facets + live Manager calls; includes sources catalog)', refreshMs: 30000 },
   { path: '/customer-profile/seed', method: 'POST', description: 'Seed customer_profile_facets from Manager (getInfoPlayer, crypto, mail, teaser)', refreshMs: 'manual' },
   { path: '/agent-performance-live', method: 'GET', description: 'Live Manager/getAgentPerformance (CP, CPS, CPV, G)', refreshMs: 30000 },
+  { path: '/transactions-live', method: 'GET', description: 'Live Manager transaction reports (history, deleted, free play, summary)', refreshMs: 30000 },
   { path: '/weekly-figures', method: 'GET', description: 'Agent weekly figure lite snapshots', refreshMs: 30000 },
   { path: '/customer-activity', method: 'GET', description: 'Customer web logs + wagers for a login', refreshMs: 30000 },
   { path: '/customer-activity-search', method: 'POST', description: 'Search players for activity monitor', refreshMs: 30000 },

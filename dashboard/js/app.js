@@ -84,6 +84,7 @@ import {
   unregisterPendingAutoRefresh,
   applyPendingFilters,
 } from './views/pending-wagers.js';
+import { loadTransactionsView } from './views/transactions.js';
 import { installNavigationBridge } from './lib/navigation.js';
 import { maybeAutoIngest } from './ingestion-automation.js';
 
@@ -289,6 +290,9 @@ function switchView(name) {
     ticker.stopSSE();
     registerPendingAutoRefresh(ctx);
     loadPendingWagersView(ctx);
+  } else if (name === 'transactions') {
+    ticker.stopSSE();
+    loadTransactionsView(ctx);
   }
 }
 

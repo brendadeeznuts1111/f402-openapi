@@ -207,8 +207,46 @@ async function loadCustomerActivity(ctx) {
         </div>
       </div>
     `).join('');
+
+    const cid = customer?.customer_id || profile?.customerId;
+    if (cid) {
+      $('activityTransactionsWrap').classList.remove('ds-hidden');
+      await loadCustomerTransactions(ctx, cid);
+    } else {
+      $('activityTransactionsWrap').classList.add('ds-hidden');
+    }
   } catch (e) {
     $('activityTimeline').innerHTML = renderErrorState(e.message, '/customer-activity');
+  }
+}
+
+async function loadCustomerTransactions(ctx, customerId) {
+  const txType = ($('activityTxType')?.value || 'player').trim();
+  const today = new Date().toISOString().slice(0, 10);
+  const startDate = $('activityTxStart')?.value || today;
+  const endDate = $('activityTxEnd')?.value || today;
+  try {
+    $('activityTransactions').innerHTML = '<div class="ds-skeleton ds-skeleton-row"></div><div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>';
+    const url = `/transactions-live?type=${encodeURIComponent(txType)}&customer_id=${encodeURIComponent(customerId)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&limit=50`;
+    const res = await ctx.api(url);
+    const rows = res.rows || [];
+    if (!rows.length) {
+      $('activityTransactions').innerHTML = renderEmptyState({ icon: '📄', message: 'No transactions', hint: `${res.type_label || txType} for this period.` });
+      return;
+    }
+    $('activityTransactions').innerHTML = `<table class="ds-table-sm"><thead><tr>
+      <th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Balance</th><th>Reference</th>
+    </tr></thead><tbody>${rows.map((r) => `
+      <tr>
+        <td>${r.posted_at ? ago(r.posted_at) : '-'}</td>
+        <td>${escapeHtml(r.transaction_type || '')}</td>
+        <td>${escapeHtml(r.description || '')}</td>
+        <td class="ds-num">${r.amount != null ? usd(Number(r.amount) / 100) : '-'}</td>
+        <td class="ds-num">${r.balance != null ? usd(Number(r.balance) / 100) : '-'}</td>
+        <td>${escapeHtml(r.reference || '')}</td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    $('activityTransactions').innerHTML = renderErrorState(e.message, '/transactions-live');
   }
 }
 
@@ -275,5 +313,19 @@ export function initActivityView(ctx) {
       paintActivityFilters();
       if (selectedLogin) await loadCustomerActivity(ctx);
     });
+  });
+  $('activityTxType')?.addEventListener('change', async () => {
+    if (selectedLogin) {
+      const data = await ctx.api(`/customer-activity?login=${encodeURIComponent(selectedLogin)}&hours=1&limit=1`);
+      const cid = data?.customer?.customer_id || data?.profile?.customerId;
+      if (cid) loadCustomerTransactions(ctx, cid);
+    }
+  });
+  $('activityTxRefresh')?.addEventListener('click', async () => {
+    if (selectedLogin) {
+      const data = await ctx.api(`/customer-activity?login=${encodeURIComponent(selectedLogin)}&hours=1&limit=1`);
+      const cid = data?.customer?.customer_id || data?.profile?.customerId;
+      if (cid) loadCustomerTransactions(ctx, cid);
+    }
   });
 }

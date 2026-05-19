@@ -239,6 +239,62 @@ export type AgentPerformanceLiveQuery = z.infer<typeof agentPerformanceLiveQuery
 export type SearchCustomersQuery = z.infer<typeof searchCustomersQuerySchema>;
 export type CustomerActivityQuery = z.infer<typeof customerActivityQuerySchema>;
 
+export const transactionReportTypeSchema = z.enum([
+  "player",
+  "agent",
+  "deleted",
+  "free-play",
+  "free-play-analysis",
+  "summary",
+]);
+
+export const transactionCheckboxSchema = z.enum(["checked", "unchecked"]);
+
+export const transactionsLiveQuerySchema = z
+  .object({
+    type: transactionReportTypeSchema,
+    agent_id: optionalTrimmed,
+    customer_id: optionalTrimmed,
+    start_date: z.preprocess(emptyToUndefined, isoDateOnly.optional()),
+    end_date: z.preprocess(emptyToUndefined, isoDateOnly.optional()),
+    free_flag: z.preprocess(emptyToUndefined, z.enum(["player", "agent"]).optional()),
+    deposits: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    withdrawals: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    adjustments: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    transfers: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    fees: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    promotional: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    balances: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    distribution: z.preprocess(emptyToUndefined, transactionCheckboxSchema.optional()),
+    report_type: z.coerce.number().int().min(0).max(9).default(2),
+    line_type: z.coerce.number().int().min(0).max(9).default(2),
+    limit: z.coerce.number().int().min(1).max(2000).default(500),
+  })
+  .superRefine((data, ctx) => {
+    refineDateRange(
+      { start_date: data.start_date, end_date: data.end_date },
+      ctx,
+      "transactions",
+    );
+    if (data.type === "deleted" && !data.customer_id && !data.agent_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "customer_id or agent_id required for deleted transactions",
+        path: ["customer_id"],
+      });
+    }
+  })
+  .transform((data) => {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      ...data,
+      startDate: data.start_date ?? today,
+      endDate: data.end_date ?? today,
+    };
+  });
+
+export type TransactionsLiveQuery = z.infer<typeof transactionsLiveQuerySchema>;
+
 const pathSegmentSchema = z.preprocess(
   emptyToUndefined,
   z.string().regex(/^[A-Za-z0-9_-]{1,80}$/).optional(),

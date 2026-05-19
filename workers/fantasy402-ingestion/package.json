@@ -30,6 +30,7 @@
     "auth:preflight": "bun scripts/auth-stack-preflight.mjs",
     "auth:stack-status": "bun scripts/auth-stack-status.mjs",
     "auth:monitor": "bun scripts/monitor-auth-stack.mjs",
+    "verify:deployed": "bun scripts/post-deploy-verify.mjs",
     "auth:check-stack": "bun scripts/check-auth-stack.mjs",
     "ingest:unattended-cycle": "bun scripts/run-unattended-cycle.mjs",
     "dev:ingest-stack": "bun scripts/dev-ingest-stack.mjs",

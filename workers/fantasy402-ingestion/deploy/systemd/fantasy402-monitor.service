@@ -1,0 +1,16 @@
+[Unit]
+Description=Fantasy402 auth stack health monitor (exit code for external checks)
+After=network-online.target fantasy402-local-proxy.service
+Wants=fantasy402-local-proxy.service
+
+[Service]
+Type=oneshot
+User=%i
+WorkingDirectory=%WORKDIR%
+EnvironmentFile=-/etc/fantasy402/ingestion.env
+ExecStart=/bin/bash scripts/run-with-ingestion-env.sh %BUN% scripts/monitor-auth-stack.mjs --alert
+StandardOutput=append:/var/log/fantasy402/monitor.log
+StandardError=append:/var/log/fantasy402/monitor.err.log
+
+[Install]
+WantedBy=multi-user.target

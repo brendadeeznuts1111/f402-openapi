@@ -22,6 +22,7 @@ import {
   extractPlayerCustomerId,
   readCachedPlayerCustomerId,
 } from "./customer-id";
+import { ingestPlaneSummary, workerTriggerMode } from "./ingest-plane";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
 import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
@@ -38,6 +39,8 @@ export interface Env {
   CLOUDFLARE_API_TOKEN: string;
   FANTASY402_BASE_URL: string;
   FANTASY402_INGESTION_ENDPOINTS: string;
+  /** attempt | skip — skip disables 15-min cron Worker /trigger for browser-plane catalog */
+  FANTASY402_WORKER_TRIGGER_MODE?: string;
   FANTASY402_INGESTION_BATCH_SIZE?: string;
   FANTASY402_USERNAME: string;
   FANTASY402_PASSWORD: string;
@@ -935,6 +938,12 @@ const worker = {
       return;
     }
 
+    if (workerTriggerMode(runtimeEnv) === "skip") {
+      console.info(
+        "[Ingestion] Worker /trigger cron skipped (FANTASY402_WORKER_TRIGGER_MODE=skip); use local/browser ingest",
+      );
+      return;
+    }
     ctx.waitUntil(runIngestion(runtimeEnv));
   },
 
@@ -1731,6 +1740,7 @@ async function getIngestCatalogStatus(env: Env): Promise<Response> {
     : pendingKeys.length > 0 ? 1 : 0;
 
   const failureBreakdown = await readFailureBreakdown(env);
+  const plane = ingestPlaneSummary(manifestKeys);
 
   return json(
     {
@@ -1739,6 +1749,8 @@ async function getIngestCatalogStatus(env: Env): Promise<Response> {
       configuredCount: configured.size,
       onlineCount: onlineKeys.length,
       pendingCount: pendingKeys.length,
+      ingestPlane: plane,
+      workerTriggerMode: workerTriggerMode(env),
       onlineKeys,
       pendingKeys,
       cursor: plan.cursor,

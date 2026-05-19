@@ -31,7 +31,7 @@ if [[ ! -f "$ENV_DEST" ]]; then
   echo "Edit $ENV_DEST with INGESTION_TRIGGER_TOKEN, FANTASY402_USERNAME, FANTASY402_PASSWORD."
 fi
 
-for unit in fantasy402-local-proxy.service fantasy402-auth-refresh.service fantasy402-auth-refresh.timer fantasy402-ingest-batch.service fantasy402-ingest-batch.timer; do
+for unit in fantasy402-local-proxy.service fantasy402-auth-refresh.service fantasy402-auth-refresh.timer fantasy402-ingest-batch.service fantasy402-ingest-batch.timer fantasy402-monitor.service fantasy402-monitor.timer; do
   sed \
     -e "s|%WORKDIR%|$ROOT|g" \
     -e "s|%BUN%|$BUN_BIN|g" \
@@ -47,6 +47,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable fantasy402-local-proxy.service
 sudo systemctl enable fantasy402-auth-refresh.timer
 sudo systemctl enable fantasy402-ingest-batch.timer
+sudo systemctl enable fantasy402-monitor.timer
 sudo systemctl restart fantasy402-local-proxy.service
 
 echo "Installed systemd units for user $RUN_USER"

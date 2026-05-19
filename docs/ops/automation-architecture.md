@@ -109,9 +109,15 @@ Failed auto-ingest sets a **5-minute localStorage backoff** to avoid toast/spam 
 
 Point **healthchecks.io** or Uptime Kuma at `bun scripts/monitor-auth-stack.mjs` every 5–15 minutes. Use `--alert` on the monitor job if you want a second webhook path independent of the ingest timer.
 
+## Worker cron vs browser ingest
+
+Production sets `FANTASY402_WORKER_TRIGGER_MODE=skip` so the `*/15` cron does not hammer Fantasy402 from Cloudflare edge IPs (403 / skipped). Catalog backfill is **VPS/browser only** via `ingest:unattended-cycle`.
+
+`GET /ingest/catalog-status` includes `ingestPlane` (browser vs edge-eligible counts) and `workerTriggerMode`.
+
 ## Further improvements (backlog)
 
 - Push metrics (Prometheus) on cycle state failures.
 - Align auth timer interval with `F402_JWT_REFRESH_BUFFER_SEC` dynamically.
-- Worker cron for **non-IP-bound** routes only, VPS for the rest (split catalog by `zone`).
+- Populate `EDGE_ELIGIBLE_KEYS` in `src/ingest-plane.ts` if any routes succeed from Worker egress.
 - Single webhook when `consecutiveFailures >= 3`.

@@ -1,17 +1,32 @@
 // dashboard/js/app.js — Fantasy402 Dashboard entry
 
-import { api, apiPost, setGlobalErrorHandler, checkApiHealth, isMissingTokenError } from './api-client.js';
+import {
+  api,
+  apiPost,
+  setGlobalErrorHandler,
+  checkApiHealth,
+  probeApiProxy,
+  isMissingTokenError,
+  isUnauthorizedProxyError,
+} from './api-client.js';
+import {
+  PRODUCTION_DASHBOARD,
+  isEphemeralPagesHost,
+  redirectToProductionDashboard,
+} from './deploy.js';
 import { WagerSocket, PollingFallback } from './websocket-client.js';
 import { getRefreshInterval } from './design-system.js';
 import { AutoRefreshManager } from './utils.js';
 import { DataStore } from './store.js';
 import { SettingsManager } from './settings-manager.js';
 import { StatusPoller } from './status-poller.js';
-import { destroyAllCharts } from './charts.js';
+import { destroyAllCharts, resizeAllCharts } from './charts.js';
 import { createTicker } from './ticker.js';
 import { applyTheme, initTheme } from './theme.js';
 import {
   showAlert,
+  showConfigBanner,
+  renderErrorState,
   updateBreadcrumbs,
   openDrawer,
   closeDrawer,
@@ -22,7 +37,12 @@ import {
 } from './ui.js';
 import { $, debounce } from './dom.js';
 import { loadOverview, renderVolumeChart } from './views/overview.js';
-import { loadAnalytics, renderAnalyticsCharts, onChartTabVisible } from './views/analytics.js';
+import {
+  loadAnalytics,
+  renderAnalyticsCharts,
+  onChartTabVisible,
+  setActiveChartTab,
+} from './views/analytics.js';
 import { loadLogs } from './views/logs.js';
 import {
   loadSettings,
@@ -113,12 +133,33 @@ const ctx = {
   registerOverviewRefresh,
 };
 
-setGlobalErrorHandler((err, path) => {
-  if (isMissingTokenError(err)) {
-    ctx.showAlert(
-      'API proxy missing INGESTION_TRIGGER_TOKEN. Run dashboard/scripts/set-pages-secrets.sh then redeploy. Live wagers (SSE) may still work.',
+function showProxyConfigBanner(kind) {
+  if (kind === 'missing_token') {
+    showConfigBanner(
+      'This deployment has no API token (stale preview URL?). Use production or run ./scripts/set-pages-secrets.sh then redeploy.',
       'error',
     );
+    return;
+  }
+  if (kind === 'unauthorized') {
+    showConfigBanner(
+      'Preview API token does not match the Worker. Run ./scripts/set-pages-secrets.sh (syncs from 1Password) and redeploy.',
+      'error',
+    );
+    return;
+  }
+  if (kind === 'unreachable') {
+    showConfigBanner('Cannot reach the ingestion Worker via /api. Check Worker status or network.', 'warn');
+  }
+}
+
+setGlobalErrorHandler((err, path) => {
+  if (isMissingTokenError(err)) {
+    showProxyConfigBanner('missing_token');
+    return;
+  }
+  if (isUnauthorizedProxyError(err)) {
+    showProxyConfigBanner('unauthorized');
     return;
   }
   ctx.showAlert(`${path || 'API'}: ${err.message}`, 'error');
@@ -128,7 +169,6 @@ statusPoller.onUpdate = (status) => {
   renderSidebarStatus(status);
   updateCookieHealth(ctx);
 };
-statusPoller.start();
 
 function renderSidebarStatus(status) {
   const el = $('sidebarStatus');
@@ -150,7 +190,7 @@ function switchView(name) {
     else item.removeAttribute('aria-current');
   });
   document.querySelectorAll('.ds-view').forEach((v) => {
-    v.style.display = v.id === `view-${name}` ? 'block' : 'none';
+    v.classList.toggle('ds-view--active', v.id === `view-${name}`);
   });
 
   updateBreadcrumbs(name);
@@ -212,6 +252,11 @@ $('sidebarToggle').addEventListener('click', () => {
   const collapsed = document.querySelector('.ds-sidebar').classList.contains('ds-sidebar--collapsed');
   $('sidebarToggle').innerHTML = collapsed ? '&raquo;' : '&laquo;';
   $('sidebarToggle').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  requestAnimationFrame(() => resizeAllCharts());
+});
+
+window.addEventListener('resize', () => {
+  requestAnimationFrame(() => resizeAllCharts());
 });
 
 document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
@@ -219,7 +264,10 @@ document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
 });
 
 document.querySelectorAll('[data-chart-tab]').forEach((t) => {
-  t.addEventListener('click', () => switchChartTab(t.dataset.chartTab, (name) => onChartTabVisible(name, ctx)));
+  t.addEventListener('click', () => {
+    setActiveChartTab(t.dataset.chartTab);
+    switchChartTab(t.dataset.chartTab, (name) => onChartTabVisible(name, ctx));
+  });
 });
 
 document.querySelectorAll('[data-log-tab]').forEach((t) => {
@@ -248,20 +296,48 @@ initDropzone(ctx, $('importDropzone'));
 async function init() {
   requestNotificationPermission();
   $('lastUpdate').textContent = new Date().toLocaleTimeString();
-  document.getElementById('view-overview').style.display = 'block';
+  document.querySelectorAll('.ds-view').forEach((v) => {
+    v.classList.toggle('ds-view--active', v.id === 'view-overview');
+  });
   updateBreadcrumbs('overview');
   syncDrawerFromSettings(ctx);
 
+  if (isEphemeralPagesHost() && !location.search.includes('stay=1')) {
+    redirectToProductionDashboard();
+    return;
+  }
+
+  let proxyState = await probeApiProxy();
+  if (proxyState !== 'ok') {
+    showProxyConfigBanner(proxyState);
+    if (proxyState === 'missing_token' || proxyState === 'unauthorized') {
+      ticker.updateConn('degraded');
+    } else {
+      ticker.updateConn('error');
+    }
+  }
+
   const health = await checkApiHealth();
-  if (!health.ok) {
+  if (!health.ok && proxyState === 'ok') {
     ctx.showAlert('Worker health check failed — proxy or Worker may be down.', 'error');
     ticker.updateConn('error');
   } else if (health.worker?.durable_object !== 'ok') {
-    ticker.updateConn('error');
+    ticker.updateConn('degraded');
     ctx.showAlert('Live wager broadcaster unavailable (Durable Object). SSE may not connect.', 'warn');
   }
 
-  await loadOverview(ctx);
+  if (proxyState === 'ok') {
+    statusPoller.silent = false;
+    statusPoller.start();
+    await loadOverview(ctx);
+  } else {
+    statusPoller.silent = true;
+    statusPoller.stop();
+    $('statCards').innerHTML = renderErrorState(
+      `API unavailable on this URL. Open production (${PRODUCTION_DASHBOARD}) or redeploy after ./scripts/set-pages-secrets.sh`,
+      '/summary',
+    );
+  }
   ticker.startSSE();
   registerOverviewRefresh();
 }

@@ -332,6 +332,15 @@ button.ds-tab {
   min-width: 0;
 }
 
+/* Single active view — avoids hidden panels affecting layout/charts */
+.ds-view {
+  display: none;
+}
+
+.ds-view.ds-view--active {
+  display: block;
+}
+
 @media (max-width: 768px) {
   .ds-layout { flex-direction: column; }
   .ds-sidebar {

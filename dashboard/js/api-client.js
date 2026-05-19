@@ -10,6 +10,7 @@ let globalErrorHandler = null;
 let missingTokenAlertShown = false;
 
 export const API_ERROR_MISSING_TOKEN = 'MISSING_PAGES_TOKEN';
+export const API_ERROR_UNAUTHORIZED = 'PROXY_UNAUTHORIZED';
 
 export class ApiError extends Error {
   constructor(message, { status, code, path, method } = {}) {
@@ -26,6 +27,12 @@ export function isMissingTokenError(err) {
   if (!err) return false;
   if (err.code === API_ERROR_MISSING_TOKEN) return true;
   return /missing token/i.test(String(err.message || ''));
+}
+
+export function isUnauthorizedProxyError(err) {
+  if (!err) return false;
+  if (err.code === API_ERROR_UNAUTHORIZED) return true;
+  return err.status === 401 && /unauthorized/i.test(String(err.message || ''));
 }
 
 export function setGlobalErrorHandler(fn) {
@@ -79,9 +86,12 @@ async function doFetch(url, options, meta = {}) {
 
 function notifyError(err, path, method, silent) {
   if (silent || !globalErrorHandler) return;
-  if (isMissingTokenError(err)) {
+  if (isMissingTokenError(err) || isUnauthorizedProxyError(err)) {
     if (missingTokenAlertShown) return;
     missingTokenAlertShown = true;
+    if (isUnauthorizedProxyError(err)) err.code = err.code || API_ERROR_UNAUTHORIZED;
+    globalErrorHandler(err, path);
+    return;
   }
   globalErrorHandler(err, path, method);
 }
@@ -126,6 +136,33 @@ export async function api(path, options = {}) {
 
   inFlight.set(dedupeKey, promise);
   return promise;
+}
+
+/**
+ * Probe Pages proxy: health (public) then summary (needs token).
+ * @returns {'ok'|'missing_token'|'unauthorized'|'unreachable'}
+ */
+export async function probeApiProxy() {
+  const health = await checkApiHealth();
+  if (!health.ok) {
+    if (health.status === 500) {
+      try {
+        const res = await fetch(`${BASE}/health`);
+        const body = await res.json();
+        if (body.code === API_ERROR_MISSING_TOKEN) return 'missing_token';
+      } catch { /* ignore */ }
+    }
+    return 'unreachable';
+  }
+  try {
+    bustCache('/summary');
+    await api('/summary', { silent: true });
+    return 'ok';
+  } catch (err) {
+    if (isMissingTokenError(err)) return 'missing_token';
+    if (isUnauthorizedProxyError(err)) return 'unauthorized';
+    return 'unreachable';
+  }
 }
 
 /** Public proxy route — works even when INGESTION_TRIGGER_TOKEN is unset. */

@@ -3,6 +3,20 @@
 import { $, escapeHtml } from './dom.js';
 import { getZoneName } from './design-system.js';
 
+let configBannerEl = null;
+
+/** Sticky banner for deployment / proxy misconfiguration (dismissible). */
+export function showConfigBanner(msg, severity = 'error') {
+  if (configBannerEl) configBannerEl.remove();
+  const el = document.createElement('div');
+  el.className = `ds-config-banner ds-config-banner--${escapeHtml(severity)}`;
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `${escapeHtml(msg)} <button type="button" class="ds-config-banner__dismiss" aria-label="Dismiss">✕</button>`;
+  el.querySelector('.ds-config-banner__dismiss')?.addEventListener('click', () => el.remove());
+  document.body.prepend(el);
+  configBannerEl = el;
+}
+
 export function showAlert(msg, severity = 'warn', settings) {
   const el = document.createElement('div');
   el.className = `ds-toast-item ds-toast-item--${escapeHtml(severity)}`;
@@ -51,9 +65,12 @@ export function closeDrawer() {
 }
 
 export function switchChartTab(name, handlers) {
-  document.querySelectorAll('[data-chart-tab]').forEach((t) => t.classList.toggle('ds-active', t.dataset.chartTab === name));
+  document.querySelectorAll('[data-chart-tab]').forEach((t) => {
+    t.classList.toggle('ds-active', t.dataset.chartTab === name);
+  });
   document.querySelectorAll('#view-analytics .ds-tab-content').forEach((c) => {
-    c.style.display = c.id === `tab-${name}` ? 'block' : 'none';
+    c.classList.toggle('ds-active', c.id === `tab-${name}`);
+    c.style.display = '';
   });
   updateBreadcrumbs('analytics', name);
   handlers?.(name);

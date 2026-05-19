@@ -1,4 +1,4 @@
-// dashboard/js/charts.js — Chart.js instance registry
+// Chart.js instance registry
 
 import { ChartWrapper } from './chart-wrapper.js';
 
@@ -19,9 +19,14 @@ export function setChart(name, chart) {
 }
 
 export function ensureChart(name, canvasId, type) {
-  if (!instances[name]) {
-    instances[name] = new ChartWrapper(canvasId, type);
+  const existing = instances[name];
+  if (existing && existing.canvasId === canvasId && existing.type === type) {
+    return existing;
   }
+  if (existing) {
+    existing.destroy();
+  }
+  instances[name] = new ChartWrapper(canvasId, type);
   return instances[name];
 }
 
@@ -31,6 +36,12 @@ export function destroyAllCharts() {
       instances[key].destroy();
       instances[key] = null;
     }
+  }
+}
+
+export function resizeAllCharts() {
+  for (const chart of Object.values(instances)) {
+    chart?.resize();
   }
 }
 

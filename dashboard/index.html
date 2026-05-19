@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Fantasy402 Dashboard v3 — real-time wager ingestion with analytics">
 <title>Fantasy402 Dashboard</title>
+<link rel="canonical" href="https://fantasy402-dashboard-5q6.pages.dev/">
+<script>
+(function () {
+  var h = location.hostname;
+  if (/^[a-f0-9]{6,12}\.fantasy402-dashboard/i.test(h) && location.search.indexOf('stay=1') === -1) {
+    location.replace('https://fantasy402-dashboard-5q6.pages.dev' + location.pathname + location.search + location.hash);
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -73,14 +82,16 @@
       </div>
 
       <div class="ds-grid ds-main-grid">
-        <div class="ds-card ds-chart-container ds-chart-container--lg">
+        <div class="ds-chart-container">
           <div class="ds-chart-title">Volume Trend</div>
-          <div id="volumeChartWrap">
-            <div class="ds-skeleton ds-skeleton-row"></div>
-            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
-            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+          <div class="ds-chart-plot ds-chart-plot--lg">
+            <div id="volumeChartWrap">
+              <div class="ds-skeleton ds-skeleton-row"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+            </div>
+            <canvas id="volumeChart" class="ds-chart-canvas" style="display:none" aria-label="Volume trend chart"></canvas>
           </div>
-          <canvas id="volumeChart" height="280" style="display:none"></canvas>
         </div>
         <div class="ds-card">
           <h2>Live Wager Ticker</h2>
@@ -120,45 +131,53 @@
       </div>
 
       <div class="ds-tab-content ds-active" id="tab-traffic">
-        <div class="ds-card ds-chart-container ds-chart-container--lg">
+        <div class="ds-chart-container">
           <div class="ds-chart-title">Request Traffic</div>
-          <div id="trafficChartWrap">
-            <div class="ds-skeleton ds-skeleton-row"></div>
-            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
-            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+          <div class="ds-chart-plot ds-chart-plot--lg">
+            <div id="trafficChartWrap">
+              <div class="ds-skeleton ds-skeleton-row"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+            </div>
+            <canvas id="trafficChart" class="ds-chart-canvas" style="display:none" aria-label="Request traffic chart"></canvas>
           </div>
-          <canvas id="trafficChart" height="320" style="display:none"></canvas>
         </div>
       </div>
 
       <div class="ds-tab-content" id="tab-latency">
-        <div class="ds-card ds-chart-container ds-chart-container--lg">
+        <div class="ds-chart-container">
           <div class="ds-chart-title">Endpoint Latency</div>
-          <div id="latencyChartWrap">
-            <div class="ds-skeleton ds-skeleton-row"></div>
-            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          <div class="ds-chart-plot ds-chart-plot--lg">
+            <div id="latencyChartWrap">
+              <div class="ds-skeleton ds-skeleton-row"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            </div>
+            <canvas id="latencyChart" class="ds-chart-canvas" style="display:none" aria-label="Endpoint latency chart"></canvas>
           </div>
-          <canvas id="latencyChart" height="320" style="display:none"></canvas>
         </div>
       </div>
 
       <div class="ds-tab-content" id="tab-distribution">
         <div class="ds-grid ds-main-grid">
-          <div class="ds-card ds-chart-container">
+          <div class="ds-chart-container">
             <div class="ds-chart-title">Wager Types</div>
-            <div id="typeChartWrap">
-              <div class="ds-skeleton ds-skeleton-row"></div>
-              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+            <div class="ds-chart-plot ds-chart-plot--md">
+              <div id="typeChartWrap">
+                <div class="ds-skeleton ds-skeleton-row"></div>
+                <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+              </div>
+              <canvas id="typeChart" class="ds-chart-canvas" style="display:none" aria-label="Wager types chart"></canvas>
             </div>
-            <canvas id="typeChart" height="240" style="display:none"></canvas>
           </div>
-          <div class="ds-card ds-chart-container">
+          <div class="ds-chart-container">
             <div class="ds-chart-title">Agent Volume</div>
-            <div id="agentChartWrap">
-              <div class="ds-skeleton ds-skeleton-row"></div>
-              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            <div class="ds-chart-plot ds-chart-plot--md">
+              <div id="agentChartWrap">
+                <div class="ds-skeleton ds-skeleton-row"></div>
+                <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+              </div>
+              <canvas id="agentChart" class="ds-chart-canvas" style="display:none" aria-label="Agent volume chart"></canvas>
             </div>
-            <canvas id="agentChart" height="240" style="display:none"></canvas>
           </div>
         </div>
       </div>

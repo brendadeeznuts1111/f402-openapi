@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.3.0 — Chart sizing audit
+
+### Fixed
+- **Charts growing unbounded** — removed `canvas.height = parent.clientHeight * 2` feedback loop; fixed-height `.ds-chart-plot` wrappers
+- **Distribution / latency charts not rendering** — render only when tab is visible; fixed visibility check (CSS class vs inline `display`)
+- **Theme toggle resetting analytics tab** — preserve active chart tab across re-renders
+- **Doughnut scale warnings** — omit Cartesian `scales` for radial chart types
+
+### Added
+- `ResizeObserver` on chart plot containers; `resizeAllCharts()` on sidebar toggle and window resize
+- `.ds-view` / `.ds-view--active` — single visible view; avoids hidden panels affecting layout
+
+### Changed
+- Chart markup: `.ds-chart-plot` wrappers in `index.html`; removed duplicate `.ds-card` on chart containers
+
 ## v3.2.0 — Modular views + route latency
 
 ### Added

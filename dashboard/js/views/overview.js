@@ -49,8 +49,10 @@ export async function renderVolumeChart(ctx) {
     const values = labels.map((l) => buckets[l] / 100);
 
     const volumeChart = ensureChart('volume', 'volumeChart', 'line');
-    $('volumeChartWrap').style.display = 'none';
-    $('volumeChart').style.display = 'block';
+    const wrap = $('volumeChartWrap');
+    const canvas = $('volumeChart');
+    if (wrap) wrap.style.display = 'none';
+    if (canvas) canvas.style.display = 'block';
     volumeChart.data = {
       labels,
       datasets: [{

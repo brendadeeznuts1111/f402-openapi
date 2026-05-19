@@ -1,7 +1,8 @@
-// dashboard/js/chart-wrapper.js
-// Lightweight Chart.js wrapper with theme-aware defaults and deferred rendering for hidden canvases.
+// Chart.js wrapper — fixed plot sizing, theme defaults, deferred render for hidden tabs
 
 const CHART_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+
+const RADIAL_TYPES = new Set(['doughnut', 'pie', 'polarArea']);
 
 async function ensureChartJs() {
   if (typeof window !== 'undefined' && window.Chart) return window.Chart;
@@ -27,6 +28,17 @@ function getThemeColors() {
   };
 }
 
+function isElementVisible(el) {
+  if (!el) return false;
+  if (el.offsetParent !== null) return true;
+  const style = getComputedStyle(el);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
+function getPlotElement(canvas) {
+  return canvas.closest('.ds-chart-plot') || canvas.parentElement;
+}
+
 export class ChartWrapper {
   constructor(canvasId, type = 'line', data = {}, options = {}) {
     this.canvasId = canvasId;
@@ -36,37 +48,14 @@ export class ChartWrapper {
     this.chart = null;
     this._deferred = false;
     this._pendingData = null;
+    this._resizeObserver = null;
   }
 
-  async render(data) {
-    const Chart = await ensureChartJs();
-    const canvas = document.getElementById(this.canvasId);
-    if (!canvas) throw new Error(`Canvas #${this.canvasId} not found`);
-    if (data) this.data = data;
-
-    // Destroy previous instance
-    if (this.chart) { this.chart.destroy(); this.chart = null; }
-
-    // Check visibility — canvas or any parent may be display:none
-    if (canvas.offsetParent === null && !canvas.hasAttribute('data-chart-force')) {
-      this._deferred = true;
-      return;
-    }
-    this._deferred = false;
-
-    // Set explicit pixel dimensions before Chart.js init
-    // Chart.js needs non-zero width/height at creation time for proper sizing
-    const htmlW = parseInt(canvas.getAttribute('width'));
-    const htmlH = parseInt(canvas.getAttribute('height'));
-    const pw = canvas.parentElement?.clientWidth || htmlW || 800;
-    const ph = canvas.parentElement?.clientHeight || htmlH || 400;
-    canvas.width = pw * 2;
-    canvas.height = ph * 2;
-
-    const theme = getThemeColors();
-    const defaults = {
+  _buildOptions(theme) {
+    const isRadial = RADIAL_TYPES.has(this.type);
+    const base = {
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: isRadial,
       animation: { duration: 300 },
       plugins: {
         legend: {
@@ -80,26 +69,74 @@ export class ChartWrapper {
           borderWidth: 1,
         },
       },
-      scales: {
+    };
+
+    if (!isRadial) {
+      base.maintainAspectRatio = false;
+      base.scales = {
         x: {
-          ticks: { color: theme.text, font: { family: "'JetBrains Mono', monospace", size: 10 } },
+          ticks: { color: theme.text, font: { family: "'JetBrains Mono', monospace", size: 10 }, maxRotation: 45 },
           grid: { color: theme.grid },
         },
         y: {
           ticks: { color: theme.text, font: { family: "'JetBrains Mono', monospace", size: 10 } },
           grid: { color: theme.grid },
         },
-      },
-    };
+      };
+    }
 
+    return { ...base, ...this.options };
+  }
+
+  _attachResizeObserver(canvas) {
+    const plot = getPlotElement(canvas);
+    if (!plot || this._resizeObserver) return;
+    this._resizeObserver = new ResizeObserver(() => {
+      if (this.chart) this.chart.resize();
+    });
+    this._resizeObserver.observe(plot);
+  }
+
+  _detachResizeObserver() {
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+  }
+
+  async render(data) {
+    const Chart = await ensureChartJs();
+    const canvas = document.getElementById(this.canvasId);
+    if (!canvas) throw new Error(`Canvas #${this.canvasId} not found`);
+    if (data) this.data = data;
+
+    const plot = getPlotElement(canvas);
+    if (!isElementVisible(plot || canvas) && !canvas.hasAttribute('data-chart-force')) {
+      this._deferred = true;
+      return;
+    }
+    this._deferred = false;
+
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
+
+    canvas.classList.add('ds-chart-canvas');
+    canvas.removeAttribute('width');
+    canvas.removeAttribute('height');
+    canvas.style.display = 'block';
+
+    const theme = getThemeColors();
     this.chart = new Chart(canvas, {
       type: this.type,
       data: this._pendingData || this.data,
-      options: { ...defaults, ...this.options },
+      options: this._buildOptions(theme),
     });
     this._pendingData = null;
 
-    if (this.chart) this.chart.resize();
+    this._attachResizeObserver(canvas);
+    this.chart.resize();
     return this.chart;
   }
 
@@ -118,6 +155,7 @@ export class ChartWrapper {
   }
 
   destroy() {
+    this._detachResizeObserver();
     if (this.chart) {
       this.chart.destroy();
       this.chart = null;

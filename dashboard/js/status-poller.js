@@ -13,6 +13,7 @@ export class StatusPoller {
     this._store = store || new DataStore();
     this._interval = interval;
     this._timer = null;
+    this._silent = false;
     this._onUpdate = null;
     this._status = {
       worker: 'unknown',
@@ -32,6 +33,10 @@ export class StatusPoller {
     this._onUpdate = fn;
   }
 
+  set silent(value) {
+    this._silent = Boolean(value);
+  }
+
   start() {
     this._poll();
     this._timer = setInterval(() => this._poll(), this._interval);
@@ -46,7 +51,7 @@ export class StatusPoller {
 
   async _poll() {
     try {
-      const data = await this._api('/endpoint-status');
+      const data = await this._api('/endpoint-status', { silent: this._silent });
       this._status.worker = data.worker || 'unknown';
       this._status.latestRun = data.latestRun || null;
       this._status.recentFailures = data.recentFailures || [];
@@ -57,7 +62,9 @@ export class StatusPoller {
       this._store.set(ENDPOINT_STATUS_KEY, { ...this._status }, this._interval * 1.5);
       this._onUpdate?.({ ...this._status });
     } catch (e) {
-      console.warn('[StatusPoller] poll failed', e?.message || e);
+      if (!this._silent) {
+        console.warn('[StatusPoller] poll failed', e?.message || e);
+      }
     }
   }
 

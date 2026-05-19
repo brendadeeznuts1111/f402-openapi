@@ -23,6 +23,20 @@ console.log(`  Circular deps:           ${report.circularDependencies.ok ? 'OK' 
 console.log(
   `  Performance:             ${report.performance.ok ? 'OK' : report.performance.regressions?.join('; ')}`,
 );
+console.log('\n  Navigation');
+console.log(
+  `    Snapshot drift:        ${report.navigation.snapshot.ok ? 'none' : 'yes'}`,
+);
+console.log(
+  `    Metadata sync:         ${report.navigation.metadataSync.ok ? 'OK' : report.navigation.metadataSync.findings.length + ' issue(s)'}`,
+);
+console.log(
+  `    Fixture coverage:      ${report.navigation.fixtures.generated}/${report.navigation.fixtures.total}`,
+);
+console.log(
+  `    Perf (SidebarConfig):  ${report.navigation.performance.ok ? 'OK' : report.navigation.performance.regressions?.join('; ')}`,
+);
+console.log(`    Tabs / groups:         ${report.navigation.tabCount} / ${report.navigation.groupCount}`);
 
 if (!report.metadataSync.ok) {
   for (const f of report.metadataSync.findings) console.log(`    - ${f}`);
@@ -44,7 +58,10 @@ process.exit(
     report.llms.ok &&
     report.snapshots.ok &&
     report.circularDependencies.ok &&
-    report.performance.ok
+    report.performance.ok &&
+    report.navigation.snapshot.ok &&
+    report.navigation.metadataSync.ok &&
+    report.navigation.performance.ok
     ? 0
     : 1,
 );

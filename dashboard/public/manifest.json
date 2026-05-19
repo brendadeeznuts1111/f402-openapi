@@ -1,0 +1,21 @@
+{
+  "name": "Fantasy402 Dashboard",
+  "short_name": "F402",
+  "description": "Operational dashboard for Fantasy402 ingestion worker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#0f1419",
+  "navigation": {
+    "version": 1,
+    "groupTabs": {
+      "overview": ["overview", "analytics", "logs"],
+      "operations": ["endpoints", "pending", "activity", "alerts"],
+      "customers": ["customers", "customer-profile", "agent-performance"],
+      "data": ["data-graded", "data-props", "data-positions", "data-players"],
+      "finance": ["transactions", "weekly-figures", "authorizations"],
+      "ingestion": ["ingest-catalog", "ingest-runs", "ingest-local", "upstream"],
+      "system": ["settings", "diagnostics", "health"]
+    }
+  }
+}

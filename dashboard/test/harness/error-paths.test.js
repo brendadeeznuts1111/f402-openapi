@@ -82,6 +82,15 @@ test('validationErrorBody and formatZodIssues stable on registry failures', () =
   assert.equal(body.status, 'failed');
 });
 
+test('navigation helpers return predictable errors for invalid input', async () => {
+  const { getTabPath, getTabGroup, isValidTabId } = await import('../../js/lib/navigation-config.js');
+  assert.equal(getTabPath(undefined).ok, false);
+  assert.equal(getTabPath('fake').ok, false);
+  assert.equal(getTabGroup('invalid-tab').ok, false);
+  assert.equal(isValidTabId('fake'), false);
+  assert.equal(isValidTabId('overview'), true);
+});
+
 test('zod-cases.json invalid paths still enforced', () => {
   const cases = loadMetadata('zod-cases.json');
   for (const c of cases.dashboardSchemas ?? []) {

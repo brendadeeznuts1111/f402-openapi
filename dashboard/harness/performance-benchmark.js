@@ -11,6 +11,7 @@ export const performanceBaselinePath = join(harnessDir, 'snapshots/performance-b
 
 const DEFAULT_ITERATIONS = 2000;
 const REGRESSION_THRESHOLD = 1.15;
+export const NAVIGATION_REGRESSION_THRESHOLD = 1.1;
 /** Ignore sub-millisecond noise below this absolute delta (ms/op). */
 const MIN_REGRESSION_DELTA_MS = 0.001;
 
@@ -92,6 +93,19 @@ export function comparePerformanceToBaseline(current, baseline, threshold = REGR
     }
   }
   return findings;
+}
+
+export function benchmarkNavigationConfig(sidebarConfigSchema, config, iterations = 500) {
+  sidebarConfigSchema.safeParse(config);
+  const start = performance.now();
+  for (let i = 0; i < iterations; i++) {
+    sidebarConfigSchema.safeParse(config);
+  }
+  const end = performance.now();
+  return {
+    iterations,
+    msPerOp: (end - start) / iterations,
+  };
 }
 
 export { REGRESSION_THRESHOLD, DEFAULT_ITERATIONS };

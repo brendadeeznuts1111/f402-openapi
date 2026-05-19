@@ -1,0 +1,72 @@
+{
+  "description": "Navigation Zod error-path and edge cases for harness.",
+  "invalidConfigs": [
+    {
+      "id": "empty-groups",
+      "config": { "version": 1, "groups": [] },
+      "messageIncludes": "Too small"
+    },
+    {
+      "id": "duplicate-tab-id",
+      "config": {
+        "version": 1,
+        "groups": [
+          {
+            "id": "g1",
+            "label": "G1",
+            "items": [
+              { "id": "overview", "label": "A", "path": "/dashboard/overview" },
+              { "id": "overview", "label": "B", "path": "/dashboard/other" }
+            ]
+          }
+        ]
+      },
+      "messageIncludes": "duplicate tab id"
+    },
+    {
+      "id": "duplicate-path",
+      "config": {
+        "version": 1,
+        "groups": [
+          {
+            "id": "g1",
+            "label": "G1",
+            "items": [
+              { "id": "tab-a", "label": "A", "path": "/dashboard/same" },
+              { "id": "tab-b", "label": "B", "path": "/dashboard/same" }
+            ]
+          }
+        ]
+      },
+      "messageIncludes": "duplicate path"
+    },
+    {
+      "id": "bad-badge-variant",
+      "config": {
+        "version": 1,
+        "groups": [
+          {
+            "id": "g1",
+            "label": "G1",
+            "items": [
+              {
+                "id": "tab-a",
+                "label": "A",
+                "path": "/dashboard/tab-a",
+                "badge": { "text": "!", "variant": "neon" }
+              }
+            ]
+          }
+        ]
+      },
+      "messageIncludes": "Invalid option"
+    }
+  ],
+  "helperCases": [
+    { "fn": "getTabPath", "input": null, "expectOk": false },
+    { "fn": "getTabPath", "input": "fake", "expectOk": false },
+    { "fn": "getTabGroup", "input": "invalid-tab", "expectOk": false },
+    { "fn": "isValidTabId", "input": "fake", "expect": false },
+    { "fn": "isValidTabId", "input": "overview", "expect": true }
+  ]
+}

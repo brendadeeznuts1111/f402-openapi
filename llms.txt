@@ -77,7 +77,38 @@
 
 ## Dashboard (Pages SPA)
 
-Sidebar views: `overview`, `analytics`, `logs`, `settings`, `endpoints`, `activity`, `data`, `pending`, `alerts`, `customers`, `transactions`. Contract harness: `dashboard/harness` (`npm run harness:verify`).
+Typed navigation: **24 tabs** in **7 groups** (`dashboard/js/lib/navigation-config.js`, `public/manifest.json` `navigation.groupTabs`). Harness snapshots: `dashboard/harness/snapshots/navigation-config.snap.json`. Contract harness: `dashboard/harness` (`npm run harness:verify`).
+
+### Dashboard routes (TAB_PATHS)
+
+| Path | Tab id |
+|------|--------|
+| `/dashboard/overview` | overview |
+| `/dashboard/analytics` | analytics |
+| `/dashboard/logs` | logs |
+| `/dashboard/endpoints` | endpoints |
+| `/dashboard/pending` | pending |
+| `/dashboard/activity` | activity |
+| `/dashboard/alerts` | alerts |
+| `/dashboard/customers` | customers |
+| `/dashboard/customer-profile` | customer-profile |
+| `/dashboard/agent-performance` | agent-performance |
+| `/dashboard/data-graded` | data-graded |
+| `/dashboard/data-props` | data-props |
+| `/dashboard/data-positions` | data-positions |
+| `/dashboard/data-players` | data-players |
+| `/dashboard/transactions` | transactions |
+| `/dashboard/weekly-figures` | weekly-figures |
+| `/dashboard/authorizations` | authorizations |
+| `/dashboard/ingest-catalog` | ingest-catalog |
+| `/dashboard/ingest-runs` | ingest-runs |
+| `/dashboard/ingest-local` | ingest-local |
+| `/dashboard/upstream` | upstream |
+| `/dashboard/settings` | settings |
+| `/dashboard/diagnostics` | diagnostics |
+| `/dashboard/health` | health |
+
+Legacy sidebar `data-view` ids still map via `viewId` on nav items (`overview`, `analytics`, `logs`, `settings`, `endpoints`, `activity`, `data`, `pending`, `alerts`, `customers`, `transactions`).
 
 ## Visual Reference
 - ANSI wiring diagram: `./endpoint_frontend_wiring_ansi_v2.sh` — run in a true‑color terminal for a color‑coded map of all components and API flows.

@@ -16,10 +16,17 @@ import {
   comparePerformanceToBaseline,
   stableBenchmarkSchemaParse,
   REGRESSION_THRESHOLD,
+  NAVIGATION_REGRESSION_THRESHOLD,
 } from './performance-benchmark.js';
 import { runLlmsContentValidation } from './llms-validate.js';
 import * as dashboardSchemas from '../js/lib/schemas.js';
-import { generateSchemaFixtures } from './zod-fixtures.js';
+import { generateSchemaFixtures, generateNavigationSchemaFixtures } from './zod-fixtures.js';
+import { serializeNavigationSnapshot, SIDEBAR_CONFIG } from '../js/lib/navigation-config.js';
+import {
+  navItemSchema,
+  navGroupSchema,
+  sidebarConfigSchema,
+} from '../js/lib/navigation-schemas.js';
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
 const dashboardRoot = join(harnessDir, '..');
@@ -87,6 +94,78 @@ export function buildHarnessHealthReport() {
     : ['performance baseline missing'];
   const snapshotsOnDisk = readdirSync(snapshotsDir).filter((f) => f.endsWith('.snap.json'));
 
+  let navigationSnapshotDrift = false;
+  let navigationSnapshotError = null;
+  try {
+    const liveNav = sortKeys(serializeNavigationSnapshot());
+    const snapNav = sortKeys(readSnapshot('navigation-config'));
+    const navChanges = diffSnapshots(snapNav, liveNav);
+    if (navChanges.length) {
+      navigationSnapshotDrift = true;
+      snapshotDrift.push({
+        snapshot: 'navigation-config',
+        changes: navChanges.slice(0, 50),
+      });
+    }
+  } catch (e) {
+    navigationSnapshotDrift = true;
+    navigationSnapshotError = e instanceof Error ? e.message : String(e);
+  }
+
+  const navSyncFindings = syncFindings.filter(
+    (f) =>
+      f.includes('navigation') ||
+      f.includes('manifest') ||
+      f.includes('llms.txt missing navigation') ||
+      f.includes('AGENTS.md') ||
+      f.includes('openApiOperationId') ||
+      f.includes('workerApiPath'),
+  );
+
+  const navFixtureDefs = generateNavigationSchemaFixtures();
+  /** @type {{ total: number, generated: number, skipped: number, errors: Array<{ schema: string, error: string }> }} */
+  const navFixtureCoverage = { total: 3, generated: 0, skipped: 0, errors: [] };
+  const navSchemaMap = {
+    navItemSchema,
+    navGroupSchema,
+    sidebarConfigSchema,
+  };
+  for (const [name, def] of Object.entries(navFixtureDefs)) {
+    const schema = navSchemaMap[name];
+    if (def.valid) {
+      const ok = schema.safeParse(def.valid);
+      if (ok.success) navFixtureCoverage.generated += 1;
+      else {
+        navFixtureCoverage.skipped += 1;
+        navFixtureCoverage.errors.push({ schema: name, error: 'valid fixture rejected' });
+      }
+    } else {
+      navFixtureCoverage.skipped += 1;
+    }
+    for (const c of def.invalidCases ?? []) {
+      const bad = schema.safeParse(c.input);
+      if (bad.success) {
+        navFixtureCoverage.errors.push({ schema: name, error: `${c.id} should fail` });
+      }
+    }
+  }
+
+  const navPerfCurrent =
+    perfBaseline && sidebarConfigSchema
+      ? {
+          'navigation.validateSidebarConfig': stableBenchmarkSchemaParse(
+            sidebarConfigSchema,
+            SIDEBAR_CONFIG,
+            { runs: 3, iterations: 500 },
+          ),
+        }
+      : {};
+  const navPerfRegressions = perfBaseline
+    ? comparePerformanceToBaseline(navPerfCurrent, perfBaseline, NAVIGATION_REGRESSION_THRESHOLD).filter(
+        (f) => f.startsWith('navigation.'),
+      )
+    : ['performance baseline missing'];
+
   return {
     generatedAt: new Date().toISOString(),
     snapshots: {
@@ -119,6 +198,26 @@ export function buildHarnessHealthReport() {
       sampleCurrentMs: Object.fromEntries(
         Object.entries(perfCurrent).map(([k, v]) => [k, v.msPerOp]),
       ),
+    },
+    navigation: {
+      snapshot: {
+        ok: !navigationSnapshotDrift,
+        drift: navigationSnapshotDrift,
+        error: navigationSnapshotError,
+      },
+      metadataSync: {
+        ok: navSyncFindings.length === 0,
+        findings: navSyncFindings,
+      },
+      fixtures: navFixtureCoverage,
+      performance: {
+        ok: navPerfRegressions.length === 0,
+        threshold: NAVIGATION_REGRESSION_THRESHOLD,
+        regressions: navPerfRegressions,
+        sampleCurrentMs: navPerfCurrent['navigation.validateSidebarConfig']?.msPerOp,
+      },
+      tabCount: Object.keys(serializeNavigationSnapshot().tabPaths ?? {}).length,
+      groupCount: serializeNavigationSnapshot().groupCount,
     },
     counts: {
       metadataFiles: metaFiles.length,

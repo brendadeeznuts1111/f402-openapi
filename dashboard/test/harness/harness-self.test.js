@@ -46,4 +46,11 @@ test('snapshot directory exists with core snapshots after first run', () => {
   assert.ok(files.includes('openapi-schemas.snap.json'));
   assert.ok(files.includes('dashboard-zod-schemas.snap.json'));
   assert.ok(files.includes('worker-zod-schemas.snap.json'));
+  assert.ok(files.includes('navigation-config.snap.json'));
+});
+
+test('navigation modules import without cycles (schemas.js / Sidebar)', () => {
+  const findings = verifyHarnessNoCycles();
+  const navRelated = findings.filter((f) => f.includes('navigation'));
+  assert.deepEqual(navRelated, [], navRelated.join('\n'));
 });

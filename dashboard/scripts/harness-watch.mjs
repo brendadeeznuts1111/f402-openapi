@@ -32,7 +32,9 @@ function runOnce() {
   console.log(statusLine('snapshots', !tests.stderr?.includes('snapshot drift'), passed ? 'ok' : 'drift?'));
   if (sync.status !== 0) console.log('\nSync:\n', sync.stdout || sync.stderr);
   if (!passed) console.log('\nTests:\n', (tests.stdout || '').split('\n').slice(-15).join('\n'));
-  console.log('\nWatching harness/, test/harness/, js/lib/schemas.js, llms.txt …');
+  console.log(
+    '\nWatching harness/, navigation-config, navigation-schemas, manifest.json, llms.txt …',
+  );
 }
 
 runOnce();
@@ -42,8 +44,12 @@ const watchPaths = [
   join(dashboardRoot, 'harness'),
   join(dashboardRoot, 'test/harness'),
   join(dashboardRoot, 'js/lib/schemas.js'),
+  join(dashboardRoot, 'js/lib/navigation-config.js'),
+  join(dashboardRoot, 'js/lib/navigation-schemas.js'),
+  join(dashboardRoot, 'public/manifest.json'),
   join(dashboardRoot, '_worker.js'),
   join(dashboardRoot, '..', 'llms.txt'),
+  join(dashboardRoot, '..', 'AGENTS.md'),
 ];
 
 let debounce;

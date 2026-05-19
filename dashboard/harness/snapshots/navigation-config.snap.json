@@ -1,0 +1,310 @@
+{
+  "groupCount": 7,
+  "groupTabs": {
+    "customers": [
+      "customers",
+      "customer-profile",
+      "agent-performance"
+    ],
+    "data": [
+      "data-graded",
+      "data-props",
+      "data-positions",
+      "data-players"
+    ],
+    "finance": [
+      "transactions",
+      "weekly-figures",
+      "authorizations"
+    ],
+    "ingestion": [
+      "ingest-catalog",
+      "ingest-runs",
+      "ingest-local",
+      "upstream"
+    ],
+    "operations": [
+      "endpoints",
+      "pending",
+      "activity",
+      "alerts"
+    ],
+    "overview": [
+      "overview",
+      "analytics",
+      "logs"
+    ],
+    "system": [
+      "settings",
+      "diagnostics",
+      "health"
+    ]
+  },
+  "pathToTab": {
+    "/dashboard/activity": "activity",
+    "/dashboard/agent-performance": "agent-performance",
+    "/dashboard/alerts": "alerts",
+    "/dashboard/analytics": "analytics",
+    "/dashboard/authorizations": "authorizations",
+    "/dashboard/customer-profile": "customer-profile",
+    "/dashboard/customers": "customers",
+    "/dashboard/data-graded": "data-graded",
+    "/dashboard/data-players": "data-players",
+    "/dashboard/data-positions": "data-positions",
+    "/dashboard/data-props": "data-props",
+    "/dashboard/diagnostics": "diagnostics",
+    "/dashboard/endpoints": "endpoints",
+    "/dashboard/health": "health",
+    "/dashboard/ingest-catalog": "ingest-catalog",
+    "/dashboard/ingest-local": "ingest-local",
+    "/dashboard/ingest-runs": "ingest-runs",
+    "/dashboard/logs": "logs",
+    "/dashboard/overview": "overview",
+    "/dashboard/pending": "pending",
+    "/dashboard/settings": "settings",
+    "/dashboard/transactions": "transactions",
+    "/dashboard/upstream": "upstream",
+    "/dashboard/weekly-figures": "weekly-figures"
+  },
+  "sidebarConfig": {
+    "groups": [
+      {
+        "id": "overview",
+        "items": [
+          {
+            "id": "overview",
+            "label": "Overview",
+            "path": "/dashboard/overview",
+            "viewId": "overview",
+            "workerApiPath": "/summary"
+          },
+          {
+            "id": "analytics",
+            "label": "Analytics",
+            "path": "/dashboard/analytics",
+            "viewId": "analytics",
+            "workerApiPath": "/chart-aggregates"
+          },
+          {
+            "id": "logs",
+            "label": "Logs",
+            "openApiOperationId": "listIngestionRuns",
+            "path": "/dashboard/logs",
+            "viewId": "logs",
+            "workerApiPath": "/runs"
+          }
+        ],
+        "label": "Overview"
+      },
+      {
+        "id": "operations",
+        "items": [
+          {
+            "id": "endpoints",
+            "label": "Endpoints",
+            "openApiOperationId": "listWorkerEndpoints",
+            "path": "/dashboard/endpoints",
+            "viewId": "endpoints",
+            "workerApiPath": "/upstream-endpoints"
+          },
+          {
+            "id": "pending",
+            "label": "Pending Wagers",
+            "path": "/dashboard/pending",
+            "viewId": "pending",
+            "workerApiPath": "/pending-wagers"
+          },
+          {
+            "id": "activity",
+            "label": "Activity",
+            "path": "/dashboard/activity",
+            "viewId": "activity",
+            "workerApiPath": "/customer-activity"
+          },
+          {
+            "id": "alerts",
+            "label": "Alerts",
+            "openApiOperationId": "listAlertEvents",
+            "path": "/dashboard/alerts",
+            "viewId": "alerts",
+            "workerApiPath": "/alerts"
+          }
+        ],
+        "label": "Operations"
+      },
+      {
+        "id": "customers",
+        "items": [
+          {
+            "id": "customers",
+            "label": "Search",
+            "path": "/dashboard/customers",
+            "viewId": "customers",
+            "workerApiPath": "/search-customers"
+          },
+          {
+            "id": "customer-profile",
+            "label": "Profile",
+            "path": "/dashboard/customer-profile",
+            "viewId": "customers",
+            "workerApiPath": "/customer-profile"
+          },
+          {
+            "id": "agent-performance",
+            "label": "Agent Perf",
+            "path": "/dashboard/agent-performance",
+            "viewId": "customers",
+            "workerApiPath": "/agent-performance-live"
+          }
+        ],
+        "label": "Customers"
+      },
+      {
+        "id": "data",
+        "items": [
+          {
+            "id": "data-graded",
+            "label": "Graded",
+            "path": "/dashboard/data-graded",
+            "viewId": "data",
+            "workerApiPath": "/graded-wagers"
+          },
+          {
+            "id": "data-props",
+            "label": "Props",
+            "path": "/dashboard/data-props",
+            "viewId": "data",
+            "workerApiPath": "/prop-wagers"
+          },
+          {
+            "id": "data-positions",
+            "label": "Positions",
+            "path": "/dashboard/data-positions",
+            "viewId": "data",
+            "workerApiPath": "/position-data"
+          },
+          {
+            "id": "data-players",
+            "label": "Players",
+            "path": "/dashboard/data-players",
+            "viewId": "data",
+            "workerApiPath": "/players"
+          }
+        ],
+        "label": "Data"
+      },
+      {
+        "id": "finance",
+        "items": [
+          {
+            "id": "transactions",
+            "label": "Transactions",
+            "path": "/dashboard/transactions",
+            "viewId": "transactions",
+            "workerApiPath": "/transactions-live"
+          },
+          {
+            "id": "weekly-figures",
+            "label": "Weekly Figures",
+            "path": "/dashboard/weekly-figures",
+            "workerApiPath": "/weekly-figures"
+          },
+          {
+            "id": "authorizations",
+            "label": "Authorizations",
+            "path": "/dashboard/authorizations",
+            "viewId": "data",
+            "workerApiPath": "/authorizations"
+          }
+        ],
+        "label": "Finance"
+      },
+      {
+        "id": "ingestion",
+        "items": [
+          {
+            "id": "ingest-catalog",
+            "label": "Catalog",
+            "path": "/dashboard/ingest-catalog",
+            "workerApiPath": "/ingest/catalog-status"
+          },
+          {
+            "id": "ingest-runs",
+            "label": "Runs",
+            "openApiOperationId": "listIngestionRuns",
+            "path": "/dashboard/ingest-runs",
+            "workerApiPath": "/runs"
+          },
+          {
+            "id": "ingest-local",
+            "label": "Local Plan",
+            "path": "/dashboard/ingest-local",
+            "workerApiPath": "/ingest/local/plan"
+          },
+          {
+            "id": "upstream",
+            "label": "Upstream",
+            "openApiOperationId": "listWorkerEndpoints",
+            "path": "/dashboard/upstream",
+            "workerApiPath": "/upstream-endpoints"
+          }
+        ],
+        "label": "Ingestion"
+      },
+      {
+        "id": "system",
+        "items": [
+          {
+            "id": "settings",
+            "label": "Settings",
+            "path": "/dashboard/settings",
+            "viewId": "settings"
+          },
+          {
+            "id": "diagnostics",
+            "label": "Diagnostics",
+            "openApiOperationId": "getDiagnostics",
+            "path": "/dashboard/diagnostics",
+            "workerApiPath": "/diagnostics"
+          },
+          {
+            "id": "health",
+            "label": "Health",
+            "openApiOperationId": "getAuthHealth",
+            "path": "/dashboard/health",
+            "workerApiPath": "/auth/health"
+          }
+        ],
+        "label": "System"
+      }
+    ],
+    "version": 1
+  },
+  "tabCount": 24,
+  "tabPaths": {
+    "activity": "/dashboard/activity",
+    "agent-performance": "/dashboard/agent-performance",
+    "alerts": "/dashboard/alerts",
+    "analytics": "/dashboard/analytics",
+    "authorizations": "/dashboard/authorizations",
+    "customer-profile": "/dashboard/customer-profile",
+    "customers": "/dashboard/customers",
+    "data-graded": "/dashboard/data-graded",
+    "data-players": "/dashboard/data-players",
+    "data-positions": "/dashboard/data-positions",
+    "data-props": "/dashboard/data-props",
+    "diagnostics": "/dashboard/diagnostics",
+    "endpoints": "/dashboard/endpoints",
+    "health": "/dashboard/health",
+    "ingest-catalog": "/dashboard/ingest-catalog",
+    "ingest-local": "/dashboard/ingest-local",
+    "ingest-runs": "/dashboard/ingest-runs",
+    "logs": "/dashboard/logs",
+    "overview": "/dashboard/overview",
+    "pending": "/dashboard/pending",
+    "settings": "/dashboard/settings",
+    "transactions": "/dashboard/transactions",
+    "upstream": "/dashboard/upstream",
+    "weekly-figures": "/dashboard/weekly-figures"
+  }
+}

@@ -106,6 +106,59 @@ export function generateSchemaFixtures(schema, schemaName) {
 
 const SKIPPABLE_FIXTURE_ERRORS = /Transforms cannot be represented/i;
 
+/** Navigation schemas (navItem, navGroup, sidebarConfig) for harness coverage. */
+export function generateNavigationSchemaFixtures() {
+  return {
+    navItemSchema: {
+      valid: {
+        id: 'tab-x',
+        label: 'Tab X',
+        path: '/dashboard/tab-x',
+        badge: { text: '1', variant: 'info' },
+      },
+      invalidCases: [
+        {
+          id: 'navItem-bad-badge',
+          input: {
+            id: 'tab-x',
+            label: 'X',
+            path: '/dashboard/tab-x',
+            badge: { text: '!', variant: 'neon' },
+          },
+          kind: 'bad_enum',
+          pathIncludes: 'variant',
+        },
+      ],
+    },
+    navGroupSchema: {
+      valid: {
+        id: 'group-a',
+        label: 'Group A',
+        items: [{ id: 'tab-x', label: 'X', path: '/dashboard/tab-x' }],
+      },
+      invalidCases: [
+        {
+          id: 'navGroup-empty-items',
+          input: { id: 'group-a', label: 'A', items: [] },
+          kind: 'min_items',
+          pathIncludes: 'items',
+        },
+      ],
+    },
+    sidebarConfigSchema: {
+      valid: null,
+      invalidCases: [
+        {
+          id: 'sidebar-empty-groups',
+          input: { version: 1, groups: [] },
+          kind: 'min_groups',
+          pathIncludes: 'groups',
+        },
+      ],
+    },
+  };
+}
+
 export function runGeneratedFixtureTests(schema, fixtures) {
   const findings = [];
   if (fixtures.error) {

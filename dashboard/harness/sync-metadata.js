@@ -11,6 +11,12 @@ import {
   readRepoFile,
   verifyPagesWorkerPublicPaths,
 } from './verify.js';
+import { runNavigationSyncChecks } from './navigation-verify.js';
+import {
+  SIDEBAR_CONFIG,
+  GROUP_TABS,
+  TAB_PATHS,
+} from '../js/lib/navigation-config.js';
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(harnessDir, '../..');
@@ -159,6 +165,7 @@ export function verifyHarnessManifestInventory() {
     'schema-registry.json',
     'zod-cases.json',
     'openapi-samples.json',
+    'navigation-registry.json',
   ];
   for (const file of expectedCore) {
     if (!onDisk.includes(file)) {
@@ -242,9 +249,20 @@ export function runMetadataSyncChecks() {
   findings.push(...verifyWorkerRoutesInDashboardManifest());
 
   const agentsPath = join(repoRoot, 'AGENTS.md');
-  if (existsSync(agentsPath)) {
-    findings.push(...verifyAgentsMd(readFileSync(agentsPath, 'utf8'), loadMetadata('repo-metadata.json')));
+  const agentsContent = existsSync(agentsPath) ? readFileSync(agentsPath, 'utf8') : '';
+  if (agentsContent) {
+    findings.push(...verifyAgentsMd(agentsContent, loadMetadata('repo-metadata.json')));
   }
+
+  findings.push(
+    ...runNavigationSyncChecks({
+      sidebarConfig: SIDEBAR_CONFIG,
+      groupTabs: GROUP_TABS,
+      tabPaths: TAB_PATHS,
+      llmsContent: llms,
+      agentsContent,
+    }),
+  );
 
   return findings;
 }

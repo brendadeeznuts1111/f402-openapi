@@ -34,7 +34,7 @@ export function renderErrorState(msg, endpoint = '') {
 }
 
 export function updateBreadcrumbs(view, tab) {
-  const labels = { overview: 'Overview', analytics: 'Analytics', logs: 'Logs', settings: 'Settings', endpoints: 'Endpoints', data: 'Data', alerts: 'Alerts' };
+  const labels = { overview: 'Overview', analytics: 'Analytics', logs: 'Logs', settings: 'Settings', endpoints: 'Endpoints', data: 'Data', alerts: 'Alerts', activity: 'Activity', customers: 'Customers' };
   const tabLabels = {
     traffic: 'Traffic', latency: 'Latency', distribution: 'Distribution',
     events: 'Events', agent: 'Agent Logs', system: 'System',

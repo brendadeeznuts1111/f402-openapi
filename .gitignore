@@ -23,6 +23,10 @@ node_modules/
 .dev.vars
 .env
 
+# Wrangler local build cache
+dashboard/.wrangler/
+workers/fantasy402-ingestion/.wrangler/
+
 # Local discovery/probing utilities and copied skill internals are not part of
 # the secured contract release.
 tools/browser-to-api-local/

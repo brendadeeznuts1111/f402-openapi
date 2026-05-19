@@ -1311,6 +1311,31 @@ const worker = {
       return json(await loadCustomerProfile(env, customerId), 200);
     }
 
+    if (url.pathname === "/weekly-figures" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryWeeklyFigures(url, env);
+    }
+
+    if (url.pathname === "/customer-activity-search" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryCustomerActivitySearch(request, env);
+    }
+
+    if (url.pathname === "/customer-activity" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      const login = (url.searchParams.get("login") ?? "").trim();
+      if (!login) {
+        return json({ status: "failed", message: "login is required" }, 400);
+      }
+      return queryCustomerActivity(url, env);
+    }
+
     if (url.pathname === "/alert-log" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -1515,6 +1540,10 @@ async function runIngestion(env: Env): Promise<RunResult> {
         }
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
+        }
+        if (endpoint.key === "getWebLog") {
+          const records = mapWebLogEntries(result.data, result.snapshotId, runId);
+          await storeWebLogEntries(env, records);
         }
         await ingestCustomerProfileSnapshot(
           env,
@@ -1991,6 +2020,10 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
             ingestionRuntime.__ingestionCustomerId = playerCustomerId;
             await cachePlayerCustomerId(env, playerCustomerId);
           }
+        }
+        if (endpoint.key === "getWebLog") {
+          const records = mapWebLogEntries(result.data, result.snapshotId, runId);
+          await storeWebLogEntries(env, records);
         }
         await ingestCustomerProfileSnapshot(
           env,
@@ -3412,6 +3445,19 @@ interface BetTickerWagerRecord {
   idempotencyKey: string;
 }
 
+interface WebLogEntryRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  capturedAt: string;
+  login: string;
+  operation: string | null;
+  data: string | null;
+  ipAddress: string | null;
+  accessDateTime: string;
+  rawJson: string;
+}
+
 function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string): BetTickerWagerRecord[] {
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
@@ -3739,6 +3785,39 @@ async function storeAgentPositionData(env: Env, records: AgentPositionRecord[]):
   }
 }
 
+function mapWebLogEntries(data: unknown, rawSnapshotId: string, runId: string): WebLogEntryRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  const now = new Date().toISOString();
+  return items.map((item) => ({
+    id: crypto.randomUUID(),
+    snapshotId: rawSnapshotId,
+    runId,
+    capturedAt: now,
+    login: stringField(item, ["LoginID", "loginID", "Login", "login"], "").trim(),
+    operation: stringField(item, ["Operation", "operation"], "") || null,
+    data: stringField(item, ["Data", "data"], "") || null,
+    ipAddress: stringField(item, ["IPAddress", "ipAddress", "IP", "ip"], "") || null,
+    accessDateTime: stringField(item, ["AccessDateTime", "accessDateTime", "AccessDate", "accessDate"], ""),
+    rawJson: JSON.stringify(item),
+  }));
+}
+
+async function storeWebLogEntries(env: Env, records: WebLogEntryRecord[]): Promise<void> {
+  if (!records.length) return;
+  const BATCH_SIZE = 1000;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    const stmts = batch.map((r) =>
+      env.ANALYTICS_DB.prepare(
+        `INSERT OR REPLACE INTO web_logs (id, snapshot_id, run_id, captured_at, login, operation, data, ip_address, access_date_time, raw_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(r.id, r.snapshotId, r.runId, r.capturedAt, r.login, r.operation, r.data, r.ipAddress, r.accessDateTime, r.rawJson),
+    );
+    await env.ANALYTICS_DB.batch(stmts);
+  }
+}
+
 async function finishRun(
   env: Env,
   runId: string,
@@ -4019,6 +4098,88 @@ async function searchCustomers(url: URL, env: Env): Promise<Response> {
   url.searchParams.set("q", q);
   url.searchParams.set("limit", url.searchParams.get("limit") ?? "25");
   return queryPlayers(url, env);
+}
+
+async function queryCustomerActivitySearch(request: Request, env: Env): Promise<Response> {
+  const body = await safeJson(request);
+  if (!body) {
+    return json({ status: "failed", message: "Invalid JSON body" }, 400);
+  }
+  const q = (typeof body.q === "string" ? body.q : "").trim();
+  if (!q) {
+    return json({ status: "failed", message: "q is required" }, 400);
+  }
+  const limit = clampInteger(typeof body.limit === "number" ? body.limit : 20, 1, 100);
+  const like = `%${q}%`;
+  const result = await env.ANALYTICS_DB.prepare(
+    "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login LIKE ? COLLATE NOCASE OR name_first LIKE ? COLLATE NOCASE ORDER BY login ASC LIMIT ?",
+  ).bind(like, like, limit).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function queryCustomerActivity(url: URL, env: Env): Promise<Response> {
+  const login = (url.searchParams.get("login") ?? "").trim();
+  const hours = clampInteger(Number(url.searchParams.get("hours") ?? "24"), 1, 168);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  const player = await env.ANALYTICS_DB.prepare(
+    "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login = ?",
+  ).bind(login).first<{ customer_id: string; login: string; name_first: string; agent_id: string; captured_at: string }>();
+
+  const webLogs = await env.ANALYTICS_DB.prepare(
+    `SELECT id, login, operation, data, ip_address, access_date_time, captured_at
+     FROM web_logs
+     WHERE login = ? AND access_date_time >= ?
+     ORDER BY access_date_time DESC
+     LIMIT ?`,
+  ).bind(login, since, limit).all<{ id: string; login: string; operation: string | null; data: string | null; ip_address: string | null; access_date_time: string; captured_at: string }>();
+
+  const wagers = await env.ANALYTICS_DB.prepare(
+    `SELECT id, wager_number, wager_type, amount_wagered, to_win_amount, short_desc, captured_at
+     FROM bet_ticker_wagers
+     WHERE login = ? AND captured_at >= ?
+     ORDER BY captured_at DESC
+     LIMIT ?`,
+  ).bind(login, since, limit).all<{ id: string; wager_number: number; wager_type: string; amount_wagered: number; to_win_amount: number | null; short_desc: string | null; captured_at: string }>();
+
+  const summary = await env.ANALYTICS_DB.prepare(
+    `SELECT
+       COUNT(DISTINCT b.id) AS total_wagers,
+       COALESCE(SUM(b.amount_wagered), 0) AS total_volume,
+       (SELECT COUNT(*) FROM web_logs WHERE login = ? AND access_date_time >= ?) AS total_logins,
+       (SELECT COUNT(DISTINCT w.ip_address) FROM web_logs w WHERE w.login = ? AND w.access_date_time >= ?) AS unique_ips
+     FROM bet_ticker_wagers b
+     WHERE b.login = ? AND b.captured_at >= ?`,
+  ).bind(login, since, login, since, login, since).first<{ total_wagers: number; total_volume: number; total_logins: number; unique_ips: number }>();
+
+  return json({
+    customer: player ?? null,
+    webLogs: webLogs.results ?? [],
+    wagers: wagers.results ?? [],
+    summary: summary ?? { total_wagers: 0, total_volume: 0, total_logins: 0, unique_ips: 0 },
+    period: { hours, since },
+  }, 200);
+}
+
+async function queryWeeklyFigures(url: URL, env: Env): Promise<Response> {
+  const agentId = (url.searchParams.get("agent_id") ?? "").trim();
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "10"), 1, 50);
+
+  let sql = `SELECT agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, captured_at
+             FROM weekly_figures WHERE 1=1`;
+  const bindings: (string | number)[] = [];
+
+  if (agentId) {
+    sql += " AND agent_id = ?";
+    bindings.push(agentId);
+  }
+
+  sql += " ORDER BY captured_at DESC LIMIT ?";
+  bindings.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
 async function queryGradedWagers(url: URL, env: Env): Promise<Response> {
@@ -6656,6 +6817,9 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/players': 'query',
   '/search-customers': 'query',
   '/customer-profile': 'query',
+  '/weekly-figures': 'query',
+  '/customer-activity': 'query',
+  '/customer-activity-search': 'query',
   '/alert-rules': 'auth',
   '/alert-log': 'auth',
   '/alerts': 'auth',
@@ -6694,6 +6858,9 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/players', method: 'GET', description: 'Player list', refreshMs: 30000 },
   { path: '/search-customers', method: 'GET', description: 'Search player_agents by login, name, or customer id', refreshMs: 30000 },
   { path: '/customer-profile', method: 'GET', description: 'Customer profile facets from D1 (getInfoPlayer, crypto, mail, teaser)', refreshMs: 30000 },
+  { path: '/weekly-figures', method: 'GET', description: 'Agent weekly figure lite snapshots', refreshMs: 30000 },
+  { path: '/customer-activity', method: 'GET', description: 'Customer web logs + wagers for a login', refreshMs: 30000 },
+  { path: '/customer-activity-search', method: 'POST', description: 'Search players for activity monitor', refreshMs: 30000 },
   { path: '/alert-rules', method: 'GET', description: 'List alert rules', refreshMs: 30000 },
   { path: '/alert-rules', method: 'POST', description: 'Create alert rule', refreshMs: 'manual' },
   { path: '/alert-rules', method: 'PATCH', description: 'Toggle alert rule', refreshMs: 'manual' },

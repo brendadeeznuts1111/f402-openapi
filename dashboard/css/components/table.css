@@ -30,6 +30,9 @@ tr:last-child td { border-bottom: none; }
 
 tr:hover { background: rgba(255,255,255,0.03); }
 
+.ds-table-row--clickable { cursor: pointer; }
+.ds-table-row--clickable:hover { background: rgba(99, 102, 241, 0.12); }
+
 .ds-table-sm { font-size: 0.8rem; }
 .ds-cell-sm { font-size: 0.75rem; }
 

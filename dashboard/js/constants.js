@@ -89,6 +89,11 @@ export const ENDPOINT_ZONE_MAP = {
   '/live-wagers':        'do',
   '/broadcast':          'do',
   '/players':            'query',
+  '/customer-activity':         'query',
+  '/customer-activity-search':  'query',
+  '/search-customers':   'query',
+  '/customer-profile':   'query',
+  '/weekly-figures':     'query',
 };
 
 export const REFRESH_INTERVALS = {
@@ -104,6 +109,9 @@ export const REFRESH_INTERVALS = {
   '/authorizations':     30000,
   '/position-data':      30000,
   '/players':            30000,
+  '/search-customers':   30000,
+  '/customer-profile':   30000,
+  '/weekly-figures':     30000,
   '/health':             30000,
   '/auth/health':        30000,
   '/diagnostics':        60000,
@@ -114,6 +122,8 @@ export const REFRESH_INTERVALS = {
   '/alerts':             30000,
   '/alerts/summary':     30000,
   '/alert-rules':        30000,
+  '/customer-activity':         30000,
+  '/customer-activity-search':  30000,
 };
 
 export function getZoneColor(endpoint) {

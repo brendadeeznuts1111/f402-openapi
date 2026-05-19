@@ -1,4 +1,9 @@
-const WORKER_ORIGIN = "https://fantasy402-ingestion.utahj4754.workers.dev";
+const DEFAULT_WORKER_ORIGIN = "https://fantasy402-ingestion.utahj4754.workers.dev";
+
+function workerOrigin(env) {
+  const fromEnv = (env.FANTASY402_WORKER_UPSTREAM || env.WORKER_ORIGIN || "").trim();
+  return (fromEnv || DEFAULT_WORKER_ORIGIN).replace(/\/$/, "");
+}
 
 /** Routes the Worker exposes without bearer auth (must match worker/src/index.ts). */
 function isPublicWorkerPath(pathname) {
@@ -73,7 +78,7 @@ export default {
         });
       }
 
-      const target = new URL(pathname, WORKER_ORIGIN);
+      const target = new URL(pathname, workerOrigin(env));
       target.search = url.search;
 
       const hasBody = request.method !== "GET" && request.method !== "HEAD";

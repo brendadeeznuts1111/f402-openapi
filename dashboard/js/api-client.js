@@ -241,6 +241,27 @@ if (typeof window !== 'undefined' && isLocalDevHost()) {
 }
 
 const MOCK_RESPONSES = {
+  '/customer-activity-search': {
+    records: [
+      { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666' },
+      { customer_id: 'C002', login: 'BM28241', name_first: 'Player One', agent_id: 'TOPDAWG' },
+      { customer_id: 'C003', login: 'BM28559', name_first: 'Player Two', agent_id: 'BILLY666' },
+    ],
+  },
+  '/customer-activity': {
+    customer: { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666', captured_at: new Date().toISOString() },
+    webLogs: [
+      { id: 'w1', login: 'ABC506', operation: 'Login', data: 'Web login from browser', ip_address: '192.168.1.100', access_date_time: new Date().toISOString(), captured_at: new Date().toISOString() },
+      { id: 'w2', login: 'ABC506', operation: 'ViewDashboard', data: 'Viewed agent dashboard', ip_address: '192.168.1.100', access_date_time: new Date(Date.now() - 300000).toISOString(), captured_at: new Date(Date.now() - 300000).toISOString() },
+      { id: 'w3', login: 'ABC506', operation: 'PlaceWager', data: 'Placed straight wager NFL', ip_address: '10.0.0.5', access_date_time: new Date(Date.now() - 1800000).toISOString(), captured_at: new Date(Date.now() - 1800000).toISOString() },
+    ],
+    wagers: [
+      { id: 'b1', wager_number: 12345, wager_type: 'S', amount_wagered: 10000, to_win_amount: 8500, short_desc: 'NFL - Game', captured_at: new Date().toISOString() },
+      { id: 'b2', wager_number: 12346, wager_type: 'P', amount_wagered: 25000, to_win_amount: 65000, short_desc: 'NBA Parlay', captured_at: new Date(Date.now() - 600000).toISOString() },
+    ],
+    summary: { total_wagers: 2, total_volume: 35000, total_logins: 3, unique_ips: 2 },
+    period: { hours: 24, since: new Date(Date.now() - 86400000).toISOString() },
+  },
   '/summary': {
     liveWagers: { total: 1078, volume: 747000, agents: 140, types: 4 },
     gradedWagers: { total: 45, pnl: 12500 },

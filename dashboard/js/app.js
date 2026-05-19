@@ -75,6 +75,8 @@ import {
 } from './views/endpoints.js';
 import { loadDataView, setDataTab } from './views/data.js';
 import { loadAlertsView, onAlertsTabChange, createAlertRule, triggerTestAlert } from './views/alerts.js';
+import { loadActivityView, initActivityView } from './views/customer-activity.js';
+import { loadCustomersView } from './views/customers.js';
 import { maybeAutoIngest } from './ingestion-automation.js';
 
 const store = new DataStore();
@@ -236,12 +238,18 @@ function switchView(name) {
   } else if (name === 'endpoints') {
     ticker.stopSSE();
     loadEndpoints(ctx);
+  } else if (name === 'activity') {
+    ticker.stopSSE();
+    loadActivityView(ctx);
   } else if (name === 'data') {
     ticker.stopSSE();
     loadDataView(ctx);
   } else if (name === 'alerts') {
     ticker.stopSSE();
     loadAlertsView(ctx);
+  } else if (name === 'customers') {
+    ticker.stopSSE();
+    loadCustomersView(ctx);
   }
 }
 
@@ -303,6 +311,7 @@ document.querySelectorAll('[data-chart-tab]').forEach((t) => {
 initChartTabKeyboard();
 initDataTabKeyboard();
 initAlertsTabKeyboard();
+initActivityView(ctx);
 
 
 

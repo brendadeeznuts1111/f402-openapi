@@ -53,6 +53,11 @@
   line-height: 1.2;
 }
 
+.ds-stat-card__value--sm {
+  font-size: var(--text-sm);
+  word-break: break-all;
+}
+
 .ds-stat-card__label {
   font-size: var(--text-xs);
   color: var(--muted);

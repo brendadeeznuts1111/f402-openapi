@@ -11,7 +11,7 @@ Zero-build monitoring UI for the ingestion Worker. Deployed on Cloudflare Pages 
 
 The dashboard calls `/api/*` on the Pages origin; `dashboard/_worker.js` forwards those requests to the Worker with `INGESTION_TRIGGER_TOKEN` injected server-side.
 
-## Views (5)
+## Views (9)
 
 | View | Purpose |
 |------|---------|
@@ -20,6 +20,10 @@ The dashboard calls `/api/*` on the Pages origin; `dashboard/_worker.js` forward
 | **Logs** | Filterable event timeline, agent log table, system health log |
 | **Settings** | Theme (dark/light/auto), chart type (volume), API refresh interval, notifications, config import/export |
 | **Endpoints** | Worker route manifest, zone filters, ingestion health, browser capture sync, local/console ingest, auth status |
+| **Data** | Graded wagers, prop wagers, positions, authorizations, players (D1 query tables) |
+| **Alerts** | Alert events, summary, rule management |
+| **Activity** | Per-login web log + wager timeline (`GET /customer-activity`, player search POST) |
+| **Customers** | Agent weekly figure lite, player search (`player_agents`), per-customer profile facets from D1 |
 
 Charts aggregate the latest **100** wagers client-side (`GET /bet-ticker-wagers?limit=100`) unless noted. See `dashboard/AUDIT.md` for audit details and verification steps.
 
@@ -29,7 +33,7 @@ Charts aggregate the latest **100** wagers client-side (`GET /bet-ticker-wagers?
 dashboard/
 ├── index.html          # Markup only (~350 lines)
 ├── js/app.js           # Entry: navigation, init, event wiring
-├── js/views/           # overview, analytics, logs, settings, endpoints
+├── js/views/           # overview, analytics, logs, settings, endpoints, data, alerts, customers
 ├── js/dom.js           # $, escapeHtml, debounce
 ├── js/format.js        # fmt, usd, ago (utils.js formatters)
 ├── js/ui.js            # Toasts, breadcrumbs, tabs, drawer
@@ -57,6 +61,11 @@ Detailed design notes: `dashboard/DESIGN.md`. Changelog: `dashboard/CHANGELOG.md
 | `POST /ingest/local` | Upload browser-fetched snapshots; optional `advanceCursor` |
 | `POST /ingestion/advance-cursor` | Rotate batch cursor after local uploads |
 | `POST /refresh-auth` | Endpoints quick action |
+| `GET /search-customers?q=` | Customers search (player_agents) |
+| `GET /customer-profile?customer_id=` | Customer profile facets + account snapshot |
+| `GET /weekly-figures` | Latest agent weekly figure lite rows |
+| `GET /customer-activity?login=` | Web logs + wagers for a player login |
+| `POST /customer-activity-search` | Player search for activity monitor |
 
 `GET /endpoint-status` returns:
 
@@ -78,8 +87,14 @@ The auto-runner fetches fantasy402.com same-origin, uploads via `/api/ingest/loc
 
 ```bash
 cd dashboard
-npx wrangler pages dev . --binding INGESTION_TRIGGER_TOKEN=your_token_here
+npm run sync:dev-vars:all   # writes dashboard/.dev.vars + merges worker/.dev.vars
+npm run dev                 # Pages on :8788; proxies to production Worker (archive token)
+
+# Local ingestion worker (wrangler dev --remote on :8789):
+npm run dev:local           # syncs dev-token + http://127.0.0.1:8789 upstream
 ```
+
+`predev` runs `sync-dev-vars.mjs` automatically. Production proxy needs `INGESTION_TRIGGER_TOKEN` to match the deployed Worker secret (`.archive-auth-token` or 1Password). If `/api/summary` returns 401, use `npm run dev:local` or update the Worker secret / token file.
 
 Open the served URL (typically `http://localhost:8788`). Static assets and `/api/*` proxy run together.
 

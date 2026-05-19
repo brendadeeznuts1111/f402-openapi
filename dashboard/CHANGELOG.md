@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.6.8 — Customers + activity views
+
+### Added
+- **Customers** sidebar view — weekly figure lite summary, `player_agents` search, clickable profile panel (`GET /search-customers`, `/customer-profile`, `/weekly-figures`)
+- **Activity** sidebar view — login search, web log + wager timeline (`GET /customer-activity`, `POST /customer-activity-search`)
+- **`sync-dev-vars.mjs`** — merges root/worker `.dev.vars` + archive token; `npm run dev` / `npm run dev:local` (8789 upstream)
+- **D1 `web_logs`** migration `0020_web_logs.sql` for `getWebLog` ingest
+- **Sortable table row select** — `onSelect` callback + `.ds-table-row--clickable` styling
+
+### Changed
+- Pages `_worker.js` reads `FANTASY402_WORKER_UPSTREAM` from `.dev.vars` (production or local wrangler dev)
+
 ## v3.6.7 — Catalog backfill automation
 
 ### Added

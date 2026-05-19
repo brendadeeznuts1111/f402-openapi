@@ -2,7 +2,12 @@
   "name": "fantasy402-dashboard",
   "private": true,
   "scripts": {
-    "dev": "wrangler pages dev . --binding INGESTION_TRIGGER_TOKEN=$(cat ../workers/fantasy402-ingestion/.archive-auth-token 2>/dev/null || echo '')",
+    "sync:dev-vars": "node scripts/sync-dev-vars.mjs",
+    "sync:dev-vars:check": "node scripts/sync-dev-vars.mjs --check",
+    "sync:dev-vars:all": "node scripts/sync-dev-vars.mjs --worker",
+    "predev": "node scripts/sync-dev-vars.mjs",
+    "dev": "wrangler pages dev .",
+    "dev:local": "node scripts/sync-dev-vars.mjs --local-worker && wrangler pages dev .",
     "deploy": "wrangler pages deploy . --project-name=fantasy402-dashboard --branch=main",
     "deploy:preview": "wrangler pages deploy . --project-name=fantasy402-dashboard",
     "secrets:production": "wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard --env=production",

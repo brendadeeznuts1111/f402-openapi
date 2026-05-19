@@ -12,6 +12,17 @@ cd workers/fantasy402-ingestion && npm run deploy
 cd dashboard && ./scripts/set-pages-secrets.sh && npm run deploy
 ```
 
+### Local dev (tokens)
+
+```bash
+cd dashboard
+npm run sync:dev-vars:all   # dashboard/.dev.vars + worker credentials
+npm run dev:local           # proxy → http://127.0.0.1:8789 (wrangler dev --remote)
+# or npm run dev            # proxy → production Worker (archive token)
+```
+
+See `scripts/sync-dev-vars.mjs` and `.dev.vars.example`.
+
 If the dashboard shows **500 / missing token** on `/api/*`, run `set-pages-secrets.sh` then redeploy.
 
 ## Views

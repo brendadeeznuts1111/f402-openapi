@@ -1716,12 +1716,17 @@ function normalizeHost(host: string): string {
 }
 
 async function refreshAuth(request: Request, env: Env): Promise<Response> {
-  let payload: unknown;
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ status: "failed", message: "Expected JSON body" }, 400);
+  const runtimeEnv = await materializeSecretBindings(env);
+  let payload: unknown = {};
+  const rawBody = await request.text();
+  if (rawBody.trim()) {
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return json({ status: "failed", message: "Expected JSON body" }, 400);
+    }
   }
+
   const parsed = refreshAuthSchema.safeParse(payload);
   if (!parsed.success) {
     return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
@@ -1773,21 +1778,72 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   }
 
   if (accepted.length === 0) {
-    return json({ status: "failed", message: "No supported auth fields provided" }, 400);
+    return renewUpstreamAuthFromWorker(runtimeEnv);
   }
 
   const ttl = Math.max(60, Math.ceil((record.expiresAt - Date.now()) / 1000));
-  await env.AUTH_CACHE.put(AUTH_CACHE_KEY, JSON.stringify(record), { expirationTtl: ttl });
+  await runtimeEnv.AUTH_CACHE.put(AUTH_CACHE_KEY, JSON.stringify(record), { expirationTtl: ttl });
 
   return json(
     {
       status: "ok",
+      mode: "overlay",
       accepted,
       expiresAt: new Date(record.expiresAt).toISOString(),
       ttlSeconds: ttl,
     },
     200,
   );
+}
+
+async function renewUpstreamAuthFromWorker(env: Env): Promise<Response> {
+  const cachedAuth = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  if (cachedAuth?.authorization) {
+    applyAuthRecord(env, cachedAuth);
+    const sessionCookie = cachedAuth.sessionCookie ?? env.FANTASY402_SESSION_COOKIE ?? "";
+    const renewed = await tryRenewFantasy402Token(env, sessionCookie);
+    if (renewed) {
+      const stored = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+      const accepted = [
+        renewed.authorization ? "authorization" : null,
+        renewed.sessionCookie ? "sessionCookie" : null,
+        renewed.cfClearance ? "cfClearance" : null,
+        renewed.cfBm ? "cfBm" : null,
+      ].filter(Boolean);
+      return json(
+        {
+          status: "ok",
+          mode: "renew",
+          accepted,
+          expiresAt: stored?.expiresAt ? new Date(stored.expiresAt).toISOString() : undefined,
+        },
+        200,
+      );
+    }
+  }
+
+  try {
+    const sessionCookie = await getOrRefreshSession(env);
+    const stored = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+    const accepted = [
+      stored?.authorization ? "authorization" : null,
+      sessionCookie ? "sessionCookie" : null,
+      stored?.cfClearance ? "cfClearance" : null,
+      stored?.cfBm ? "cfBm" : null,
+    ].filter(Boolean);
+    return json(
+      {
+        status: "ok",
+        mode: "session",
+        accepted,
+        hasSession: Boolean(sessionCookie),
+        expiresAt: stored?.expiresAt ? new Date(stored.expiresAt).toISOString() : undefined,
+      },
+      200,
+    );
+  } catch (error) {
+    return json({ status: "failed", message: errorMessage(error) }, 502);
+  }
 }
 
 async function updateCookies(request: Request, env: Env): Promise<Response> {

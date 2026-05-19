@@ -129,8 +129,13 @@ export async function triggerIngestion(ctx) {
 
 export async function refreshAuth(ctx) {
   try {
-    await ctx.apiPost('/refresh-auth');
-    ctx.showAlert('Auth refresh triggered', 'info');
+    const result = await ctx.apiPost('/refresh-auth', {});
+    const mode = result?.mode === 'renew'
+      ? 'Token renewed'
+      : result?.mode === 'session'
+        ? 'Session refreshed'
+        : 'Auth overlay updated';
+    ctx.showAlert(`${mode}`, 'info');
   } catch (e) {
     ctx.showAlert(`Auth refresh failed: ${e.message}`, 'error');
   }

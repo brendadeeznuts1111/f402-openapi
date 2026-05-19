@@ -1247,6 +1247,63 @@ test("refresh-auth rejects expired bearer before poisoning AUTH_CACHE", async ()
   assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
 });
 
+test("refresh-auth with empty JSON body renews cached upstream token", async () => {
+  const originalFetch = globalThis.fetch;
+  const authKv = new MemoryKVNamespace();
+  await authKv.put(
+    "fantasy402:auth-overlay",
+    JSON.stringify({
+      authorization: "Bearer cached-token",
+      sessionCookie: "app_session=cached",
+      expiresAt: Date.now() + 3_600_000,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
+
+  globalThis.fetch = async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith("/cloud/api/System/renewToken")) {
+      return Response.json(
+        { tokenauth: "Bearer renewed-token" },
+        {
+          headers: {
+            "Set-Cookie": "app_session=renewed-session; Path=/",
+          },
+        },
+      );
+    }
+    return Response.json({});
+  };
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://worker.test/refresh-auth", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }),
+      env(new MemoryR2Bucket(), new MemoryD1Database(), {
+        AUTH_CACHE: authKv,
+        FANTASY402_SESSION_COOKIE: "app_session=cached",
+        FANTASY402_CF_CLEARANCE: "cf-clearance",
+        FANTASY402_CF_BM: "cf-bm",
+      }),
+    );
+    assert.equal(response.status, 200);
+    const body = await response.json() as { status: string; mode: string; accepted: string[] };
+    assert.equal(body.status, "ok");
+    assert.equal(body.mode, "renew");
+    assert.ok(body.accepted.includes("authorization"));
+    const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
+    assert.equal(stored.authorization, "Bearer renewed-token");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("refresh-auth accepts bearer plus Cloudflare cookies without sessionCookie", async () => {
   const authKv = new MemoryKVNamespace();
   const response = await worker.fetch(

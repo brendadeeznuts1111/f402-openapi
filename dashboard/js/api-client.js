@@ -187,7 +187,7 @@ export function bustAllCache() {
   responseCache.clear();
 }
 
-export async function apiPost(path, body, options = {}) {
+export async function apiPost(path, body = {}, options = {}) {
   return api(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options.headers },

@@ -35,6 +35,8 @@ import {
   switchSettingsTab,
   requestNotificationPermission,
   initChartTabKeyboard,
+  initDataTabKeyboard,
+  initAlertsTabKeyboard,
 } from './ui.js';
 import { $, debounce } from './dom.js';
 import { loadOverview, renderVolumeChart } from './views/overview.js';
@@ -71,6 +73,8 @@ import {
   updateCookieHealth,
   onEndpointTabChange,
 } from './views/endpoints.js';
+import { loadDataView, setDataTab } from './views/data.js';
+import { loadAlertsView, onAlertsTabChange, createAlertRule, triggerTestAlert } from './views/alerts.js';
 import { maybeAutoIngest } from './ingestion-automation.js';
 
 const store = new DataStore();
@@ -232,6 +236,12 @@ function switchView(name) {
   } else if (name === 'endpoints') {
     ticker.stopSSE();
     loadEndpoints(ctx);
+  } else if (name === 'data') {
+    ticker.stopSSE();
+    loadDataView(ctx);
+  } else if (name === 'alerts') {
+    ticker.stopSSE();
+    loadAlertsView(ctx);
   }
 }
 
@@ -291,6 +301,10 @@ document.querySelectorAll('[data-chart-tab]').forEach((t) => {
   });
 });
 initChartTabKeyboard();
+initDataTabKeyboard();
+initAlertsTabKeyboard();
+
+
 
 document.querySelectorAll('[data-log-tab]').forEach((t) => {
   t.addEventListener('click', () => switchLogTab(t.dataset.logTab));
@@ -313,6 +327,23 @@ $('endpointMethodFilter').addEventListener('change', () => loadEndpoints(ctx));
 document.querySelectorAll('[data-endpoint-tab]').forEach((t) => {
   t.addEventListener('click', () => onEndpointTabChange(t.dataset.endpointTab));
 });
+
+document.querySelectorAll('[data-data-tab]').forEach((t) => {
+  t.addEventListener('click', () => {
+    setDataTab(t.dataset.dataTab);
+    loadDataView(ctx);
+  });
+});
+
+document.querySelectorAll('[data-alerts-tab]').forEach((t) => {
+  t.addEventListener('click', () => onAlertsTabChange(t.dataset.alertsTab, ctx));
+});
+
+$('applyAlertFiltersBtn')?.addEventListener('click', () => loadAlertsView(ctx));
+
+$('createAlertRuleBtn')?.addEventListener('click', () => createAlertRule(ctx));
+
+$('sendTestAlertBtn')?.addEventListener('click', () => triggerTestAlert(ctx));
 $('triggerIngestBtn').addEventListener('click', () => triggerIngestion(ctx));
 $('refreshAuthBtn').addEventListener('click', () => refreshAuth(ctx));
 $('syncBrowserIngestBtn').addEventListener('click', () => syncFromBrowserAndIngest(ctx));

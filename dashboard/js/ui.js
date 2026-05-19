@@ -34,11 +34,13 @@ export function renderErrorState(msg, endpoint = '') {
 }
 
 export function updateBreadcrumbs(view, tab) {
-  const labels = { overview: 'Overview', analytics: 'Analytics', logs: 'Logs', settings: 'Settings', endpoints: 'Endpoints' };
+  const labels = { overview: 'Overview', analytics: 'Analytics', logs: 'Logs', settings: 'Settings', endpoints: 'Endpoints', data: 'Data', alerts: 'Alerts' };
   const tabLabels = {
     traffic: 'Traffic', latency: 'Latency', distribution: 'Distribution',
     events: 'Events', agent: 'Agent Logs', system: 'System',
     general: 'General', api: 'API', appearance: 'Appearance', data: 'Data',
+    'graded-wagers': 'Graded Wagers', 'prop-wagers': 'Prop Wagers', 'position-data': 'Positions', authorizations: 'Authorizations', players: 'Players',
+    summary: 'Summary', rules: 'Rules',
   };
   let html = '<span class="ds-breadcrumb__item ds-breadcrumb__item--active">Dashboard</span>';
   html += '<span class="ds-breadcrumb__separator">/</span>';
@@ -118,9 +120,8 @@ export function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
 }
 
-/** WAI-ARIA tabs: Arrow keys, Home, End (Analytics chart tabs). */
-export function initChartTabKeyboard() {
-  const tablist = document.querySelector('#view-analytics [role="tablist"]');
+function initTabKeyboard(tablistSelector, datasetKey) {
+  const tablist = document.querySelector(tablistSelector);
   if (!tablist || tablist.dataset.keyboardInit) return;
   tablist.dataset.keyboardInit = '1';
 
@@ -137,9 +138,22 @@ export function initChartTabKeyboard() {
     else return;
 
     e.preventDefault();
-    const name = tabs[next].dataset.chartTab;
+    const name = tabs[next].dataset[datasetKey];
     if (!name) return;
     tabs[next].click();
     tabs[next].focus();
   });
+}
+
+/** WAI-ARIA tabs: Arrow keys, Home, End (Analytics chart tabs). */
+export function initChartTabKeyboard() {
+  initTabKeyboard('#view-analytics [role="tablist"]', 'chartTab');
+}
+
+export function initDataTabKeyboard() {
+  initTabKeyboard('#view-data [role="tablist"]', 'dataTab');
+}
+
+export function initAlertsTabKeyboard() {
+  initTabKeyboard('#view-alerts [role="tablist"]', 'alertsTab');
 }

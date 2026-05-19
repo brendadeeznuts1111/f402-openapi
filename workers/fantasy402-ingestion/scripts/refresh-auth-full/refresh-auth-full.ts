@@ -99,10 +99,16 @@ async function main() {
 
   fs.mkdirSync(authDir, { recursive: true });
 
+  const headless = process.env.PUPPETEER_HEADLESS !== "false" && process.env.PUPPETEER_HEADLESS !== "0";
+  const userDataDir =
+    process.env.PUPPETEER_USER_DATA_DIR || path.join(workerRoot, "fantasy402", ".puppeteer-profile");
+  fs.mkdirSync(userDataDir, { recursive: true });
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless,
+    userDataDir,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
   });
+  if (!headless) console.error("Puppeteer: headed mode (set PUPPETEER_HEADLESS=false)");
 
   let page: Awaited<ReturnType<typeof browser.newPage>> | null = null;
   try {

@@ -76,6 +76,7 @@ export const ENDPOINT_ZONE_MAP = {
   '/summary':            'query',
   '/alert-rules':        'auth',
   '/alert-log':          'auth',
+  '/alerts':             'auth',
   '/health':             'auth',
   '/auth/health':        'auth',
   '/diagnostics':        'auth',
@@ -110,6 +111,9 @@ export const REFRESH_INTERVALS = {
   '/scans':              30000,
   '/endpoints':          60000,
   '/endpoint-status':    30000,
+  '/alerts':             30000,
+  '/alerts/summary':     30000,
+  '/alert-rules':        30000,
 };
 
 export function getZoneColor(endpoint) {

@@ -27,6 +27,7 @@
     "auth:check": "node scripts/check-browser-auth.mjs",
     "auth:refresh-full": "tsx scripts/refresh-auth-full/refresh-auth-full.ts",
     "auth:refresh-if-needed": "bun scripts/auth-refresh-if-needed.mjs",
+    "auth:post-payload": "bun scripts/post-refresh-payload.mjs",
     "auth:preflight": "bun scripts/auth-stack-preflight.mjs",
     "auth:stack-status": "bun scripts/auth-stack-status.mjs",
     "auth:monitor": "bun scripts/monitor-auth-stack.mjs",

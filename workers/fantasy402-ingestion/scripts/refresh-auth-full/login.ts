@@ -168,17 +168,33 @@ async function loginViaDomForm(page: Page, customerId: string, password: string)
 
   await page.waitForFunction(
     () => {
+      if (/manager\.html/i.test(location.href)) return true;
       try {
         const raw = sessionStorage.getItem("credentials");
         if (!raw) return false;
-        const cred = JSON.parse(raw);
+        const cred = JSON.parse(raw) as { code?: string };
         return Boolean(cred?.code);
       } catch {
-        return location.href.includes("manager");
+        return false;
       }
     },
-    { timeout: 60_000 },
+    { timeout: 90_000 },
   );
   console.log("DOM login OK.");
-  await page.goto(`${FANTASY_ORIGIN}/manager.html`, { waitUntil: "networkidle2", timeout: 60_000 });
+  if (!page.url().includes("manager.html")) {
+    await page.goto(`${FANTASY_ORIGIN}/manager.html`, { waitUntil: "networkidle2", timeout: 60_000 });
+  }
+  await page.waitForFunction(
+    () => {
+      try {
+        const raw = sessionStorage.getItem("credentials");
+        if (!raw) return false;
+        const cred = JSON.parse(raw) as { code?: string };
+        return Boolean(cred?.code);
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 30_000 },
+  );
 }

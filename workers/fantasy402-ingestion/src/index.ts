@@ -25,6 +25,7 @@ import {
 import { ingestPlaneSummary, workerTriggerMode } from "./ingest-plane";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
 import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
+import { ingestCustomerProfileSnapshot, loadCustomerProfile } from "./customer-profile";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
 
 export interface Env {
@@ -69,7 +70,8 @@ interface SecretsStoreBinding {
 type EndpointKey =
   | "getAccountInfoOwner" | "getAuthorizations" | "getAgentPerformance" | "getAgentBilling"
   | "getEnterTransactions" | "getPending" | "Pending" | "getPlayers" | "getAddedInfo"
-  | "getCommunicationMessages" | "getListAgenstByAgent" | "getLineTypes" | "getHeriarchy"
+  | "getCommunicationMessages" | "getListAgenstByAgent" | "getInfoPlayer" | "getCryptoInfo" | "getMail" | "getTeaserProfile"
+  | "getLineTypes" | "getHeriarchy"
   | "getConfigWebReports" | "getConfigWebReportsPending" | "getSportsType" | "getMessage"
   | "getNewEmailsCount" | "getWeeklyFigureByAgentLite" | "getBetTicker" | "getBetTickerConfig"
   | "getAgentPositionData" | "getAgentPositionList" | "getSubSportByReport" | "getPropWagers"
@@ -142,6 +144,11 @@ function customerIdForEndpoint(env: IngestionEnv): string {
     env.FANTASY402_CUSTOMER_ID ?? env.__ingestionCustomerId,
     "customerID (FANTASY402_CUSTOMER_ID or Manager/getPlayers)",
   );
+}
+
+function customerIdHint(env: IngestionEnv): string | undefined {
+  const id = (env.FANTASY402_CUSTOMER_ID ?? env.__ingestionCustomerId ?? "").trim();
+  return id || undefined;
 }
 
 interface UpstreamRequestDiagnostics {
@@ -493,6 +500,54 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       operation: "getListAgenstByAgent",
       RRO: "1",
       agentOwner: env.FANTASY402_AGENT_ID,
+    }),
+  },
+  getInfoPlayer: {
+    key: "getInfoPlayer",
+    path: "/cloud/api/Manager/getInfoPlayer",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getInfoPlayer",
+    }),
+  },
+  getCryptoInfo: {
+    key: "getCryptoInfo",
+    path: "/cloud/api/Manager/getCryptoInfo",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getCryptoInfo",
+    }),
+  },
+  getMail: {
+    key: "getMail",
+    path: "/cloud/api/Manager/getMail",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getMail",
+    }),
+  },
+  getTeaserProfile: {
+    key: "getTeaserProfile",
+    path: "/cloud/api/Manager/getTeaserProfile",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getTeaserProfile",
     }),
   },
   getLineTypes: {
@@ -1238,6 +1293,24 @@ const worker = {
       return queryPlayers(url, env);
     }
 
+    if (url.pathname === "/search-customers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return searchCustomers(url, env);
+    }
+
+    if (url.pathname === "/customer-profile" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      const customerId = (url.searchParams.get("customer_id") ?? url.searchParams.get("id") ?? "").trim();
+      if (!customerId) {
+        return json({ status: "failed", message: "customer_id is required" }, 400);
+      }
+      return json(await loadCustomerProfile(env, customerId), 200);
+    }
+
     if (url.pathname === "/alert-log" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -1443,8 +1516,15 @@ async function runIngestion(env: Env): Promise<RunResult> {
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
-        if (endpoint.key === "getWeeklyFigureByAgent") {
-          const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
+        await ingestCustomerProfileSnapshot(
+          env,
+          endpoint.key,
+          result.data,
+          result.snapshotId,
+          customerIdHint(ingestionRuntime),
+        );
+        if (endpoint.key === "getWeeklyFigureByAgent" || endpoint.key === "getWeeklyFigureByAgentLite") {
+          const records = mapWeeklyFigures(result.data, result.snapshotId, runId, env.FANTASY402_AGENT_ID);
           await storeWeeklyFigures(env, records);
         }
 
@@ -1860,6 +1940,7 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
   const stored: Array<Record<string, unknown>> = [];
 
   try {
+    const ingestionRuntime: IngestionEnv = { ...env };
     for (const rawItem of items) {
       const item = normalizeLocalIngestItem(rawItem);
       if (!item) {
@@ -1906,10 +1987,20 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         }
         if (endpoint.key === "getPlayers") {
           const playerCustomerId = extractPlayerCustomerId(result.data);
-          if (playerCustomerId) await cachePlayerCustomerId(env, playerCustomerId);
+          if (playerCustomerId) {
+            ingestionRuntime.__ingestionCustomerId = playerCustomerId;
+            await cachePlayerCustomerId(env, playerCustomerId);
+          }
         }
-        if (endpoint.key === "getWeeklyFigureByAgent") {
-          const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
+        await ingestCustomerProfileSnapshot(
+          env,
+          endpoint.key,
+          result.data,
+          result.snapshotId,
+          customerIdHint(ingestionRuntime),
+        );
+        if (endpoint.key === "getWeeklyFigureByAgent" || endpoint.key === "getWeeklyFigureByAgentLite") {
+          const records = mapWeeklyFigures(result.data, result.snapshotId, runId, env.FANTASY402_AGENT_ID);
           await storeWeeklyFigures(env, records);
         }
         endpointsSucceeded += 1;
@@ -3407,25 +3498,35 @@ interface WeeklyFigureRecord {
   capturedAt: string;
 }
 
-function mapWeeklyFigures(data: unknown, snapshotId: string, runId: string): WeeklyFigureRecord[] {
+function weeklyFigureListItems(data: unknown): Record<string, unknown>[] {
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  if (Array.isArray(root.LIST)) return root.LIST as Record<string, unknown>[];
+  if (root.LIST && typeof root.LIST === "object") {
+    const list = root.LIST as Record<string, unknown>;
+    if (Array.isArray(list.ARRAY)) return list.ARRAY as Record<string, unknown>[];
+  }
+  return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+}
+
+function mapWeeklyFigures(data: unknown, snapshotId: string, runId: string, fallbackAgentId = ""): WeeklyFigureRecord[] {
+  const items = weeklyFigureListItems(data);
+  const capturedAt = new Date().toISOString();
   return items.map((item) => {
-    const raw = item as Record<string, unknown>;
+    const liteShape = "ThisWeek" in item || "Today" in item || "Active" in item;
     return {
       id: crypto.randomUUID(),
       snapshotId,
       runId,
-      agentId: stringField(item, ["AgentID", "agentID", "Agent"], "").trim() || "unknown",
-      week: numberField(item, ["Week"], 0),
-      type: stringField(item, ["Type", "type"], "O"),
-      figureDate: stringField(item, ["Date", "date", "FigureDate", "figureDate"], ""),
-      wagerCount: numberField(item, ["WagerCount", "wagerCount", "TotalWagers", "totalWagers"], 0),
+      agentId: stringField(item, ["AgentID", "agentID", "Agent"], fallbackAgentId).trim() || fallbackAgentId || "unknown",
+      week: numberField(item, ["Week", "week"], 0),
+      type: stringField(item, ["Type", "type"], liteShape ? "A" : "O"),
+      figureDate: stringField(item, ["Date", "date", "FigureDate", "figureDate"], liteShape ? "lite-summary" : ""),
+      wagerCount: numberField(item, ["WagerCount", "wagerCount", "TotalWagers", "totalWagers", "Active", "active"], 0),
       volume: numberField(item, ["Volume", "volume", "TotalVolume", "totalVolume"], 0),
-      netAmount: numberField(item, ["NetAmount", "netAmount", "Net", "net"], 0),
+      netAmount: numberField(item, ["NetAmount", "netAmount", "Net", "net", "ThisWeek", "Today"], 0),
       bigWagers: numberField(item, ["BigWagers", "bigWagers", "BigAmountCount"], 0),
       rawJson: JSON.stringify(item),
-      capturedAt: new Date().toISOString(),
+      capturedAt,
     };
   });
 }
@@ -3434,10 +3535,10 @@ async function storeWeeklyFigures(env: Env, records: WeeklyFigureRecord[]): Prom
   for (const r of records) {
     await env.ANALYTICS_DB.prepare(
       `INSERT INTO weekly_figures
-         (id, snapshot_id, run_id, agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, raw_json, captured_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (snapshot_id, run_id, agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, raw_json, captured_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(r.id, r.snapshotId, r.runId, r.agentId, r.week, r.type, r.figureDate, r.wagerCount, r.volume, r.netAmount, r.bigWagers, r.rawJson, r.capturedAt)
+      .bind(r.snapshotId, r.runId, r.agentId, r.week, r.type, r.figureDate, r.wagerCount, r.volume, r.netAmount, r.bigWagers, r.rawJson, r.capturedAt)
       .run();
   }
 }
@@ -3889,6 +3990,7 @@ async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
 async function queryPlayers(url: URL, env: Env): Promise<Response> {
   const customerId = (url.searchParams.get("customer_id") ?? "").trim();
   const agentId = (url.searchParams.get("agent_id") ?? "").trim();
+  const q = (url.searchParams.get("q") ?? "").trim();
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
 
   let sql = "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE 1=1";
@@ -3896,12 +3998,27 @@ async function queryPlayers(url: URL, env: Env): Promise<Response> {
 
   if (customerId) { sql += " AND customer_id = ?"; bindings.push(customerId); }
   if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (q) {
+    const like = `%${q}%`;
+    sql += " AND (login LIKE ? COLLATE NOCASE OR name_first LIKE ? COLLATE NOCASE OR customer_id LIKE ?)";
+    bindings.push(like, like, like);
+  }
 
   sql += " ORDER BY login ASC LIMIT ?";
   bindings.push(limit);
 
   const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function searchCustomers(url: URL, env: Env): Promise<Response> {
+  const q = (url.searchParams.get("q") ?? "").trim();
+  if (!q) {
+    return json({ status: "failed", message: "q is required" }, 400);
+  }
+  url.searchParams.set("q", q);
+  url.searchParams.set("limit", url.searchParams.get("limit") ?? "25");
+  return queryPlayers(url, env);
 }
 
 async function queryGradedWagers(url: URL, env: Env): Promise<Response> {
@@ -6537,6 +6654,8 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/position-data': 'query',
   '/authorizations': 'query',
   '/players': 'query',
+  '/search-customers': 'query',
+  '/customer-profile': 'query',
   '/alert-rules': 'auth',
   '/alert-log': 'auth',
   '/alerts': 'auth',
@@ -6573,6 +6692,8 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/position-data', method: 'GET', description: 'Sport-level position data', refreshMs: 30000 },
   { path: '/authorizations', method: 'GET', description: 'Agent authorization permissions', refreshMs: 30000 },
   { path: '/players', method: 'GET', description: 'Player list', refreshMs: 30000 },
+  { path: '/search-customers', method: 'GET', description: 'Search player_agents by login, name, or customer id', refreshMs: 30000 },
+  { path: '/customer-profile', method: 'GET', description: 'Customer profile facets from D1 (getInfoPlayer, crypto, mail, teaser)', refreshMs: 30000 },
   { path: '/alert-rules', method: 'GET', description: 'List alert rules', refreshMs: 30000 },
   { path: '/alert-rules', method: 'POST', description: 'Create alert rule', refreshMs: 'manual' },
   { path: '/alert-rules', method: 'PATCH', description: 'Toggle alert rule', refreshMs: 'manual' },

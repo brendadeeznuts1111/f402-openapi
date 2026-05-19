@@ -274,6 +274,54 @@ const server = Bun.serve({
       return localAuthHealth();
     }
 
+    if (url.pathname === "/operator/harvest.js" && request.method === "GET") {
+      const js = `(() => {
+  function cookieVal(name) {
+    const p = name + "=";
+    for (const part of document.cookie.split(";")) {
+      const t = part.trim();
+      if (t.startsWith(p)) return t.slice(p.length);
+    }
+    return "";
+  }
+  let jwt = "";
+  try {
+    const raw = sessionStorage.getItem("credentials");
+    if (raw) {
+      const cred = JSON.parse(raw);
+      if (cred && cred.code) jwt = String(cred.code).trim();
+    }
+  } catch {}
+  if (!jwt) {
+    alert("Fantasy402 harvest: no JWT in sessionStorage — log in on manager.html first");
+    return;
+  }
+  const payload = {
+    authorization: jwt.startsWith("Bearer ") ? jwt : "Bearer " + jwt,
+    cfClearance: cookieVal("cf_clearance"),
+    cfBm: cookieVal("__cf_bm"),
+    customerId: sessionStorage.getItem("customerID") || "",
+    userAgent: navigator.userAgent,
+    referer: location.href,
+  };
+  fetch("${`http://${hostname}:${port}`}/refresh-auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then((r) => r.json())
+    .then((body) => alert("Worker refresh-auth: " + JSON.stringify(body)))
+    .catch((e) => alert("Harvest failed: " + e.message));
+})();`;
+      return new Response(js, {
+        headers: {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Cache-Control": "no-store",
+          ...corsHeaders(),
+        },
+      });
+    }
+
     if (shouldProxy(url.pathname)) {
       return proxyToWorker(request, url.pathname);
     }

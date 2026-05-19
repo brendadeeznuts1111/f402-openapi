@@ -27,6 +27,8 @@
 <link rel="stylesheet" href="css/components/timeline.css">
 <link rel="stylesheet" href="css/components/json-viewer.css">
 <link rel="stylesheet" href="css/components/dropzone.css">
+<link rel="stylesheet" href="css/components/breadcrumb.css">
+<link rel="stylesheet" href="css/components/drawer.css">
 </head>
 <body>
 
@@ -35,6 +37,7 @@
   Fantasy402 Dashboard
   <span class="ds-last-update" id="lastUpdate"></span>
   <button class="ds-theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme">🌙</button>
+  <button class="ds-theme-toggle" id="drawerToggle" title="Quick settings" aria-label="Open settings drawer">⚡</button>
 </h1>
 
 <div class="ds-layout">
@@ -60,6 +63,7 @@
   </nav>
 
   <main class="ds-content">
+    <div class="ds-breadcrumb" id="breadcrumb"></div>
 
     <!-- ═══ Overview View ═══ -->
     <div class="ds-view" id="view-overview">
@@ -289,6 +293,31 @@
 
 <div class="ds-toast" id="alertContainer"></div>
 
+<div class="ds-drawer" id="settingsDrawer">
+  <div class="ds-drawer__header">
+    <span class="ds-drawer__title">Quick Settings</span>
+    <button class="ds-drawer__close" id="drawerClose">&times;</button>
+  </div>
+  <div class="ds-drawer__body">
+    <div class="ds-form-group">
+      <label>Chart Type</label>
+      <select id="drawerChartType"><option value="line">Line</option><option value="bar">Bar</option><option value="area">Area</option></select>
+    </div>
+    <div class="ds-form-group">
+      <label>Log Level</label>
+      <select id="drawerLogLevel"><option value="debug">Debug</option><option value="info">Info</option><option value="warn">Warning</option><option value="error">Error</option></select>
+    </div>
+    <div class="ds-form-group">
+      <label>Notifications</label>
+      <select id="drawerNotifications"><option value="true">Enabled</option><option value="false">Disabled</option></select>
+    </div>
+  </div>
+  <div class="ds-drawer__footer">
+    <button class="ds-btn" id="drawerSaveBtn">Save</button>
+  </div>
+</div>
+<div class="ds-drawer__backdrop" id="drawerBackdrop"></div>
+
 <script type="module">
 import { api, apiPost, apiPatch, apiDelete, setGlobalErrorHandler } from './js/api-client.js';
 import { WagerSocket, PollingFallback } from './js/websocket-client.js';
@@ -369,6 +398,23 @@ function toggleTheme() {
 initTheme();
 
 // ── Sidebar ──
+function updateBreadcrumbs(view, tab) {
+  const labels = { overview: 'Overview', analytics: 'Analytics', logs: 'Logs', settings: 'Settings' };
+  const tabLabels = {
+    traffic: 'Traffic', latency: 'Latency', distribution: 'Distribution',
+    events: 'Events', agent: 'Agent Logs', system: 'System',
+    general: 'General', api: 'API', appearance: 'Appearance', data: 'Data',
+  };
+  let html = '<span class="ds-breadcrumb__item ds-breadcrumb__item--active">Dashboard</span>';
+  html += '<span class="ds-breadcrumb__separator">/</span>';
+  html += `<span class="ds-breadcrumb__item${tab ? '' : ' ds-breadcrumb__item--active'}">${labels[view] || view}</span>`;
+  if (tab) {
+    html += '<span class="ds-breadcrumb__separator">/</span>';
+    html += `<span class="ds-breadcrumb__item ds-breadcrumb__item--active">${tabLabels[tab] || tab}</span>`;
+  }
+  $('breadcrumb').innerHTML = html;
+}
+
 function switchView(name) {
   currentView = name;
   destroyAllCharts();
@@ -378,6 +424,8 @@ function switchView(name) {
   document.querySelectorAll('.ds-view').forEach((v) => {
     v.style.display = v.id === `view-${name}` ? 'block' : 'none';
   });
+
+  updateBreadcrumbs(name);
 
   if (name === 'overview') {
     startSSE();
@@ -392,6 +440,18 @@ function switchView(name) {
     stopSSE();
     loadSettings();
   }
+}
+
+function openDrawer() {
+  $('settingsDrawer').classList.add('ds-drawer--open');
+  $('drawerBackdrop').classList.add('ds-drawer__backdrop--visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  $('settingsDrawer').classList.remove('ds-drawer--open');
+  $('drawerBackdrop').classList.remove('ds-drawer__backdrop--visible');
+  document.body.style.overflow = '';
 }
 
 function renderSidebarStatus(status) {
@@ -771,6 +831,13 @@ async function loadSystemLog() {
 }
 
 // ── Settings ──
+function syncDrawerFromSettings() {
+  const s = settings.getAll();
+  $('drawerChartType').value = s.chartType;
+  $('drawerLogLevel').value = s.logLevel;
+  $('drawerNotifications').value = String(s.notifications);
+}
+
 function loadSettings() {
   const s = settings.getAll();
   $('settingTheme').value = s.theme;
@@ -781,6 +848,7 @@ function loadSettings() {
   $('settingMaxItems').value = s.maxTickerItems;
   $('settingChartType').value = s.chartType;
   $('settingLogLevel').value = s.logLevel;
+  syncDrawerFromSettings();
 
   if (!configViewer) configViewer = new JsonViewer('configViewer', s);
   configViewer.setData(s);
@@ -859,7 +927,7 @@ function switchChartTab(name) {
   document.querySelectorAll('#view-analytics .ds-tab-content').forEach((c) => {
     c.style.display = c.id === `tab-${name}` ? 'block' : 'none';
   });
-  // Re-render charts when tab becomes visible
+  updateBreadcrumbs('analytics', name);
   if (name === 'traffic' && trafficChart) trafficChart.render();
   if (name === 'latency' && latencyChart) latencyChart.render();
   if (name === 'distribution') {
@@ -873,6 +941,7 @@ function switchLogTab(name) {
   document.querySelectorAll('#view-logs .ds-tab-content').forEach((c) => {
     c.style.display = c.id === `tab-${name}` ? 'block' : 'none';
   });
+  updateBreadcrumbs('logs', name);
 }
 
 function switchSettingsTab(name) {
@@ -880,7 +949,30 @@ function switchSettingsTab(name) {
   document.querySelectorAll('#view-settings .ds-tab-content').forEach((c) => {
     c.style.display = c.id === `tab-${name}` ? 'block' : 'none';
   });
+  updateBreadcrumbs('settings', name);
 }
+
+// ── Drawer ──
+$('drawerToggle').addEventListener('click', openDrawer);
+$('drawerClose').addEventListener('click', closeDrawer);
+$('drawerBackdrop').addEventListener('click', closeDrawer);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('settingsDrawer').classList.contains('ds-drawer--open')) {
+    closeDrawer();
+  }
+});
+
+$('drawerSaveBtn').addEventListener('click', () => {
+  settings.set('chartType', $('drawerChartType').value);
+  settings.set('logLevel', $('drawerLogLevel').value);
+  settings.set('notifications', $('drawerNotifications').value === 'true');
+  destroyAllCharts();
+  if (currentView === 'overview') renderVolumeChart();
+  if (currentView === 'analytics') renderAnalyticsCharts();
+  showAlert('Settings saved', 'info');
+  closeDrawer();
+});
 
 // ── Event delegation ──
 document.addEventListener('click', (e) => {
@@ -966,6 +1058,8 @@ async function init() {
   requestNotificationPermission();
   $('lastUpdate').textContent = new Date().toLocaleTimeString();
   document.getElementById('view-overview').style.display = 'block';
+  updateBreadcrumbs('overview');
+  syncDrawerFromSettings();
   await loadOverview();
   startSSE();
   AutoRefreshManager.register('overview', loadOverview, getRefreshInterval('/summary'));

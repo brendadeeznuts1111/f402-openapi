@@ -1,44 +1,57 @@
-# Fantasy402 Dashboard — Design System
+# Fantasy402 Dashboard v3
 
 Zero-build-step live monitoring dashboard for the Fantasy402 ingestion pipeline. Served via Cloudflare Pages.
 
-## Files
+## Quick Start
 
-| Path | Purpose |
-|------|---------|
-| `index.html` | Single entry point. All views, templates, and app wiring. |
-| `css/design-system.css` | Tokens (`:root`), reset, grid utilities, layout, theme, animations, print styles. |
-| `css/components/*.css` | 21 independent BEM component files (badge, button, card, chart, etc.). |
-| `js/utils.js` | Formatters, Exporter, LazyLoader, ModalFactory, AutoRefreshManager. |
-| `js/design-system.js` | ComponentFactory (card/table/badge descriptor helpers). |
-| `js/api-client.js` | Fetch wrapper with TTL cache, dedup, mock mode. |
-| `js/websocket-client.js` | SSE client with exponential backoff + polling fallback. |
-| `js/store.js` | TTL-cached data store with event emitter. |
+```bash
+# Deploy Worker
+cd workers/fantasy402-ingestion && wrangler deploy
 
-## Usage
-
-Open `index.html` in a browser or deploy via `wrangler pages publish`.
-
-### Theme
-
-Toggle dark/light via the theme button in the header. Persisted to `localStorage`.
-
-### Components
-
-```html
-<button class="ds-btn">Default</button>
-<button class="ds-btn ds-btn--danger">Danger</button>
-
-<span class="ds-badge ds-badge--info">Info</span>
-
-<div class="ds-card">
-  <div class="ds-card__label">Label</div>
-  <div class="ds-card__value">42</div>
-</div>
-
-<div data-tooltip="Tooltip text">Hover me</div>
+# Deploy Dashboard
+cd dashboard && wrangler pages deploy . --project-name=fantasy402-dashboard
 ```
 
-## Naming Convention
+## Views
 
-BEM — `block__element--modifier`. See `DESIGN.md` for full system architecture.
+| View | Components |
+|------|------------|
+| **Overview** | 6 stat cards (live wagers, graded, volume, agents, PNL, types), volume trend chart (Chart.js), live wager ticker (SSE), sortable agent table, event timeline |
+| **Analytics** | Traffic bar chart, latency line chart, type distribution doughnut, agent volume bar chart, raw API JSON viewer |
+| **Logs** | Filterable event timeline (all/ok/error/warn), sortable agent log table, system health log (run history + failures) |
+| **Settings** | General (theme, notifications, sound), API (base URL, refresh interval), Appearance (chart type, log level), Data (dropzone import, export, clear cache) |
+
+## Files
+
+### CSS Components (21 files)
+`css/design-system.css` + `css/components/` — badge, button, card, chart, conn-status, dropdown, dropzone, empty-state, error-state, filters, form, json-viewer, modal, skeleton, stat-card, table, tabs, ticker, timeline, toast, tooltip
+
+### JS Modules (11 files)
+| Module | Exports | Purpose |
+|--------|---------|---------|
+| `constants.js` | `ZONE_COLORS`, `ENDPOINT_ZONE_MAP`, `REFRESH_INTERVALS`, `getZoneColor()`, `getRefreshInterval()`, `getZone()` | Canonical constants for zones, endpoints, refresh timing |
+| `design-system.js` | `ComponentFactory`, `getZoneColor`, `getRefreshInterval`, `getZoneName` | Re-exports + descriptor factories |
+| `api-client.js` | `api`, `apiPost`, `apiPatch`, `apiDelete`, `setGlobalErrorHandler` | Fetch wrapper with dedup, TTL cache, bust-on-mutation, error handler |
+| `websocket-client.js` | `WagerSocket`, `PollingFallback` | SSE with exponential backoff (max 10 retries), since-aware reconnect |
+| `store.js` | `DataStore` | TTL cache + EventEmitter + fetch-through dedup |
+| `status-poller.js` | `StatusPoller` | Polls `/endpoint-status`, derives per-zone health |
+| `chart-wrapper.js` | `ChartWrapper` | Chart.js CDN loader with theme-aware defaults |
+| `sortable-table.js` | `SortableTable` | Click-to-sort with string/number/date and formatters |
+| `json-viewer.js` | `JsonViewer` | Syntax-highlighted JSON with XSS-safe escaping |
+| `settings-manager.js` | `SettingsManager` | localStorage-backed settings with import/export |
+| `utils.js` | `DateFormatter`, `NumberFormatter`, `Exporter`, `LazyLoader`, `AutoRefreshManager`, `ModalFactory` | Formatters, lifecycle, modals |
+
+## Architecture
+
+```
+Browser → Cloudflare Pages (index.html + _worker.js proxy)
+          │
+          ├── /api/* → Worker (ingestion + query + alerts)
+          │   └── /live-wagers → Durable Object (SSE stream)
+          │
+          └── / (static assets) → Pages CDN
+```
+
+## Naming
+
+BEM convention: `.ds-block__element--modifier`. All classes use `ds-` prefix.

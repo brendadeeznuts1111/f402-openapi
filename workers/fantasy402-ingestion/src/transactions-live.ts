@@ -162,6 +162,11 @@ export function transactionPathForType(type: TransactionReportType): string {
   return TRANSACTION_REPORT_TYPES[type].path;
 }
 
+/** `api_snapshots.endpoint_key` for R2 archive fallback when live upstream is unavailable. */
+export function transactionArchiveEndpointKey(type: TransactionReportType): string {
+  return TRANSACTION_REPORT_TYPES[type].operation;
+}
+
 function trimStr(v: unknown): string {
   return String(v ?? "").trim();
 }

@@ -21,10 +21,13 @@ export function parseCustomerFromPerfRow(row) {
   return { customerId: cid, login: login || cid };
 }
 
+import { formatDataSourceLabel } from './data-source-label.js';
+
 export function formatAgentPerfMeta(data) {
   const type = data?.type ?? 'CP';
   const label = data?.type_label ?? type;
-  const cached = data?.cached ? ' · cached' : '';
+  const src = formatDataSourceLabel(data);
+  const stale = data?.stale ? ' · stale' : '';
   const when = data?.timeAgo ?? data?.fetched_at ?? '';
-  return `${label} · ${data?.total ?? 0} rows${when ? ` · ${when}` : ''}${cached}`;
+  return `${label} · ${data?.total ?? 0} rows · ${src}${stale}${when ? ` · ${when}` : ''}`;
 }

@@ -1,0 +1,183 @@
+{
+  "agentPerformanceLiveQuerySchema": {
+    "_error": "Transforms cannot be represented in JSON Schema",
+    "_type": "ZodPipe"
+  },
+  "chartAggregatesSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "hours": {
+        "default": 24,
+        "maximum": 168,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "hours"
+    ],
+    "type": "object"
+  },
+  "customerProfileQuerySchema": {
+    "_error": "Transforms cannot be represented in JSON Schema",
+    "_type": "ZodPipe"
+  },
+  "customerProfileSeedSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "customer_id": {
+        "maxLength": 32,
+        "minLength": 1,
+        "type": "string"
+      },
+      "login": {
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "customer_id"
+    ],
+    "type": "object"
+  },
+  "localIngestSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "advanceCursor": {
+        "type": "boolean"
+      },
+      "results": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "capturedAt": {
+              "type": "string"
+            },
+            "data": {},
+            "endpointKey": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "httpStatus": {
+              "default": 200,
+              "maximum": 599,
+              "minimum": 100,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "endpointKey",
+            "httpStatus",
+            "data"
+          ],
+          "type": "object"
+        },
+        "maxItems": 25,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "results"
+    ],
+    "type": "object"
+  },
+  "pendingWagersQuerySchema": {
+    "additionalProperties": false,
+    "properties": {
+      "agent_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "customer_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "date": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      },
+      "limit": {
+        "default": 200,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "login": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "sort": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "sport": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type_sort": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "wager_type": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "week": {
+        "maximum": 52,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "limit"
+    ],
+    "type": "object"
+  },
+  "searchCustomersQuerySchema": {
+    "additionalProperties": false,
+    "properties": {
+      "agent_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "limit": {
+        "default": 25,
+        "maximum": 200,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "q": {
+        "minLength": 2,
+        "type": "string"
+      }
+    },
+    "required": [
+      "q",
+      "limit"
+    ],
+    "type": "object"
+  },
+  "transactionsLiveQuerySchema": {
+    "_error": "Transforms cannot be represented in JSON Schema",
+    "_type": "ZodPipe"
+  },
+  "updateCookiesSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "__cf_bm": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "cf_clearance": {
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "cf_clearance",
+      "__cf_bm"
+    ],
+    "type": "object"
+  }
+}

@@ -1,0 +1,117 @@
+---
+description: Dev flow, diagnostics, and review guardrails from recent ingestion/dashboard mishaps
+alwaysApply: true
+---
+
+# F402 development review & flow
+
+Before changing ingestion, auth, or dashboard code, read **`docs/ingestion-errors.md`** and **`docs/ops/automation-architecture.md`**.
+
+## Three automation planes (do not merge)
+
+| Plane | Auth writer | Ingest IP-bound routes? |
+|-------|-------------|-------------------------|
+| **VPS** | `auth:refresh-full` → proxy → Worker KV | Yes |
+| **Dashboard (Pages)** | DevTools capture → `POST /refresh-auth` | Often blocked (CORS / wrong IP) |
+| **Manager tab** | `sessionStorage` on fantasy402.com | Yes (same origin) |
+
+- Worker **`/trigger` from the edge** → expect **403 / error 1106**; status `success` with `endpoints_failed === 0` can still mean **all skipped**. Use **local/browser ingest**, not more cron triggers.
+- **CF cookies alone** do not fix expired JWT. **`jwt expired` + `hasCapture: false`** must **short-circuit** ingest (no silent retry loops every 5m).
+- One **auth writer** per environment; do not run VPS Puppeteer + dashboard auto-ingest against the same KV overlay.
+
+## Pre-flight (ingestion / auth changes)
+
+```bash
+cd workers/fantasy402-ingestion
+npm run auth:stack-status
+npm run auth:preflight          # exit 1 → fix before batch
+# Local CLI: WORKER_ORIGIN=http://127.0.0.1:8791 + proxy running
+```
+
+Diagnostic APIs (in order): `GET /diagnostics` → `GET /auth/health` → `GET /ingest/catalog-status` (`blockers[]`, `failureBreakdown24h[]`).
+
+## Dashboard & design system
+
+- **Single source of truth** for chart hour keys: `bucketWagersByHour()` in `utils.js` — never re-bucket per view.
+- Settings exposed in UI (**`chartType`**, theme) must affect runtime or be removed.
+- Chart colors: read CSS tokens at render (`getChartColors()`), not static hex only.
+- Chart errors: `showChartError` / `showChartMessage` — **do not** replace chart wrap `innerHTML` or leak Chart.js instances on view switch.
+- Empty states: prefer `renderEmptyState()` from `design-system.js` in ticker/logs/views.
+- After large edits, **verify file integrity** (grep exports, run dashboard locally) — corrupted view files have happened mid-audit.
+- Doc changes: if behavior ships, update **`dashboard/AUDIT.md`**, **`CHANGELOG.md`**, and **`docs/dashboard.md`** in the same pass.
+
+## Common mishaps (recent traces)
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `jwt expired no capture` spam in `.cursor/debug-*.log` | Auto-ingest without fresh DevTools capture | Gate on `AUTH_JWT_EXPIRED`; surface UI banner; `npm run auth:refresh-full` on VPS |
+| Historical endpoint “failures” but route online | Worker `/trigger` 403 archives | Check `onlineCount` / local ingest, not failure count alone |
+| `POST /ingest/local` 500 / timeout | 56k-row payload or all items invalid | Batch seeds (`seed-*-d1.mjs`); validate with Zod issues |
+| `POST /refresh-auth` 401 | Wrong/missing `INGESTION_TRIGGER_TOKEN` | Sync `.archive-auth-token`; never commit secrets |
+| wrangler auth errors | `CLOUDFLARE_API_TOKEN` set | `unset CLOUDFLARE_API_TOKEN` for OAuth |
+| Puppeteer login timeout | CF blocks headless | Use manager harvest / `127.0.0.1:8791/operator/harvest.js` |
+
+## Live data first (default)
+
+**Production truth** = D1 tables + R2 archives filled by **successful upstream ingest**, not hand-written fixtures in app code.
+
+| Need | Live path | Proof |
+|------|-----------|--------|
+| Route/catalog health | Browser or VPS `ingest:local-batch` | `GET /ingest/catalog-status` → `onlineCount`; row in `api_snapshots` |
+| Wager charts | `GET /chart-aggregates?hours=24` (SQL on ingested data) | Non-empty buckets; do **not** client-bucket 100 rows as primary path |
+| Endpoint latency | `GET /endpoint-status` → `routeLatency` | From latest run’s `api_snapshots.duration_ms` |
+| Customer profile | `GET /customer-profile?customer_id=…` (**`live=1` default**) | `sources.blocks[].activeSource === "live"` when auth OK |
+| Data view tables | `GET /graded-wagers`, `/prop-wagers`, `/players`, … | Rows exist only after matching endpoint ingest |
+
+```bash
+# Catalog gap → live ingest (not mock data)
+cd workers/fantasy402-ingestion
+npm run auth:preflight
+npm run ingest:local-batch    # or ingest:browser with FANTASY402_INGESTION_ENDPOINTS=...
+curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" \
+  "$WORKER_URL/ingest/catalog-status"
+```
+
+- **`online`** = at least one successful `api_snapshots` row. **`pending`** = never ingested. Historical R2 **403 failures** do not mean the route is offline if local ingest succeeded.
+- Dashboard has **no mock API layer** — all views call Worker routes; live routes fall back to **D1** (`graded_wagers`) or **R2 archives** (`api_snapshots`) when upstream auth fails.
+- Run **`cd dashboard && npm run test:harness`** after changing routes, `schemas.js`, `constants.js`, or component CSS — updates must match `dashboard/harness/metadata/*.json`.
+- After intentional Zod/OpenAPI shape changes: **`npm run test:harness:update`** (snapshots). If `llms.txt` or views drift: **`npm run harness:sync-check`**.
+- New Worker fields: parse **real upstream JSON** (saved under `fantasy402/*-response.json` locally); add tests with **minimal synthetic** payloads, not production dumps in repo.
+
+## When to seed (bootstrap, not substitute for live)
+
+Use **seed** when live upstream is impractical once, or to backfill D1 before live loops catch up. Seeded rows must still trace to a **captured upstream response** or ingest run.
+
+| Data | Seed mechanism | Notes |
+|------|----------------|-------|
+| Player search (`player_agents`) | `node scripts/seed-player-agents-d1.mjs <getListAgenstByAgent.json> [--remote]` | Fetch JSON via manager/browser first; batch via `SEED_BATCH_SIZE` |
+| Weekly figures | `node scripts/seed-weekly-figures-d1.mjs [--remote] [--from-json …]` | Lite shape is `LIST.ARRAY[0]` — one row per agent, not 56k |
+| Customer facets | `POST /customer-profile/seed` or dashboard **Seed D1 facets** | `getInfoPlayer`, `getCryptoInfo`, `getMail`, `getTeaserProfile` |
+| Typed wager/perf tables | Successful `POST /ingest/local` or browser ingest | Prefer over giant single POST; Zod-validated per item |
+| Account owner | Ingest `getAccountInfoOwner` | Lands in `customer_accounts` |
+
+**Hybrid profile blocks** (`getInfoPlayer`, `account`): UI may show **`seeded`** until auth works; goal is **`live`** on profile open. Do not build features that only read hardcoded seed without upstream path.
+
+**Live-only blocks** (`getPerformancePlayer`, `getReportPlayerAnalysis`): no D1 facet — require working JWT + browser/VPS plane; `live=0` returns catalog only.
+
+See **`docs/customer-profile-sources.md`** for `activeSource` / `sources` contract.
+
+## Data anti-patterns (recent mishaps)
+
+| Anti-pattern | Why it fails | Do instead |
+|--------------|--------------|------------|
+| Empty UI + add mock arrays in view JS | Hides ingest/auth bugs | Fix catalog/auth; use mock mode only on localhost |
+| `limit=100` client charts as source of truth | Misleading vs full warehouse | `GET /chart-aggregates` |
+| Single `POST /ingest/local` with 50k+ players | Timeouts / 500 | `seed-player-agents-d1.mjs` batches |
+| Assume Worker cron populated D1 | Edge `/trigger` skips with 403 | VPS unattended cycle or browser ingest |
+| `live=0` in dashboard without reason | Stale facets, no perf/analysis | Default `live=1`; document when D1-only |
+| Commit `fantasy402/*-response.json` with PII | Leak risk | Keep local; gitignore if added to tree |
+
+## Review checklist (PR / agent)
+
+1. Map symptom to **`docs/ingestion-errors.md`** code (`AUTH_*`, `WORKER_TRIGGER_403`, `CATALOG_INCOMPLETE`, …).
+2. Confirm **ingest plane** (browser vs worker edge) matches the change.
+3. **Data:** feature reads live Worker/D1 APIs; seed scripts/docs updated if new tables or facets; `onlineCount` / `activeSource` verifiable after deploy.
+4. Dashboard: theme toggle + empty/error states on affected charts/views.
+5. No secrets, `.cursor/debug-*.log`, `.dev.vars`, or upstream capture JSON with credentials in commits.
+6. Run targeted tests: `cd workers/fantasy402-ingestion && npm test` when worker logic changes.

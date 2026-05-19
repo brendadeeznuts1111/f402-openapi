@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitAny": false,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.js"],
+  "exclude": ["./snapshots/**", "./index.js"]
+}

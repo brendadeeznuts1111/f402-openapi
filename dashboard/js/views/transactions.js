@@ -3,6 +3,7 @@
 import { $, escapeHtml } from '../dom.js';
 import { usd, fmt, ago } from '../format.js';
 import { renderErrorState, storeTTL } from '../ui.js';
+import { formatDataSourceLabel } from '../lib/data-source-label.js';
 import { getRefreshInterval, renderEmptyState } from '../design-system.js';
 import { SortableTable } from '../sortable-table.js';
 import { buildTransactionsLiveQuery } from '../lib/query-builders.js';
@@ -252,7 +253,7 @@ async function loadTransactions(ctx) {
         hint: `Try another type or date range. ${label}`,
       });
       if (metaEl) {
-        metaEl.textContent = `${label} · 0 rows · ${d.cached ? 'cached' : 'live'}`;
+        metaEl.textContent = `${label} · 0 rows · ${formatDataSourceLabel(d)}`;
       }
       return;
     }
@@ -261,7 +262,8 @@ async function loadTransactions(ctx) {
       metaEl.textContent = [
         label,
         `${rows.length} rows`,
-        d.cached ? 'cached' : 'live',
+        formatDataSourceLabel(d),
+        d.stale ? 'stale' : '',
         d.fetched_at ? ago(d.fetched_at) : '',
       ]
         .filter(Boolean)

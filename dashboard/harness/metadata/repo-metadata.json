@@ -1,0 +1,67 @@
+{
+  "description": "Repository metadata files agents and harness must keep aligned with code.",
+  "requiredFiles": [
+    {
+      "path": "llms.txt",
+      "minLines": 50,
+      "mustInclude": [
+        "workers/fantasy402-ingestion/upstream-endpoints.json",
+        "workers/fantasy402-ingestion/openapi.worker.json",
+        "dashboard/harness",
+        "docs/dashboard.md",
+        "GET /chart-aggregates",
+        "GET /pending-wagers",
+        "GET /customer-profile"
+      ]
+    },
+    {
+      "path": "dashboard/harness/README.md",
+      "minLines": 10,
+      "mustInclude": ["test:harness", "metadata/"]
+    },
+    {
+      "path": "dashboard/harness/metadata/public-routes.json",
+      "mustInclude": ["/health", "/auth/health"]
+    },
+    {
+      "path": "dashboard/harness/metadata/dashboard-api-routes.json",
+      "mustInclude": ["/pending-wagers", "/customer-profile"]
+    },
+    {
+      "path": "dashboard/harness/metadata/schema-bindings.json",
+      "mustInclude": ["openApiSchemas", "bindings"]
+    },
+    {
+      "path": "dashboard/harness/metadata/components.manifest.json",
+      "mustInclude": ["components"]
+    },
+    {
+      "path": "dashboard/harness/metadata/view-routes.json",
+      "mustInclude": ["views"]
+    },
+    {
+      "path": "dashboard/harness/metadata/schema-registry.json",
+      "mustInclude": ["dashboard", "worker"]
+    },
+    {
+      "path": "dashboard/harness/metadata/zod-cases.json",
+      "mustInclude": ["dashboardSchemas", "workerSchemas"]
+    },
+    {
+      "path": "workers/fantasy402-ingestion/openapi.worker.json",
+      "json": true,
+      "jsonFields": ["openapi", "components.schemas", "paths"]
+    }
+  ],
+  "optionalFiles": [
+    {
+      "path": "AGENTS.md",
+      "description": "Optional Cursor/Codex agent guide; create when documenting agent workflows"
+    }
+  ],
+  "openApiNaming": {
+    "pattern": "^[A-Z][A-Za-z0-9]*$",
+    "forbiddenSubstrings": ["password", "secret", "tokenauth", "cf_clearance"],
+    "objectSchemasRequireAdditionalPropertiesFalse": true
+  }
+}

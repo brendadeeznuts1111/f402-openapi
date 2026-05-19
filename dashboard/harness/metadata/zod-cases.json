@@ -1,0 +1,111 @@
+{
+  "description": "Data-driven Zod validation cases for dashboard + worker schema parity.",
+  "dashboardPrimitives": [
+    {
+      "id": "emptyToUndefined-blank",
+      "fn": "emptyToUndefined",
+      "input": "  ",
+      "expect": "undefined"
+    },
+    {
+      "id": "emptyToUndefined-literal-undefined",
+      "fn": "emptyToUndefined",
+      "input": "undefined",
+      "expect": "undefined"
+    },
+    {
+      "id": "emptyToUndefined-trim",
+      "fn": "emptyToUndefined",
+      "input": "  GX195 ",
+      "expect": "GX195"
+    }
+  ],
+  "dashboardSchemas": [
+    {
+      "id": "searchCustomers-min-q",
+      "schema": "searchCustomersQuerySchema",
+      "invalid": { "q": "x" },
+      "messageIncludes": "at least 2"
+    },
+    {
+      "id": "searchCustomers-default-limit",
+      "schema": "searchCustomersQuerySchema",
+      "valid": { "q": "ab" },
+      "expect": { "limit": 25 }
+    },
+    {
+      "id": "pending-wager-type-invalid",
+      "schema": "pendingWagersFiltersSchema",
+      "invalid": { "date": "2026-05-17", "wager_type": "X" },
+      "messageIncludes": "wager_type"
+    },
+    {
+      "id": "pending-wager-type-empty-ok",
+      "schema": "pendingWagersFiltersSchema",
+      "valid": { "date": "2026-05-17", "wager_type": "" },
+      "expect": { "wager_type": "", "customer_id": "0" }
+    },
+    {
+      "id": "transactions-date-order",
+      "schema": "transactionsLiveFiltersSchema",
+      "invalid": {
+        "type": "player",
+        "start_date": "2026-05-20",
+        "end_date": "2026-05-01"
+      },
+      "messageIncludes": "start_date"
+    },
+    {
+      "id": "agentId-invalid-chars",
+      "schema": "agentNavSchema",
+      "invalid": { "agentId": "bad id!" },
+      "messageIncludes": "invalid agent_id"
+    },
+    {
+      "id": "customerId-required",
+      "schema": "customerNavSchema",
+      "invalid": {},
+      "messageIncludes": "expected string"
+    }
+  ],
+  "workerSchemas": [
+    {
+      "id": "customerProfile-missing-id",
+      "schema": "customerProfileQuerySchema",
+      "query": {},
+      "pathIncludes": "customer_id"
+    },
+    {
+      "id": "customerProfile-live-false",
+      "schema": "customerProfileQuerySchema",
+      "query": { "customer_id": "GX195", "live": "false" },
+      "valid": true,
+      "expect": { "wantLive": false }
+    },
+    {
+      "id": "customerProfile-seed-undefined-literal",
+      "schema": "customerProfileSeedSchema",
+      "body": { "customer_id": "undefined" },
+      "valid": false
+    },
+    {
+      "id": "agentPerf-type-coerce",
+      "schema": "agentPerformanceLiveQuerySchema",
+      "query": { "type": "cp", "free_play": "n" },
+      "valid": true,
+      "expect": { "type": "CP", "free_play": "N" }
+    },
+    {
+      "id": "chartAggregates-hours-max",
+      "schema": "chartAggregatesSchema",
+      "query": { "hours": "999" },
+      "valid": false
+    },
+    {
+      "id": "localIngest-empty-results",
+      "schema": "localIngestSchema",
+      "body": { "results": [] },
+      "valid": false
+    }
+  ]
+}

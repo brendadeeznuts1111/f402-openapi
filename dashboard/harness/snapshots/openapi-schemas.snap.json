@@ -1,0 +1,1930 @@
+{
+  "AlertEvent": {
+    "additionalProperties": false,
+    "properties": {
+      "context": true,
+      "context_json": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_at": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "severity": {
+        "enum": [
+          "info",
+          "warning",
+          "critical"
+        ],
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "context",
+      "context_json",
+      "created_at",
+      "id",
+      "message",
+      "severity",
+      "type"
+    ],
+    "type": "object"
+  },
+  "AlertListFilters": {
+    "additionalProperties": false,
+    "properties": {
+      "severity": {
+        "enum": [
+          "info",
+          "warning",
+          "critical",
+          null
+        ],
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "severity",
+      "type"
+    ],
+    "type": "object"
+  },
+  "AlertListResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "events": {
+        "items": {
+          "$ref": "#/components/schemas/AlertEvent"
+        },
+        "type": "array"
+      },
+      "filters": {
+        "$ref": "#/components/schemas/AlertListFilters"
+      }
+    },
+    "required": [
+      "events",
+      "filters"
+    ],
+    "type": "object"
+  },
+  "ArchiveFilters": {
+    "additionalProperties": false,
+    "properties": {
+      "archiveType": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "date": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "endpoint": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "prefix": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "archiveType",
+      "date",
+      "endpoint",
+      "prefix"
+    ],
+    "type": "object"
+  },
+  "ArchiveListResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "cursor": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "filters": {
+        "$ref": "#/components/schemas/ArchiveFilters"
+      },
+      "objects": {
+        "items": {
+          "$ref": "#/components/schemas/ArchiveObjectSummary"
+        },
+        "type": "array"
+      },
+      "truncated": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "cursor",
+      "filters",
+      "objects",
+      "truncated"
+    ],
+    "type": "object"
+  },
+  "ArchiveObjectSummary": {
+    "additionalProperties": false,
+    "properties": {
+      "customMetadata": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "etag": {
+        "type": "string"
+      },
+      "httpMetadata": {
+        "type": "object"
+      },
+      "key": {
+        "type": "string"
+      },
+      "size": {
+        "type": "integer"
+      },
+      "storageClass": {
+        "type": "string"
+      },
+      "uploaded": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "customMetadata",
+      "etag",
+      "httpMetadata",
+      "key",
+      "size",
+      "storageClass",
+      "uploaded"
+    ],
+    "type": "object"
+  },
+  "AuthHealthResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "authCacheOverlay": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "authorizationExpiry": {
+        "properties": {
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "ttlSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "hasCfBm": {
+        "type": "boolean"
+      },
+      "hasCfClearance": {
+        "type": "boolean"
+      },
+      "hasSessionCookie": {
+        "type": "boolean"
+      },
+      "ingestionReadiness": {
+        "properties": {
+          "blocker": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "enum": [
+          "ready",
+          "degraded"
+        ],
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "authorizationExpiry",
+      "ingestionReadiness",
+      "status",
+      "timestamp"
+    ],
+    "type": "object"
+  },
+  "CloudflareApiMessage": {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "type": "integer"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "DiagnosticsResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "archive": {
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "storageClass": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prefix",
+          "storageClass"
+        ],
+        "type": "object"
+      },
+      "auth": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedSecrets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "preferredSecret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "acceptedSecrets",
+          "configured",
+          "preferredSecret"
+        ],
+        "type": "object"
+      },
+      "bindings": {
+        "additionalProperties": false,
+        "properties": {
+          "analyticsDb": {
+            "type": "boolean"
+          },
+          "authCache": {
+            "type": "boolean"
+          },
+          "rawArchive": {
+            "type": "boolean"
+          },
+          "sessionKv": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "analyticsDb",
+          "authCache",
+          "rawArchive",
+          "sessionKv"
+        ],
+        "type": "object"
+      },
+      "cloudflare": {
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "zoneId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountId",
+          "zoneId"
+        ],
+        "type": "object"
+      },
+      "configuredEndpoints": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "environment": {
+        "type": "string"
+      },
+      "optionalSecrets": {
+        "additionalProperties": {
+          "type": "boolean"
+        },
+        "type": "object"
+      },
+      "requiredSecrets": {
+        "additionalProperties": false,
+        "properties": {
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "present": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "missing",
+          "present"
+        ],
+        "type": "object"
+      },
+      "scanPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedHosts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "enum": [
+          "ready",
+          "degraded"
+        ],
+        "type": "string"
+      },
+      "upstreamAuthShape": {
+        "additionalProperties": false,
+        "properties": {
+          "authorizationExpiry": {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "secondsRemaining": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "valid",
+                  "expiring",
+                  "expired",
+                  "unknown"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "expiresAt",
+              "secondsRemaining",
+              "status"
+            ],
+            "type": "object"
+          },
+          "browserHeaderCount": {
+            "type": "integer"
+          },
+          "browserHeaders": {
+            "additionalProperties": false,
+            "properties": {
+              "complete": {
+                "type": "boolean"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "present": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "complete",
+              "count",
+              "missing",
+              "present"
+            ],
+            "type": "object"
+          },
+          "cookieNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "hasAuthorization": {
+            "type": "boolean"
+          },
+          "hasCfBm": {
+            "type": "boolean"
+          },
+          "hasCfClearance": {
+            "type": "boolean"
+          },
+          "hasCookie": {
+            "type": "boolean"
+          },
+          "hasSessionCookie": {
+            "type": "boolean"
+          },
+          "ingestionReadiness": {
+            "additionalProperties": false,
+            "properties": {
+              "blocker": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "ready",
+                  "blocked"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "blocker",
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "authorizationExpiry",
+          "browserHeaderCount",
+          "browserHeaders",
+          "cookieNames",
+          "hasAuthorization",
+          "hasCfBm",
+          "hasCfClearance",
+          "hasCookie",
+          "hasSessionCookie",
+          "ingestionReadiness"
+        ],
+        "type": "object"
+      },
+      "workerName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "archive",
+      "auth",
+      "bindings",
+      "cloudflare",
+      "configuredEndpoints",
+      "environment",
+      "optionalSecrets",
+      "requiredSecrets",
+      "status",
+      "upstreamAuthShape",
+      "workerName"
+    ],
+    "type": "object"
+  },
+  "EndpointStatusResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "latestRun": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IngestionRun"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "recentFailures": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "routeLatency": {
+        "items": {
+          "$ref": "#/components/schemas/RouteLatencyEntry"
+        },
+        "type": "array"
+      },
+      "timestamp": {
+        "type": "string"
+      },
+      "worker": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "latestRun",
+      "recentFailures",
+      "routeLatency",
+      "timestamp",
+      "worker"
+    ],
+    "type": "object"
+  },
+  "EndpointsManifestResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "count": {
+        "type": "integer"
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/components/schemas/EndpointsManifestRoute"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "count",
+      "routes"
+    ],
+    "type": "object"
+  },
+  "EndpointsManifestRoute": {
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "refreshMs": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "zone": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "description",
+      "method",
+      "path",
+      "refreshMs",
+      "zone"
+    ],
+    "type": "object"
+  },
+  "ErrorResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "message": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "message",
+      "status"
+    ],
+    "type": "object"
+  },
+  "HarRequestSummary": {
+    "additionalProperties": false,
+    "properties": {
+      "bodySize": {
+        "type": "number"
+      },
+      "host": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "status": {
+        "type": "integer"
+      },
+      "statusText": {
+        "type": "string"
+      },
+      "timeMs": {
+        "type": "number"
+      },
+      "url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "bodySize",
+      "host",
+      "method",
+      "status",
+      "statusText",
+      "timeMs",
+      "url"
+    ],
+    "type": "object"
+  },
+  "HealthResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "environment": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "environment",
+      "status"
+    ],
+    "type": "object"
+  },
+  "IngestionRun": {
+    "additionalProperties": false,
+    "properties": {
+      "endpoints_failed": {
+        "type": "integer"
+      },
+      "endpoints_requested": {
+        "type": "string"
+      },
+      "endpoints_succeeded": {
+        "type": "integer"
+      },
+      "error_message": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "finished_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "id": {
+        "type": "string"
+      },
+      "started_at": {
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "running",
+          "success",
+          "failed"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "endpoints_failed",
+      "endpoints_requested",
+      "endpoints_succeeded",
+      "error_message",
+      "finished_at",
+      "id",
+      "started_at",
+      "status"
+    ],
+    "type": "object"
+  },
+  "LocalIngestItem": {
+    "additionalProperties": false,
+    "properties": {
+      "capturedAt": {
+        "type": "string"
+      },
+      "data": {},
+      "endpointKey": {
+        "enum": [
+          "getAgentPerformance",
+          "getAgentBilling",
+          "getEnterTransactions",
+          "getPending",
+          "Pending",
+          "getPlayers",
+          "getAddedInfo",
+          "getCommunicationMessages",
+          "getLineTypes",
+          "getHeriarchy"
+        ],
+        "type": "string"
+      },
+      "httpStatus": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "data",
+      "endpointKey",
+      "httpStatus"
+    ],
+    "type": "object"
+  },
+  "LocalIngestRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "results": {
+        "items": {
+          "$ref": "#/components/schemas/LocalIngestItem"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "results"
+    ],
+    "type": "object"
+  },
+  "LocalIngestResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "endpointsFailed": {
+        "type": "integer"
+      },
+      "endpointsSucceeded": {
+        "type": "integer"
+      },
+      "runId": {
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "stored": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "endpointsFailed",
+      "endpointsSucceeded",
+      "runId",
+      "status",
+      "stored"
+    ],
+    "type": "object"
+  },
+  "NetworkCountDiff": {
+    "additionalProperties": false,
+    "properties": {
+      "base": {
+        "type": "integer"
+      },
+      "compare": {
+        "type": "integer"
+      },
+      "delta": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "base",
+      "compare",
+      "delta"
+    ],
+    "type": "object"
+  },
+  "RefreshAuthRequest": {
+    "additionalProperties": false,
+    "anyOf": [
+      {
+        "required": [
+          "authorization",
+          "cfBm",
+          "cfClearance"
+        ]
+      },
+      {
+        "required": [
+          "sessionCookie"
+        ]
+      },
+      {
+        "required": [
+          "cookieHeader"
+        ]
+      },
+      {
+        "required": [
+          "cookie"
+        ]
+      },
+      {
+        "required": [
+          "cookies"
+        ]
+      }
+    ],
+    "properties": {
+      "authorization": {
+        "type": "string"
+      },
+      "browserHeaders": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "browserHeadersJson": {
+        "type": "string"
+      },
+      "cfBm": {
+        "type": "string"
+      },
+      "cfClearance": {
+        "type": "string"
+      },
+      "cookie": {
+        "type": "string"
+      },
+      "cookieHeader": {
+        "type": "string"
+      },
+      "cookies": {
+        "type": "string"
+      },
+      "customerId": {
+        "type": "string"
+      },
+      "expiresInSeconds": {
+        "type": "integer"
+      },
+      "referer": {
+        "type": "string"
+      },
+      "sessionCookie": {
+        "type": "string"
+      },
+      "userAgent": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "RefreshAuthResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "accepted": {
+        "items": {
+          "enum": [
+            "authorization",
+            "sessionCookie",
+            "cfClearance",
+            "cfBm",
+            "browserHeadersJson",
+            "userAgent",
+            "referer",
+            "customerId"
+          ],
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "expiresAt": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "ttlSeconds": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "accepted",
+      "expiresAt",
+      "status",
+      "ttlSeconds"
+    ],
+    "type": "object"
+  },
+  "RouteLatencyEntry": {
+    "additionalProperties": false,
+    "properties": {
+      "avg_duration_ms": {
+        "type": "integer"
+      },
+      "endpoint_key": {
+        "type": "string"
+      },
+      "max_duration_ms": {
+        "type": "integer"
+      },
+      "path": {
+        "type": "string"
+      },
+      "samples": {
+        "type": "integer"
+      },
+      "source": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "RunEndpointFailure": {
+    "additionalProperties": false,
+    "properties": {
+      "attempts": {
+        "type": "integer"
+      },
+      "duration_ms": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "endpoint_key": {
+        "type": "string"
+      },
+      "error_message": {
+        "type": "string"
+      },
+      "failed_at": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "r2_etag": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "r2_key": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "r2_size": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "r2_storage_class": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "trace_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "attempts",
+      "duration_ms",
+      "endpoint_key",
+      "error_message",
+      "failed_at",
+      "id",
+      "path",
+      "r2_etag",
+      "r2_key",
+      "r2_size",
+      "r2_storage_class",
+      "trace_id"
+    ],
+    "type": "object"
+  },
+  "RunEndpointSnapshot": {
+    "additionalProperties": false,
+    "properties": {
+      "attempts": {
+        "type": "integer"
+      },
+      "captured_at": {
+        "type": "string"
+      },
+      "duration_ms": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "endpoint_key": {
+        "type": "string"
+      },
+      "http_status": {
+        "type": "integer"
+      },
+      "id": {
+        "type": "string"
+      },
+      "item_count": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "path": {
+        "type": "string"
+      },
+      "r2_etag": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "r2_key": {
+        "type": "string"
+      },
+      "r2_size": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "r2_storage_class": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "trace_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "attempts",
+      "captured_at",
+      "duration_ms",
+      "endpoint_key",
+      "http_status",
+      "id",
+      "item_count",
+      "path",
+      "r2_etag",
+      "r2_key",
+      "r2_size",
+      "r2_storage_class",
+      "trace_id"
+    ],
+    "type": "object"
+  },
+  "RunEndpointsResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "failures": {
+        "items": {
+          "$ref": "#/components/schemas/RunEndpointFailure"
+        },
+        "type": "array"
+      },
+      "runId": {
+        "type": "string"
+      },
+      "snapshots": {
+        "items": {
+          "$ref": "#/components/schemas/RunEndpointSnapshot"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "failures",
+      "runId",
+      "snapshots"
+    ],
+    "type": "object"
+  },
+  "RunsListResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "limit": {
+        "type": "integer"
+      },
+      "runs": {
+        "items": {
+          "$ref": "#/components/schemas/IngestionRun"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "limit",
+      "runs"
+    ],
+    "type": "object"
+  },
+  "ScanArchiveSummary": {
+    "additionalProperties": false,
+    "properties": {
+      "customMetadata": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "etag": {
+        "type": "string"
+      },
+      "found": {
+        "type": "boolean"
+      },
+      "httpMetadata": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "key": {
+        "type": "string"
+      },
+      "raw": true,
+      "size": {
+        "type": "integer"
+      },
+      "storageClass": {
+        "type": "string"
+      },
+      "uploaded": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "found",
+      "key"
+    ],
+    "type": "object"
+  },
+  "ScanDetailResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "archive": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/ScanArchiveSummary"
+          }
+        ]
+      },
+      "verdict": {
+        "$ref": "#/components/schemas/ScanVerdict"
+      }
+    },
+    "required": [
+      "archive",
+      "verdict"
+    ],
+    "type": "object"
+  },
+  "ScanErrorResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "httpStatus": {
+        "type": "integer"
+      },
+      "message": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "retryable": {
+        "type": "boolean"
+      },
+      "stage": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "subsystem": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "message",
+      "status",
+      "subsystem"
+    ],
+    "type": "object"
+  },
+  "ScanEvidenceArtifact": {
+    "allOf": [
+      {
+        "$ref": "#/components/schemas/ScanArchiveSummary"
+      },
+      {
+        "properties": {
+          "type": {
+            "enum": [
+              "scan",
+              "screenshot",
+              "har"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      }
+    ]
+  },
+  "ScanEvidenceExportResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "artifacts": {
+        "items": {
+          "$ref": "#/components/schemas/ScanEvidenceArtifact"
+        },
+        "type": "array"
+      },
+      "generatedAt": {
+        "type": "string"
+      },
+      "scanId": {
+        "type": "string"
+      },
+      "verdict": {
+        "$ref": "#/components/schemas/ScanVerdict"
+      }
+    },
+    "required": [
+      "artifacts",
+      "generatedAt",
+      "scanId",
+      "verdict"
+    ],
+    "type": "object"
+  },
+  "ScanListFilters": {
+    "additionalProperties": false,
+    "properties": {
+      "malicious": {
+        "enum": [
+          0,
+          1,
+          null
+        ],
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "since": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "until": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "urlContains": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "malicious",
+      "since",
+      "until",
+      "urlContains"
+    ],
+    "type": "object"
+  },
+  "ScanListResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "filters": {
+        "$ref": "#/components/schemas/ScanListFilters"
+      },
+      "results": {
+        "items": {
+          "$ref": "#/components/schemas/ScanVerdict"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "filters",
+      "results"
+    ],
+    "type": "object"
+  },
+  "ScanSummaryResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "latest": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/ScanVerdict"
+          }
+        ]
+      },
+      "status": {
+        "enum": [
+          "ok",
+          "warning",
+          "alert",
+          "empty"
+        ],
+        "type": "string"
+      },
+      "totals": {
+        "$ref": "#/components/schemas/ScanSummaryTotals"
+      },
+      "window": {
+        "$ref": "#/components/schemas/ScanSummaryWindow"
+      }
+    },
+    "required": [
+      "latest",
+      "status",
+      "totals",
+      "window"
+    ],
+    "type": "object"
+  },
+  "ScanSummaryTotals": {
+    "additionalProperties": false,
+    "properties": {
+      "clean": {
+        "type": "integer"
+      },
+      "malicious": {
+        "type": "integer"
+      },
+      "minTlsValidDays": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "scans": {
+        "type": "integer"
+      },
+      "tlsExpiring": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "clean",
+      "malicious",
+      "minTlsValidDays",
+      "scans",
+      "tlsExpiring"
+    ],
+    "type": "object"
+  },
+  "ScanSummaryWindow": {
+    "additionalProperties": false,
+    "properties": {
+      "capped": {
+        "type": "boolean"
+      },
+      "days": {
+        "type": "integer"
+      },
+      "scannedRows": {
+        "type": "integer"
+      },
+      "since": {
+        "type": "string"
+      },
+      "tlsWarningDays": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "capped",
+      "days",
+      "scannedRows",
+      "since",
+      "tlsWarningDays"
+    ],
+    "type": "object"
+  },
+  "ScanTriggerRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "url": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "ScanTriggerResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "malicious": {
+        "type": "boolean"
+      },
+      "scanId": {
+        "type": "string"
+      },
+      "tlsValidDays": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "malicious",
+      "scanId",
+      "tlsValidDays",
+      "url"
+    ],
+    "type": "object"
+  },
+  "ScanVerdict": {
+    "additionalProperties": false,
+    "properties": {
+      "agent_readiness_level": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "har_r2_key": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "malicious": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer"
+      },
+      "scan_id": {
+        "type": "string"
+      },
+      "scan_r2_key": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "screenshot_r2_key": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "timestamp": {
+        "type": "string"
+      },
+      "tls_valid_days": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "agent_readiness_level",
+      "har_r2_key",
+      "malicious",
+      "scan_id",
+      "scan_r2_key",
+      "screenshot_r2_key",
+      "timestamp",
+      "tls_valid_days",
+      "url"
+    ],
+    "type": "object"
+  },
+  "ScannerDiagnosticCheck": {
+    "additionalProperties": false,
+    "properties": {
+      "errors": {
+        "items": {
+          "$ref": "#/components/schemas/CloudflareApiMessage"
+        },
+        "type": "array"
+      },
+      "httpStatus": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "messages": {
+        "items": {
+          "$ref": "#/components/schemas/CloudflareApiMessage"
+        },
+        "type": "array"
+      },
+      "method": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "stage": {
+        "type": "string"
+      },
+      "success": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "errors",
+      "httpStatus",
+      "messages",
+      "method",
+      "path",
+      "stage",
+      "success"
+    ],
+    "type": "object"
+  },
+  "ScannerDiagnosticFailure": {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "message": {
+        "type": "string"
+      },
+      "stage": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "code",
+      "message",
+      "stage"
+    ],
+    "type": "object"
+  },
+  "ScannerDiagnosticsResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "accountId": {
+        "type": "string"
+      },
+      "checks": {
+        "items": {
+          "$ref": "#/components/schemas/ScannerDiagnosticCheck"
+        },
+        "type": "array"
+      },
+      "failure": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/ScannerDiagnosticFailure"
+          }
+        ]
+      },
+      "status": {
+        "enum": [
+          "ready",
+          "degraded"
+        ],
+        "type": "string"
+      },
+      "subsystem": {
+        "type": "string"
+      },
+      "tokenShape": {
+        "additionalProperties": false,
+        "properties": {
+          "asciiOnly": {
+            "type": "boolean"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "hasLeadingOrTrailingWhitespace": {
+            "type": "boolean"
+          },
+          "hasWhitespace": {
+            "type": "boolean"
+          },
+          "length": {
+            "type": "integer"
+          },
+          "looksLikeFormattedOutput": {
+            "type": "boolean"
+          },
+          "trimmedLength": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asciiOnly",
+          "configured",
+          "hasLeadingOrTrailingWhitespace",
+          "hasWhitespace",
+          "length",
+          "looksLikeFormattedOutput",
+          "trimmedLength"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "accountId",
+      "checks",
+      "failure",
+      "status",
+      "subsystem",
+      "tokenShape"
+    ],
+    "type": "object"
+  },
+  "SyntheticAlertRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "message": {
+        "type": "string"
+      },
+      "severity": {
+        "enum": [
+          "info",
+          "warning",
+          "critical"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "SyntheticAlertResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "event": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/AlertEvent"
+          }
+        ]
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "event",
+      "status"
+    ],
+    "type": "object"
+  },
+  "TriggerResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "endpointsFailed": {
+        "type": "integer"
+      },
+      "endpointsSucceeded": {
+        "type": "integer"
+      },
+      "runId": {
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "success",
+          "failed"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "endpointsFailed",
+      "endpointsSucceeded",
+      "runId",
+      "status"
+    ],
+    "type": "object"
+  },
+  "UpdateCookiesRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "__cf_bm": {
+        "type": "string"
+      },
+      "cf_clearance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "__cf_bm",
+      "cf_clearance"
+    ],
+    "type": "object"
+  },
+  "UpdateCookiesResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "status": {
+        "enum": [
+          "ok"
+        ],
+        "type": "string"
+      },
+      "updated": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "status",
+      "updated"
+    ],
+    "type": "object"
+  },
+  "UpstreamCookiesStatusResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "cache_active": {
+        "type": "boolean"
+      },
+      "cookies": {
+        "additionalProperties": {
+          "properties": {
+            "updated_at": {
+              "type": "string"
+            },
+            "value_preview": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "object"
+      },
+      "d1_error": {
+        "type": "string"
+      },
+      "source": {
+        "enum": [
+          "d1",
+          "fallback"
+        ],
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "ok"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "source",
+      "status"
+    ],
+    "type": "object"
+  }
+}

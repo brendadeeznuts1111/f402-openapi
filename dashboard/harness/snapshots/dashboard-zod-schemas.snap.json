@@ -1,0 +1,386 @@
+{
+  "agentIdSchema": {
+    "maxLength": 40,
+    "pattern": "^[A-Za-z0-9_*.-]+$",
+    "type": "string"
+  },
+  "agentNavSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "agentId": {
+        "maxLength": 40,
+        "pattern": "^[A-Za-z0-9_*.-]+$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "agentId"
+    ],
+    "type": "object"
+  },
+  "agentPerformanceFiltersSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "end": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      },
+      "freePlay": {
+        "enum": [
+          "Y",
+          "N"
+        ],
+        "type": "string"
+      },
+      "start": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      },
+      "type": {
+        "enum": [
+          "CP",
+          "CPS",
+          "CPV",
+          "G"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "type",
+      "freePlay"
+    ],
+    "type": "object"
+  },
+  "agentPerformanceTypeSchema": {
+    "enum": [
+      "CP",
+      "CPS",
+      "CPV",
+      "G"
+    ],
+    "type": "string"
+  },
+  "customerIdSchema": {
+    "maxLength": 32,
+    "minLength": 1,
+    "type": "string"
+  },
+  "customerNavSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "customerId": {
+        "maxLength": 32,
+        "minLength": 1,
+        "type": "string"
+      },
+      "login": {
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "customerId"
+    ],
+    "type": "object"
+  },
+  "customerProfilePathSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "analysis": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "lineType": {
+            "default": 2,
+            "maximum": 9,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reportType": {
+            "default": 2,
+            "maximum": 9,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "start": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reportType",
+          "lineType"
+        ],
+        "type": "object"
+      },
+      "customerId": {
+        "maxLength": 32,
+        "minLength": 1,
+        "type": "string"
+      },
+      "login": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "period": {
+        "default": 0,
+        "maximum": 52,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "customerId",
+      "period"
+    ],
+    "type": "object"
+  },
+  "freePlaySchema": {
+    "enum": [
+      "Y",
+      "N"
+    ],
+    "type": "string"
+  },
+  "isoDateOnlySchema": {
+    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+    "type": "string"
+  },
+  "loginSchema": {
+    "maxLength": 64,
+    "minLength": 1,
+    "type": "string"
+  },
+  "pendingWagersFiltersSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "customer_id": {
+        "default": "0",
+        "maxLength": 32,
+        "type": "string"
+      },
+      "date": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      },
+      "limit": {
+        "default": 200,
+        "maximum": 500,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "login": {
+        "default": "",
+        "minLength": 1,
+        "type": "string"
+      },
+      "sort": {
+        "default": "1",
+        "type": "string"
+      },
+      "sport": {
+        "default": "",
+        "minLength": 1,
+        "type": "string"
+      },
+      "type_sort": {
+        "default": "2",
+        "type": "string"
+      },
+      "wager_type": {
+        "default": "",
+        "maxLength": 4,
+        "type": "string"
+      },
+      "week": {
+        "default": 0,
+        "maximum": 52,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "customer_id",
+      "wager_type",
+      "sort",
+      "type_sort",
+      "week",
+      "login",
+      "sport",
+      "limit"
+    ],
+    "type": "object"
+  },
+  "searchCustomersQuerySchema": {
+    "additionalProperties": false,
+    "properties": {
+      "limit": {
+        "default": 25,
+        "maximum": 200,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "q": {
+        "minLength": 2,
+        "type": "string"
+      }
+    },
+    "required": [
+      "q",
+      "limit"
+    ],
+    "type": "object"
+  },
+  "transactionCheckboxSchema": {
+    "enum": [
+      "checked",
+      "unchecked"
+    ],
+    "type": "string"
+  },
+  "transactionReportTypeSchema": {
+    "enum": [
+      "player",
+      "agent",
+      "deleted",
+      "free-play",
+      "free-play-analysis",
+      "summary"
+    ],
+    "type": "string"
+  },
+  "transactionsLiveFiltersSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "adjustments": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "agent_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "balances": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "customer_id": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "deposits": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "distribution": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "end_date": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      },
+      "fees": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "free_flag": {
+        "enum": [
+          "player",
+          "agent"
+        ],
+        "type": "string"
+      },
+      "limit": {
+        "default": 500,
+        "maximum": 2000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "promotional": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "start_date": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      },
+      "transfers": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "type": {
+        "enum": [
+          "player",
+          "agent",
+          "deleted",
+          "free-play",
+          "free-play-analysis",
+          "summary"
+        ],
+        "type": "string"
+      },
+      "withdrawals": {
+        "enum": [
+          "checked",
+          "unchecked"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "type",
+      "limit"
+    ],
+    "type": "object"
+  },
+  "wagerLinkSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "customerId": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "login": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "ticketNumber": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      }
+    },
+    "type": "object"
+  }
+}

@@ -6,7 +6,7 @@
 
 /** Semantic colors for Chart.js and inline charts (matches :root tokens). */
 /** Worker routes reachable without bearer token via Pages proxy (see dashboard/_worker.js). */
-export const PUBLIC_API_PATHS = ['/health', '/live-wagers'];
+export const PUBLIC_API_PATHS = ['/health', '/auth/health', '/live-wagers'];
 
 const CHART_COLOR_FALLBACKS = {
   success: '#00FF88',

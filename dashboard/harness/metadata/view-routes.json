@@ -1,0 +1,83 @@
+{
+  "description": "Dashboard view isolation: sidebar id, DOM panel, module file, primary loader export, API paths used by that view (no cross-view shared mutable singletons).",
+  "views": [
+    {
+      "id": "overview",
+      "panelId": "view-overview",
+      "module": "overview.js",
+      "loadExports": ["loadOverview", "renderVolumeChart"],
+      "apiPaths": ["/summary", "/chart-aggregates", "/bet-ticker-wagers"]
+    },
+    {
+      "id": "analytics",
+      "panelId": "view-analytics",
+      "module": "analytics.js",
+      "loadExports": ["loadAnalytics", "renderAnalyticsCharts", "renderLatencyChart"],
+      "apiPaths": ["/chart-aggregates", "/bet-ticker-wagers", "/endpoint-status"]
+    },
+    {
+      "id": "logs",
+      "panelId": "view-logs",
+      "module": "logs.js",
+      "loadExports": ["loadLogs", "loadSystemLog"],
+      "apiPaths": ["/bet-ticker-wagers", "/endpoint-status", "/runs"]
+    },
+    {
+      "id": "settings",
+      "panelId": "view-settings",
+      "module": "settings.js",
+      "loadExports": ["loadSettings", "saveAppearance", "saveApi", "saveGeneral"],
+      "apiPaths": []
+    },
+    {
+      "id": "endpoints",
+      "panelId": "view-endpoints",
+      "module": "endpoints.js",
+      "loadExports": ["loadEndpoints", "refreshAuth", "triggerIngestion"],
+      "apiPaths": ["/upstream-endpoints", "/endpoint-status", "/auth/health", "/ingest/catalog-status"]
+    },
+    {
+      "id": "activity",
+      "panelId": "view-activity",
+      "module": "customer-activity.js",
+      "loadExports": ["loadActivityView", "initActivityView"],
+      "apiPaths": ["/customer-activity", "/customer-activity-search", "/transactions-live"]
+    },
+    {
+      "id": "data",
+      "panelId": "view-data",
+      "module": "data.js",
+      "loadExports": ["loadDataView", "setDataTab"],
+      "apiPaths": ["/graded-wagers", "/prop-wagers", "/position-data", "/authorizations", "/players"]
+    },
+    {
+      "id": "pending",
+      "panelId": "view-pending",
+      "module": "pending-wagers.js",
+      "loadExports": ["loadPendingWagersView", "initPendingView"],
+      "apiPaths": ["/pending-wagers"]
+    },
+    {
+      "id": "alerts",
+      "panelId": "view-alerts",
+      "module": "alerts.js",
+      "loadExports": ["loadAlertsView", "onAlertsTabChange"],
+      "apiPaths": ["/alerts", "/alerts/summary", "/alert-log", "/alert-rules"]
+    },
+    {
+      "id": "customers",
+      "panelId": "view-customers",
+      "module": "customers.js",
+      "loadExports": ["loadCustomersView"],
+      "apiPaths": ["/search-customers", "/customer-profile", "/customer-profile/seed", "/agent-performance-live"],
+      "nestedModules": ["agent-performance.js"]
+    },
+    {
+      "id": "transactions",
+      "panelId": "view-transactions",
+      "module": "transactions.js",
+      "loadExports": ["loadTransactionsView"],
+      "apiPaths": ["/transactions-live"]
+    }
+  ]
+}

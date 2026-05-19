@@ -1,0 +1,103 @@
+{
+  "description": "Explicit error-path cases per schema (malformed, missing required, refinements).",
+  "dashboard": [
+    {
+      "schema": "searchCustomersQuerySchema",
+      "cases": [
+        { "id": "missing-q", "input": {}, "pathIncludes": "q" },
+        { "id": "short-q", "input": { "q": "a" }, "messageIncludes": "at least 2" }
+      ]
+    },
+    {
+      "schema": "pendingWagersFiltersSchema",
+      "cases": [
+        { "id": "bad-wager-type", "input": { "date": "2026-05-17", "wager_type": "Z" }, "messageIncludes": "wager_type" },
+        { "id": "bad-date", "input": { "date": "05-17-2026" }, "messageIncludes": "YYYY-MM-DD" }
+      ]
+    },
+    {
+      "schema": "transactionsLiveFiltersSchema",
+      "cases": [
+        { "id": "missing-type", "input": { "start_date": "2026-05-01" }, "pathIncludes": "type" },
+        { "id": "date-order", "input": { "type": "player", "start_date": "2026-05-20", "end_date": "2026-05-01" }, "messageIncludes": "start_date" }
+      ]
+    },
+    {
+      "schema": "agentPerformanceFiltersSchema",
+      "cases": [
+        { "id": "bad-type", "input": { "type": "XX", "freePlay": "Y" }, "pathIncludes": "type" }
+      ]
+    },
+    {
+      "schema": "customerProfilePathSchema",
+      "cases": [
+        { "id": "missing-customer", "input": { "period": 0 }, "pathIncludes": "customerId" }
+      ]
+    },
+    {
+      "schema": "customerNavSchema",
+      "cases": [
+        { "id": "missing-customer", "input": {}, "pathIncludes": "customerId" }
+      ]
+    },
+    {
+      "schema": "agentNavSchema",
+      "cases": [
+        { "id": "invalid-agent", "input": { "agentId": "bad id!" }, "messageIncludes": "invalid agent_id" }
+      ]
+    },
+    {
+      "schema": "wagerLinkSchema",
+      "cases": [
+        { "id": "empty-ok", "input": {}, "expectValid": true }
+      ]
+    }
+  ],
+  "worker": [
+    {
+      "schema": "searchCustomersQuerySchema",
+      "query": { "q": "a" },
+      "valid": false,
+      "pathIncludes": "q"
+    },
+    {
+      "schema": "customerProfileQuerySchema",
+      "query": {},
+      "valid": false,
+      "pathIncludes": "customer_id"
+    },
+    {
+      "schema": "customerProfileSeedSchema",
+      "body": { "customer_id": "undefined" },
+      "valid": false
+    },
+    {
+      "schema": "chartAggregatesSchema",
+      "query": { "hours": "0" },
+      "valid": false,
+      "pathIncludes": "hours"
+    },
+    {
+      "schema": "localIngestSchema",
+      "body": { "results": [] },
+      "valid": false
+    },
+    {
+      "schema": "pendingWagersQuerySchema",
+      "query": { "wager_type": "INVALID" },
+      "valid": false,
+      "messageIncludes": "wager_type"
+    },
+    {
+      "schema": "transactionsLiveQuerySchema",
+      "query": { "type": "player", "start_date": "2026-05-20", "end_date": "2026-05-01" },
+      "valid": false,
+      "messageIncludes": "start must be on or before end"
+    },
+    {
+      "schema": "updateCookiesSchema",
+      "body": { "cf_clearance": "", "__cf_bm": "x" },
+      "valid": false
+    }
+  ]
+}

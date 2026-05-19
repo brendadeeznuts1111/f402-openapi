@@ -67,7 +67,9 @@ import {
   normalizeTransactionRows,
   TRANSACTION_REPORT_TYPES,
   transactionPathForType,
+  transactionArchiveEndpointKey,
 } from "./transactions-live";
+import { loadLatestEndpointArchive, mapGradedWagersToPerfRows } from "./snapshot-fallback";
 import { parseBody, parseQuery } from "./validate";
 import {
   AGENT_PERFORMANCE_TYPES,
@@ -4299,13 +4301,62 @@ async function queryAgentPerformanceLive(url: URL, env: Env): Promise<Response> 
   const path = "/cloud/api/Manager/getAgentPerformance";
   const res = await postManagerForm(env, path, body);
   if (!res.ok) {
+    if (perfType === "G") {
+      const d1Rows = await gradedWagersD1Fallback(env, agentId, filters.limit);
+      if (d1Rows.length > 0) {
+        const fetchedAt = new Date().toISOString();
+        return json(
+          {
+            status: "ok",
+            source: "d1",
+            stale: true,
+            cached: false,
+            agent_id: agentId,
+            type: perfType,
+            type_label: AGENT_PERFORMANCE_TYPES.G,
+            filters: { start, end, free_play: filters.free_play, period: filters.period },
+            fetched_at: fetchedAt,
+            total: d1Rows.length,
+            rows: d1Rows,
+            hint: "Graded rows from D1; live getAgentPerformance unavailable",
+          },
+          200,
+        );
+      }
+    }
+
+    const archive = await loadLatestEndpointArchive(env, "getAgentPerformance");
+    if (archive) {
+      let rows = normalizeAgentPerformanceRows(archive.data, perfType);
+      if (rows.length > filters.limit) rows = rows.slice(0, filters.limit);
+      return json(
+        {
+          status: "ok",
+          source: "archive",
+          stale: true,
+          cached: false,
+          agent_id: agentId,
+          type: perfType,
+          type_label: AGENT_PERFORMANCE_TYPES[perfType as keyof typeof AGENT_PERFORMANCE_TYPES] ?? perfType,
+          filters: { start, end, free_play: filters.free_play, period: filters.period },
+          fetched_at: archive.capturedAt,
+          archiveCapturedAt: archive.capturedAt,
+          archiveSnapshotId: archive.snapshotId,
+          archiveR2Key: archive.r2Key,
+          total: rows.length,
+          rows,
+        },
+        200,
+      );
+    }
+
     return json(
       {
         status: "failed",
         message: res.message,
         upstreamStatus: res.status,
         bodyPreview: res.bodyPreview,
-        hint: "Refresh auth via Endpoints or POST /refresh-auth",
+        hint: "Refresh auth or ingest getAgentPerformance / graded wagers for D1+R2 fallback",
       },
       res.status === 503 ? 503 : 502,
     );
@@ -4397,6 +4448,37 @@ async function queryTransactionsLive(url: URL, env: Env): Promise<Response> {
 
   const res = await postManagerForm(env, path, body);
   if (!res.ok) {
+    const archiveKey = transactionArchiveEndpointKey(filters.type);
+    const archive = await loadLatestEndpointArchive(env, archiveKey);
+    if (archive) {
+      const rows = normalizeTransactionRows(archive.data).slice(0, filters.limit);
+      return json(
+        {
+          status: "ok",
+          source: "archive",
+          stale: true,
+          cached: false,
+          type: filters.type,
+          type_label: typeMeta.label,
+          operation: typeMeta.operation,
+          path,
+          agent_id: agentId,
+          filters: {
+            start_date: filters.startDate,
+            end_date: filters.endDate,
+            customer_id: filters.customer_id ?? null,
+          },
+          fetched_at: archive.capturedAt,
+          archiveCapturedAt: archive.capturedAt,
+          archiveSnapshotId: archive.snapshotId,
+          archiveR2Key: archive.r2Key,
+          total: rows.length,
+          rows,
+        },
+        200,
+      );
+    }
+
     return json(
       {
         status: "failed",
@@ -4404,7 +4486,7 @@ async function queryTransactionsLive(url: URL, env: Env): Promise<Response> {
         type: filters.type,
         operation: typeMeta.operation,
         upstreamStatus: res.status,
-        hint: "Refresh auth via Endpoints or POST /refresh-auth",
+        hint: `Refresh auth or ingest ${archiveKey} for R2 archive fallback`,
       },
       res.status >= 500 ? 503 : 400,
     );
@@ -4930,6 +5012,77 @@ async function fetchCustomerProfileLive(
   return live;
 }
 
+function filterPendingWagerRows(
+  wagers: Array<Record<string, unknown>>,
+  filters: { login?: string; sport?: string; limit: number },
+): Array<Record<string, unknown>> {
+  let rows = wagers;
+  const loginFilter = (filters.login ?? "").trim().toLowerCase();
+  const sportFilter = (filters.sport ?? "").trim().toLowerCase();
+  if (loginFilter) {
+    rows = rows.filter((row) => String(row.login ?? "").toLowerCase().includes(loginFilter));
+  }
+  if (sportFilter) {
+    rows = rows.filter((row) => String(row.sport_type ?? "").toLowerCase().includes(sportFilter));
+  }
+  if (rows.length > filters.limit) rows = rows.slice(0, filters.limit);
+  return rows;
+}
+
+async function respondPendingWagersFromArchive(
+  env: Env,
+  agentId: string,
+  body: Record<string, string | number>,
+  endpoint: EndpointConfig,
+  filters: { login?: string; sport?: string; limit: number },
+): Promise<Response | null> {
+  const archive = await loadLatestEndpointArchive(env, "getPending");
+  if (!archive) return null;
+  const wagers = filterPendingWagerRows(normalizePendingWagerRows(archive.data), filters);
+  return json(
+    {
+      status: "ok",
+      source: "archive",
+      stale: true,
+      archiveCapturedAt: archive.capturedAt,
+      archiveSnapshotId: archive.snapshotId,
+      archiveR2Key: archive.r2Key,
+      upstream: `${baseUrl(env)}${endpoint.path}`,
+      filters: {
+        date: body.date,
+        agent_id: agentId,
+        customer_id: body.customerID,
+        wager_type: body.wagerType,
+        sort: body.sort,
+        type_sort: body.typeSort,
+        week: body.week,
+      },
+      total: wagers.length,
+      wagers,
+    },
+    200,
+  );
+}
+
+async function gradedWagersD1Fallback(
+  env: Env,
+  agentId: string,
+  limit: number,
+): Promise<Array<Record<string, unknown>>> {
+  let sql = `SELECT login, customer_id, agent_id, wager_type, amount_wagered, net_amount, result,
+                    short_desc, captured_at
+             FROM graded_wagers WHERE 1=1`;
+  const bindings: (string | number)[] = [];
+  if (agentId) {
+    sql += " AND agent_id = ?";
+    bindings.push(agentId);
+  }
+  sql += " ORDER BY captured_at DESC LIMIT ?";
+  bindings.push(limit);
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return mapGradedWagersToPerfRows((result.results ?? []) as Array<Record<string, unknown>>);
+}
+
 async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
   const parsed = parseQuery(pendingWagersQuerySchema, url.searchParams, json);
   if (!parsed.ok) return parsed.response;
@@ -4951,21 +5104,23 @@ async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
     week: filters.week ?? 0,
   });
 
+  const endpoint = ENDPOINTS.getPending;
+
   let sessionCookie: string;
   try {
     sessionCookie = await getOrRefreshSession(env);
   } catch (error) {
+    const archived = await respondPendingWagersFromArchive(env, agentId, body, endpoint, filters);
+    if (archived) return archived;
     return json(
       {
         status: "failed",
         message: `Fantasy402 session unavailable: ${errorMessage(error)}`,
-        hint: "Refresh auth via Endpoints or POST /refresh-auth",
+        hint: "Refresh auth via Endpoints or POST /refresh-auth; ingest getPending for R2 fallback",
       },
       503,
     );
   }
-
-  const endpoint = ENDPOINTS.getPending;
   const encoded = encodeRequestBody(endpoint, body);
   const headers = await fantasy402ApiHeaders(env, sessionCookie, encoded.contentType);
 
@@ -4976,6 +5131,8 @@ async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
   });
 
   if (!response.ok) {
+    const archived = await respondPendingWagersFromArchive(env, agentId, body, endpoint, filters);
+    if (archived) return archived;
     const text = await safeReadResponseText(response);
     return json(
       {
@@ -4984,6 +5141,7 @@ async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
         upstreamStatus: response.status,
         bodyPreview: text.slice(0, 300),
         request: { agentID: body.agentID, date: body.date, customerID: body.customerID },
+        hint: "Ingest getPending locally for archived fallback in D1/R2",
       },
       response.status >= 500 ? 502 : 400,
     );
@@ -4991,6 +5149,8 @@ async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
 
   const text = await safeReadResponseText(response);
   if (text.length > MAX_LIVE_UPSTREAM_BYTES) {
+    const archived = await respondPendingWagersFromArchive(env, agentId, body, endpoint, filters);
+    if (archived) return archived;
     return json(
       {
         status: "failed",
@@ -5005,19 +5165,11 @@ async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
   try {
     raw = JSON.parse(text) as unknown;
   } catch (error) {
+    const archived = await respondPendingWagersFromArchive(env, agentId, body, endpoint, filters);
+    if (archived) return archived;
     return json({ status: "failed", message: `getPending invalid JSON: ${errorMessage(error)}` }, 502);
   }
-  let wagers = normalizePendingWagerRows(raw);
-  const loginFilter = (filters.login ?? "").trim().toLowerCase();
-  const sportFilter = (filters.sport ?? "").trim().toLowerCase();
-  if (loginFilter) {
-    wagers = wagers.filter((row) => String(row.login ?? "").toLowerCase().includes(loginFilter));
-  }
-  if (sportFilter) {
-    wagers = wagers.filter((row) => String(row.sport_type ?? "").toLowerCase().includes(sportFilter));
-  }
-  const limit = filters.limit;
-  if (wagers.length > limit) wagers = wagers.slice(0, limit);
+  const wagers = filterPendingWagerRows(normalizePendingWagerRows(raw), filters);
 
   return json(
     {

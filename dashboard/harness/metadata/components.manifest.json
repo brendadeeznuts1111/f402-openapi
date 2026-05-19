@@ -1,0 +1,33 @@
+{
+  "description": "Design-system CSS components imported by dashboard/css/dashboard.css. blockClass is the primary BEM block prefix.",
+  "components": [
+    { "file": "utilities.css", "blockClass": "ds-stack" },
+    { "file": "card.css", "blockClass": "ds-card" },
+    { "file": "table.css", "blockClass": "ds-table" },
+    { "file": "badge.css", "blockClass": "ds-badge" },
+    { "file": "button.css", "blockClass": "ds-btn" },
+    { "file": "toast.css", "blockClass": "ds-toast" },
+    { "file": "config-banner.css", "blockClass": "ds-config-banner" },
+    { "file": "conn-status.css", "blockClass": "ds-conn-status" },
+    { "file": "skeleton.css", "blockClass": "ds-skeleton" },
+    { "file": "filters.css", "blockClass": "ds-filters" },
+    { "file": "error-state.css", "blockClass": "ds-error-state" },
+    { "file": "tabs.css", "blockClass": "ds-tab" },
+    { "file": "form.css", "blockClass": "ds-form" },
+    { "file": "ticker.css", "blockClass": "ds-ticker" },
+    { "file": "modal.css", "blockClass": "ds-modal" },
+    { "file": "chart.css", "blockClass": "ds-chart" },
+    { "file": "dropdown.css", "blockClass": "ds-dropdown" },
+    { "file": "tooltip.css", "blockClass": "data-tooltip", "attributeSelector": true },
+    { "file": "empty-state.css", "blockClass": "ds-empty-state" },
+    { "file": "stat-card.css", "blockClass": "ds-stat-card" },
+    { "file": "timeline.css", "blockClass": "ds-timeline" },
+    { "file": "json-viewer.css", "blockClass": "ds-json-viewer" },
+    { "file": "dropzone.css", "blockClass": "ds-dropzone" },
+    { "file": "breadcrumb.css", "blockClass": "ds-breadcrumb" },
+    { "file": "drawer.css", "blockClass": "ds-drawer" },
+    { "file": "pending-layout.css", "blockClass": "ds-pending" },
+    { "file": "link.css", "blockClass": "ds-link" },
+    { "file": "transactions-layout.css", "blockClass": "transactions-type-bar" }
+  ]
+}

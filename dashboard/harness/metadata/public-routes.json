@@ -1,0 +1,8 @@
+{
+  "description": "Worker paths reachable without INGESTION_TRIGGER_TOKEN via Pages /api proxy. Must match dashboard/_worker.js isPublicWorkerPath and constants PUBLIC_API_PATHS.",
+  "paths": [
+    "/health",
+    "/auth/health",
+    "/live-wagers"
+  ]
+}

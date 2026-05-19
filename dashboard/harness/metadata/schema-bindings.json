@@ -1,0 +1,54 @@
+{
+  "description": "Dashboard Zod modules aligned with worker schemas.ts. openApiSchema names must exist under components.schemas in openapi.worker.json when requiredInOpenApi is true.",
+  "bindings": [
+    {
+      "id": "searchCustomers",
+      "dashboardSchema": "searchCustomersQuerySchema",
+      "workerSchema": "searchCustomersQuerySchema",
+      "sampleQuery": { "q": "GX195", "limit": "10" }
+    },
+    {
+      "id": "pendingWagers",
+      "dashboardSchema": "pendingWagersFiltersSchema",
+      "workerSchema": "pendingWagersQuerySchema",
+      "sampleQuery": {
+        "date": "2026-05-17",
+        "customer_id": "0",
+        "wager_type": "S",
+        "limit": "50"
+      }
+    },
+    {
+      "id": "transactionsLive",
+      "dashboardSchema": "transactionsLiveFiltersSchema",
+      "workerSchema": "transactionsLiveQuerySchema",
+      "sampleQuery": {
+        "type": "player",
+        "start_date": "2026-05-01",
+        "end_date": "2026-05-17",
+        "limit": "100"
+      }
+    },
+    {
+      "id": "agentPerformanceLive",
+      "dashboardSchema": "agentPerformanceFiltersSchema",
+      "workerSchema": "agentPerformanceLiveQuerySchema",
+      "sampleQuery": { "type": "CP", "free_play": "Y" }
+    },
+    {
+      "id": "customerProfile",
+      "dashboardSchema": "customerProfilePathSchema",
+      "workerSchema": "customerProfileQuerySchema",
+      "sampleDashboard": { "customerId": "GX195", "period": 0 },
+      "sampleQuery": { "customer_id": "GX195", "live": "1" }
+    }
+  ],
+  "openApiSchemas": [
+    { "name": "ErrorResponse", "requiredInOpenApi": true },
+    { "name": "RefreshAuthRequest", "requiredInOpenApi": true },
+    { "name": "HealthResponse", "requiredInOpenApi": true },
+    { "name": "AuthHealthResponse", "requiredInOpenApi": true },
+    { "name": "EndpointStatusResponse", "requiredInOpenApi": true },
+    { "name": "EndpointsManifestResponse", "requiredInOpenApi": true }
+  ]
+}

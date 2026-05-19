@@ -8,6 +8,7 @@ import { SortableTable } from '../sortable-table.js';
 import { AutoRefreshManager } from '../utils.js';
 import { buildPendingWagersQuery } from '../lib/query-builders.js';
 import { formatCustomerCell, formatWagerCell } from '../lib/link-components.js';
+import { formatDataSourceLabel } from '../lib/data-source-label.js';
 
 const STORAGE_KEY = 'f402-pending-filters';
 
@@ -221,13 +222,14 @@ async function loadPendingWagers(ctx) {
         hint: 'Try another date or clear filters. Customer 0 returns all players under the agent.',
       });
       if (metaEl) {
-        metaEl.textContent = d.source === 'live' ? 'Live · 0 rows' : '0 rows';
+        metaEl.textContent = `${formatDataSourceLabel(d)} · 0 rows`;
       }
       return;
     }
     pendingTable.setData(rows);
     if (metaEl) {
-      const parts = [d.source === 'live' ? 'Live' : 'Cached', `${rows.length} rows`];
+      const parts = [formatDataSourceLabel(d), `${rows.length} rows`];
+      if (d.stale) parts.push('stale');
       if (d.filters?.date) parts.push(`date ${d.filters.date}`);
       if (d.filters?.agent_id) parts.push(`agent ${d.filters.agent_id}`);
       metaEl.textContent = parts.join(' · ');

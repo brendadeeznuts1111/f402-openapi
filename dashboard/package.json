@@ -15,9 +15,16 @@
     "secrets:all": "npm run secrets:production && npm run secrets:preview",
     "secrets:list": "wrangler pages secret list --project-name=fantasy402-dashboard",
     "verify": "npm run sync:dev-vars:check",
-    "test": "bun test test/"
+    "test": "bun test test/",
+    "test:harness": "bun test test/harness/ test/harness-contract.test.js",
+    "test:harness:update": "node scripts/harness-update-snapshots.mjs",
+    "harness:sync-check": "node scripts/harness-sync-check.mjs"
   },
   "dependencies": {
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.8.3"
   }
 }

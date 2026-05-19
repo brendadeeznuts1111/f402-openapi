@@ -1,0 +1,35 @@
+/* dashboard/css/components/toast.ds-css */
+
+.ds-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-toast-item {
+  background: var(--secondary-bg);
+  border-left: 3px solid;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  animation: slideIn 0.3s ease;
+  max-width: 360px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.ds-toast-item--error { border-color: var(--error); color: var(--primary-text); }
+.ds-toast-item--warn  { border-color: var(--warning); color: var(--primary-text); }
+.ds-toast-item--info  { border-color: var(--info);    color: var(--primary-text); }
+
+.ds-toast-item .ds-dismiss {
+  cursor: pointer;
+  margin-left: 8px;
+  opacity: 0.5;
+}
+
+.ds-toast-item .ds-dismiss:hover { opacity: 1; }

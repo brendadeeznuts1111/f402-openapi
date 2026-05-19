@@ -1,0 +1,339 @@
+/* dashboard/css/design-system.ds-css */
+/* Base reset, tokens, utilities, animations, and theme overrides.
+   Naming convention: BEM (Block__Element--Modifier), e.ds-g. .ds-modal__content, .ds-badge--error.
+   No ds- prefix — all classes are design-system native. */
+
+/* ── Reset ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Legacy Tokens (backward-compat) ── */
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --green: #22c55e;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --blue: #3b82f6;
+  --purple: #a855f7;
+}
+
+/* ── Base ── */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 1.5rem;
+}
+
+/* ── Typography ── */
+h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
+h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
+
+/* ── Grid Utilities ── */
+.ds-grid { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
+.ds-summary-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.ds-main-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) { .ds-main-grid { grid-template-columns: 1fr; } }
+.ds-full-grid { grid-template-columns: 1fr; }
+
+/* ── Color Utilities ── */
+.ds-positive { color: var(--green); }
+.ds-negative { color: var(--red); }
+
+/* ── Legacy Utilities (still used in JS empty states) ── */
+.ds-loading { color: var(--muted); font-style: italic; font-size: 0.85rem; padding: 1rem 0; }
+.ds-error   { color: var(--red);   font-size: 0.85rem; padding: 0.5rem 0; }
+
+/* ── Design System Tokens (v2.2) ── */
+:root {
+  --primary-bg: #0A0A0A;
+  --secondary-bg: #141414;
+  --tertiary-bg: #1E1E1E;
+  --primary-text: #FFFFFF;
+  --secondary-text: #A0A0A0;
+  --tertiary-text: #606060;
+  --border-ds: #2A2A2A;
+  --hover-bg: #1A1A1A;
+  --success: #00FF88;
+  --warning: #FFD700;
+  --error: #FF4444;
+  --info: #00BFFF;
+  --accent: #FF6B35;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --text-xs: 10px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+}
+
+/* ── Animations ── */
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Theme Switcher ── */
+.ds-theme-toggle {
+  margin-left: auto;
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-ds);
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--secondary-text);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.ds-theme-toggle:hover { color: var(--primary-text); border-color: var(--secondary-text); }
+
+/* ── Last-Update Indicator ── */
+.ds-last-update {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--secondary-text);
+}
+.ds-last-update--stale { color: var(--warning); }
+
+/* ── Light Theme Overrides ── */
+[data-theme="light"] {
+  --bg: #f8f9fa;
+  --card: #ffffff;
+  --border: #dee2e6;
+  --text: #212529;
+  --muted: #6c757d;
+  --green: #198754;
+  --red: #dc3545;
+  --amber: #ffc107;
+  --blue: #0d6efd;
+  --purple: #6f42c1;
+  --primary-bg: #ffffff;
+  --secondary-bg: #f8f9fa;
+  --tertiary-bg: #e9ecef;
+  --primary-text: #212529;
+  --secondary-text: #6c757d;
+  --tertiary-text: #adb5bd;
+  --border-ds: #dee2e6;
+  --hover-bg: #e9ecef;
+  --success: #198754;
+  --warning: #b8860b;
+  --error: #dc3545;
+  --info: #0d6efd;
+  --accent: #e85d04;
+}
+[data-theme="light"] body { background: var(--bg); color: var(--text); }
+[data-theme="light"] .ds-card { background: var(--card); border-color: var(--border); }
+[data-theme="light"] tr:hover { background: rgba(0,0,0,0.03); }
+[data-theme="light"] .ds-ticker-item { border-bottom-color: rgba(0,0,0,0.05); }
+
+[data-theme="light"] .ds-toast-item { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+/* ── Utility Classes ── */
+.ds-subtitle {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.ds-mt-0 { margin-top: 0 !important; }
+.ds-mb-1 { margin-bottom: 1rem !important; }
+.ds-text-md { font-size: 1rem !important; }
+
+/* ── Focus Styles ── */
+:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+button.ds-tab {
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+/* ── Auth Card (used in JS) ── */
+.ds-auth-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem;
+  display: inline-block;
+  margin: 0.25rem;
+  min-width: 160px;
+}
+
+.ds-auth-card__title {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.ds-auth-card__meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ── Rule Row Meta ── */
+.ds-rule-meta {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+/* ── Input Widths ── */
+.ds-input-short { width: 80px; }
+.ds-input-medium { width: 100px; }
+.ds-input-narrow { width: 70px; }
+
+/* ── Layout: Sidebar + Content ── */
+.ds-layout {
+  display: flex;
+  gap: 0;
+  min-height: calc(100vh - 5rem);
+}
+
+.ds-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--secondary-bg);
+  border-right: 1px solid var(--border-ds);
+  padding: var(--space-md) 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-sm);
+}
+
+.ds-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--secondary-text);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-radius: 3px;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.ds-sidebar__item:hover {
+  color: var(--primary-text);
+  background: var(--hover-bg);
+}
+
+.ds-sidebar__item--active {
+  color: var(--primary-text);
+  background: var(--hover-bg);
+  border-left: 2px solid var(--info);
+}
+
+.ds-sidebar__icon {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ds-sidebar__status {
+  margin-top: auto;
+  padding: var(--space-md);
+  border-top: 1px solid var(--border-ds);
+}
+
+.ds-sidebar__status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--tertiary-text);
+  padding: 2px 0;
+}
+
+.ds-sidebar__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ds-sidebar__status-dot--ok    { background: var(--success); }
+.ds-sidebar__status-dot--degraded { background: var(--warning); }
+.ds-sidebar__status-dot--error { background: var(--error); }
+.ds-sidebar__status-dot--unknown { background: var(--tertiary-text); }
+
+.ds-content {
+  flex: 1;
+  padding: 0 1.5rem 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .ds-layout { flex-direction: column; }
+  .ds-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-ds);
+    padding: var(--space-sm) 0;
+    flex-direction: row;
+  }
+  .ds-sidebar__nav { flex-direction: row; overflow-x: auto; }
+  .ds-sidebar__status { display: none; }
+}
+
+/* ── Zone Color Badges ── */
+.ds-zone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+}
+
+.ds-zone-badge--ingestion { background: #2D1B0E; color: #FF6B35; }
+.ds-zone-badge--query     { background: #0E2D1B; color: #00FF88; }
+.ds-zone-badge--auth      { background: #2D2D0E; color: #FFD700; }
+.ds-zone-badge--do        { background: #1E0E2D; color: #DA70D6; }
+.ds-zone-badge--network   { background: #0E1E3A; color: #00BFFF; }
+.ds-zone-badge--cookie    { background: #2D0E0E; color: #FF4444; }
+.ds-zone-badge--worker    { background: #1E3A5F; color: #FFFFFF; }
+.ds-zone-badge--upstream  { background: #0E0E2D; color: #6B8E23; }
+
+/* ── Z-Index Hierarchy ──
+   Lowest to highest stacking order:
+   1000  toast        (notifications above normal content)
+   2000  modal-backdrop (dimming overlay blocks interaction)
+   3000  modal        (interactive dialog above backdrop)
+   4000  dropdown     (menus inside modals must float above modal)
+   5000  tooltip      (hover info above everything)
+*/
+:root {
+  --z-toast: 1000;
+  --z-modal-backdrop: 2000;
+  --z-modal: 3000;
+  --z-dropdown: 4000;
+  --z-tooltip: 5000;
+}

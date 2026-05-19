@@ -1,0 +1,27 @@
+/* dashboard/css/components/ticker.ds-css */
+
+.ds-ticker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.ds-ticker-item:last-child { border-bottom: none; }
+
+.ds-ticker-item .ds-login { font-weight: 600; min-width: 80px; }
+.ds-ticker-item .ds-amount { font-weight: 700; }
+.ds-ticker-item .ds-time { color: var(--muted); font-size: 0.75rem; }
+
+.ds-ticker-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.ds-ticker-container::-webkit-scrollbar { width: 4px; }
+.ds-ticker-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}

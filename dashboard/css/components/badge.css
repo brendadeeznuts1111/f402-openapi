@@ -1,0 +1,17 @@
+/* dashboard/css/components/badge.ds-css */
+
+.ds-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.ds-badge-s { background: #1e3a5f; color: var(--blue); }
+.ds-badge-p { background: #3b1f5e; color: var(--purple); }
+.ds-badge-m { background: #1a3d2e; color: var(--green); }
+.ds-badge-l { background: #3d2e1a; color: var(--amber); }
+.ds-badge-warning  { background: #3d2e1a; color: var(--amber); }
+.ds-badge-critical { background: #3d1a1a; color: var(--red); }
+.ds-badge-info     { background: #1a2d3d; color: var(--blue); }

@@ -1,0 +1,19 @@
+/* dashboard/css/components/button.ds-css */
+
+.ds-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.ds-btn:hover { opacity: 0.85; }
+
+.ds-btn-sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
+
+.ds-btn-danger { background: var(--red); }
+
+.ds-btn-amber { background: var(--amber); color: #000; }

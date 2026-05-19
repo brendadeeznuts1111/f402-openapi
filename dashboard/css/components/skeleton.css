@@ -1,0 +1,26 @@
+/* dashboard/css/components/skeleton.ds-css */
+
+.ds-skeleton {
+  background: linear-gradient(90deg, var(--border-ds) 25%, var(--hover-bg) 50%, var(--border-ds) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 3px;
+}
+
+.ds-skeleton-card {
+  height: 80px;
+  margin-bottom: var(--space-sm);
+}
+
+.ds-skeleton-row {
+  height: 20px;
+  margin-bottom: 8px;
+}
+
+.ds-skeleton-row--short { width: 60%; }
+.ds-skeleton-row--medium { width: 80%; }
+
+.ds-skeleton-ticker {
+  height: 28px;
+  margin-bottom: 4px;
+}

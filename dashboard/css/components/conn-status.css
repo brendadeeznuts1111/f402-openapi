@@ -1,0 +1,13 @@
+/* dashboard/css/components/conn-status.ds-css */
+
+.ds-conn-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.ds-conn-connected { background: var(--green); }
+.ds-conn-error     { background: var(--red); }
+.ds-conn-polling   { background: var(--amber); }

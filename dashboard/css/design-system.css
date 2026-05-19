@@ -69,9 +69,11 @@ h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
+  --space-xl: 32px;
   --text-xs: 10px;
   --text-sm: 12px;
   --text-base: 14px;
+  --text-md: 16px;
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
 }

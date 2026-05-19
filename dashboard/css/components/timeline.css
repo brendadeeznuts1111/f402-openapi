@@ -1,0 +1,65 @@
+/* dashboard/css/components/timeline.css */
+/* Vertical timeline feed for Overview and Logs views */
+
+.ds-timeline {
+  position: relative;
+  padding-left: 24px;
+}
+
+.ds-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-ds);
+}
+
+.ds-timeline__item {
+  position: relative;
+  padding-bottom: var(--space-md);
+}
+
+.ds-timeline__item:last-child { padding-bottom: 0; }
+
+.ds-timeline__dot {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--secondary-bg);
+  border: 2px solid var(--border);
+}
+
+.ds-timeline__dot--success { border-color: var(--success); background: var(--success); }
+.ds-timeline__dot--error   { border-color: var(--error); background: var(--error); }
+.ds-timeline__dot--warning { border-color: var(--warning); background: var(--warning); }
+.ds-timeline__dot--info    { border-color: var(--info); background: var(--info); }
+
+.ds-timeline__content {
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-ds);
+  border-radius: 4px;
+  padding: var(--space-sm) var(--space-md);
+}
+
+.ds-timeline__time {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.ds-timeline__title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--primary-text);
+}
+
+.ds-timeline__meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin-top: 2px;
+}

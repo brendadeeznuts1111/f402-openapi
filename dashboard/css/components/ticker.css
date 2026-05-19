@@ -25,3 +25,8 @@
   background: var(--border);
   border-radius: 2px;
 }
+
+@media (max-width: 640px) {
+  .ds-ticker-item { font-size: 0.75rem; flex-wrap: wrap; gap: 4px; }
+  .ds-ticker-item .ds-login { min-width: unset; }
+}

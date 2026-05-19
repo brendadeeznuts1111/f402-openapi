@@ -33,3 +33,14 @@
 }
 
 .ds-toast-item .ds-dismiss:hover { opacity: 1; }
+
+@media (max-width: 640px) {
+  .ds-toast {
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+  }
+  .ds-toast-item {
+    max-width: 100%;
+  }
+}

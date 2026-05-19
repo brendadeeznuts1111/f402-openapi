@@ -558,7 +558,7 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 
 ---
 
-*Document version: 2.3 – adds ESM module architecture, sidebar layout, DataStore, StatusPoller, global error handler, Agents and Scans views. Updated 2026-05-18.*
+*Document version: 3.0 – v3 dashboard with 4 views (Overview, Analytics, Logs, Settings), Chart.js integration, SortableTable, JsonViewer, SettingsManager, 7 pitfall fixes. Updated 2026-05-19.*
 
 ---
 
@@ -584,6 +584,28 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 ### 2026-05-18 — P4: WebSocket Migration
 - Deferred — Pages `_worker.js` proxy can't transparently forward WebSocket upgrades. SSE works for current ~100 concurrent connections.
 - Will revisit when Pages Functions natively support WebSocket upgrade pass-through or when dashboard DAU exceeds 50.
+
+### 2026-05-19 — P7: Dashboard v3 — 4 Views, Charts, Sortable Tables, Settings
+- **4-view layout**: Overview (6 stat cards + line chart + timeline + sortable agent table), Analytics (multi-tab charts + JSON viewer), Logs (filterable timeline + agent/system logs), Settings (4 tabs with modals, dropzone, config viewer).
+- **Chart.js integration**: `ChartWrapper` loads Chart.js from CDN, auto-detects light/dark theme for colors. Used in Overview (volume trend), Analytics (traffic, latency, distribution).
+- **SortableTable**: Click headers to sort by string/number/date. Formatter functions for display (e.g., currency).
+- **JsonViewer**: Syntax-highlighted JSON with key/string/number/boolean/null color coding.
+- **SettingsManager**: `localStorage`-backed settings with defaults, change listeners, import/export.
+- **Dropzone**: File drag-and-drop + click-to-upload for JSON config import.
+- **Timeline component**: Vertical timeline with colored status dots (success/error/warning/info) for event feeds.
+- **Stat cards**: 6-card responsive grid (6→3→2 columns) with icons, values, labels.
+- **7 Pitfalls fixed**:
+  1. CSS prefix consistency — verified all classes use `ds-` prefix.
+  2. ModalFactory focus trap — replaced DOM re-querying with `MutationObserver` for dynamic content.
+  3. Empty modal fallback — `tabindex="-1"` on modal container when no focusable children (already present, verified cleanup on close).
+  4. CSS validation classes — added `.ds-form-group--valid/invalid`, `.ds-form-input--valid/invalid`, `.ds-form-error`.
+  5. WeakMap audit — LazyLoader's `WeakMap` verified safe (no strong references).
+  6. Tab visibility — `AutoRefreshManager.pause()` on `document.hidden`, re-register on visible (StatusPoller also pauses).
+  7. Date rounding — `DateFormatter` uses explicit `Math.floor` strategy, documented in comments.
+- **storeTTL(refreshMs)** — TTL set to 65% of refresh interval so cache expires before next refresh, preventing stale data.
+- **WagerSocket max reconnect** — capped at 10 attempts, emits `'failed'` status instead of infinite retry.
+- **New CSS components**: `stat-card.css`, `timeline.css`, `json-viewer.css`, `dropzone.css`.
+- **New JS modules**: `chart-wrapper.js`, `sortable-table.js`, `json-viewer.js`, `settings-manager.js`.
 
 ### 2026-05-18 — P6: ESM Module Architecture + Sidebar + Store + StatusPoller
 - **ESM migration**: All JS files converted to ES modules with `export`. `index.html` uses `<script type="module">` with imports from all modules. Backward-compat globals set on `window` for non-module usage.

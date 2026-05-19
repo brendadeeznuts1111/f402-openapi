@@ -106,6 +106,7 @@ async function runOneBatch(planBody) {
     FANTASY402_BROWSER_AUTH_FILE: authFile,
     FANTASY402_LOCAL_PLAN_JSON: JSON.stringify(planBody),
     WORKER_ORIGIN: workerOrigin,
+    SKIP_REFRESH_AUTH: process.env.SKIP_REFRESH_AUTH ?? "1",
   };
   if (!proxyMode && operatorToken) childEnv.INGESTION_TRIGGER_TOKEN = operatorToken;
 

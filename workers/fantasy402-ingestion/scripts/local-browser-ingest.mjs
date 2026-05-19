@@ -99,11 +99,15 @@ if (!agentId) fail("Missing agent id. Set FANTASY402_AGENT_ID or add agentId to 
 
 const startedAt = new Date();
 
-const refresh = await callWorkerJson("/refresh-auth", {
-  method: "POST",
-  body: refreshPayload(authPayload),
-  expectedStatuses: [200],
-});
+const skipRefreshAuth = process.env.SKIP_REFRESH_AUTH === "1" || process.env.SKIP_REFRESH_AUTH === "true";
+let refresh = { httpStatus: 200, body: { accepted: [], skipped: true } };
+if (!skipRefreshAuth) {
+  refresh = await callWorkerJson("/refresh-auth", {
+    method: "POST",
+    body: refreshPayload(authPayload),
+    expectedStatuses: [200],
+  });
+}
 
 const fetched = [];
 if (planSpecs?.length) {

@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="css/components/chart.css">
 <link rel="stylesheet" href="css/components/dropdown.css">
 <link rel="stylesheet" href="css/components/tooltip.css">
+<link rel="stylesheet" href="css/components/empty-state.css">
 <link rel="stylesheet" href="css/components/stat-card.css">
 <link rel="stylesheet" href="css/components/timeline.css">
 <link rel="stylesheet" href="css/components/json-viewer.css">
@@ -74,7 +75,12 @@
       <div class="ds-grid ds-main-grid">
         <div class="ds-card ds-chart-container ds-chart-container--lg">
           <div class="ds-chart-title">Volume Trend</div>
-          <canvas id="volumeChart" height="280"></canvas>
+          <div id="volumeChartWrap">
+            <div class="ds-skeleton ds-skeleton-row"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+          </div>
+          <canvas id="volumeChart" height="280" style="display:none"></canvas>
         </div>
         <div class="ds-card">
           <h2>Live Wager Ticker</h2>
@@ -116,14 +122,23 @@
       <div class="ds-tab-content ds-active" id="tab-traffic">
         <div class="ds-card ds-chart-container ds-chart-container--lg">
           <div class="ds-chart-title">Request Traffic</div>
-          <canvas id="trafficChart" height="320"></canvas>
+          <div id="trafficChartWrap">
+            <div class="ds-skeleton ds-skeleton-row"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+          </div>
+          <canvas id="trafficChart" height="320" style="display:none"></canvas>
         </div>
       </div>
 
       <div class="ds-tab-content" id="tab-latency">
         <div class="ds-card ds-chart-container ds-chart-container--lg">
           <div class="ds-chart-title">Endpoint Latency</div>
-          <canvas id="latencyChart" height="320"></canvas>
+          <div id="latencyChartWrap">
+            <div class="ds-skeleton ds-skeleton-row"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          </div>
+          <canvas id="latencyChart" height="320" style="display:none"></canvas>
         </div>
       </div>
 
@@ -131,11 +146,19 @@
         <div class="ds-grid ds-main-grid">
           <div class="ds-card ds-chart-container">
             <div class="ds-chart-title">Wager Types</div>
-            <canvas id="typeChart" height="240"></canvas>
+            <div id="typeChartWrap">
+              <div class="ds-skeleton ds-skeleton-row"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+            </div>
+            <canvas id="typeChart" height="240" style="display:none"></canvas>
           </div>
           <div class="ds-card ds-chart-container">
             <div class="ds-chart-title">Agent Volume</div>
-            <canvas id="agentChart" height="240"></canvas>
+            <div id="agentChartWrap">
+              <div class="ds-skeleton ds-skeleton-row"></div>
+              <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            </div>
+            <canvas id="agentChart" height="240" style="display:none"></canvas>
           </div>
         </div>
       </div>
@@ -253,7 +276,7 @@
             <div class="ds-dropzone__hint">Accepted: .json files up to 1MB</div>
           </div>
           <div class="ds-form-row ds-mt-1">
-            <button class="ds-btn ds-btn-danger" id="clearCacheBtn">Clear Cache</button>
+            <button class="ds-btn ds-btn--danger" id="clearCacheBtn">Clear Cache</button>
             <button class="ds-btn" id="exportConfigBtn">Export Config</button>
           </div>
           <div id="configViewer"></div>
@@ -337,7 +360,8 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('f402-theme', next);
   $('themeToggle').textContent = next === 'light' ? '☀️' : '🌙';
-  // Re-render charts with new theme colors
+  // Destroy and re-render charts with new theme colors
+  destroyAllCharts();
   if (currentView === 'overview') renderVolumeChart();
   if (currentView === 'analytics') renderAnalyticsCharts();
 }
@@ -347,6 +371,7 @@ initTheme();
 // ── Sidebar ──
 function switchView(name) {
   currentView = name;
+  destroyAllCharts();
   document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
     item.classList.toggle('ds-sidebar__item--active', item.dataset.view === name);
   });
@@ -392,7 +417,7 @@ function usd(n) {
 
 function tag(wt) {
   const map = { S: 'straight', P: 'parlay', M: 'moneyline', L: 'live' };
-  return `<span class="ds-badge ds-badge-${wt.toLowerCase()}">${map[wt] || wt}</span>`;
+  return `<span class="ds-badge ds-badge--${wt.toLowerCase()}">${map[wt] || wt}</span>`;
 }
 
 function ago(iso) {
@@ -404,7 +429,35 @@ function ago(iso) {
 }
 
 function updateConn(status) {
-  $('connStatus').className = 'ds-conn-status ds-conn-' + status;
+  $('connStatus').className = 'ds-conn-status ds-conn-status--' + status;
+}
+
+// ── XSS-safe HTML escaping ──
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Debounce utility ──
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// ── Chart cleanup ──
+function destroyAllCharts() {
+  [volumeChart, trafficChart, latencyChart, typeChart, agentChart].forEach((c) => {
+    if (c) { c.destroy(); }
+  });
+  volumeChart = trafficChart = latencyChart = typeChart = agentChart = null;
 }
 
 // ── Ticker ──
@@ -422,13 +475,13 @@ function renderTicker() {
   if (!filtered.length) {
     feed.innerHTML = tickerItems.length === 0
       ? '<div class="ds-skeleton ds-skeleton-ticker"></div><div class="ds-skeleton ds-skeleton-ticker"></div><div class="ds-skeleton ds-skeleton-ticker"></div>'
-      : '<div class="ds-loading">No wagers match filters</div>';
+      : '<div class="ds-empty-state"><div class="ds-empty-state__icon">📭</div><div class="ds-empty-state__message">No wagers match filters</div></div>';
     return;
   }
   feed.innerHTML = filtered.map((w) => `
     <div class="ds-ticker-item">
-      <span class="ds-login">${w.login || '?'}</span>
-      <span>${tag(w.wager_type)}</span>
+      <span class="ds-login">${escapeHtml(w.login || '?')}</span>
+      <span>${tag(escapeHtml(w.wager_type))}</span>
       <span class="ds-amount">${usd(w.amount_wagered)}</span>
       <span class="ds-time">${ago(w.captured_at)}</span>
     </div>
@@ -493,7 +546,7 @@ async function loadStatCards() {
 async function renderVolumeChart() {
   try {
     const d = await api('/bet-ticker-wagers?limit=100');
-    if (!d.wagers?.length) return;
+    if (!d.wagers?.length) { $('volumeChartWrap').innerHTML = '<div class="ds-loading">No data</div>'; return; }
     const buckets = {};
     for (const w of d.wagers) {
       const hour = w.captured_at?.slice(0, 13) + ':00';
@@ -503,6 +556,8 @@ async function renderVolumeChart() {
     const values = labels.map((l) => buckets[l] / 100);
 
     if (!volumeChart) volumeChart = new ChartWrapper('volumeChart', 'line');
+    $('volumeChartWrap').style.display = 'none';
+    $('volumeChart').style.display = 'block';
     await volumeChart.render();
     volumeChart.update({
       labels,
@@ -515,7 +570,7 @@ async function renderVolumeChart() {
         tension: 0.4,
       }],
     });
-  } catch (e) { console.warn('volume chart failed', e); }
+  } catch (e) { $('volumeChartWrap').innerHTML = renderErrorState(e.message); }
 }
 
 async function loadAgentTable() {
@@ -546,14 +601,14 @@ async function loadEventTimeline() {
       ...(alerts.entries || []).map((a) => ({ time: a.created_at, title: `Alert: ${a.metric}`, meta: `${a.agent_id} — ${a.actual_value}/${a.threshold}`, type: 'warning' })),
     ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
 
-    if (!events.length) { $('eventTimeline').innerHTML = '<div class="ds-loading">No recent events</div>'; return; }
+    if (!events.length) { $('eventTimeline').innerHTML = '<div class="ds-empty-state"><div class="ds-empty-state__icon">📭</div><div class="ds-empty-state__message">No recent events</div></div>'; return; }
     $('eventTimeline').innerHTML = events.map((e) => `
       <div class="ds-timeline__item">
-        <span class="ds-timeline__dot ds-timeline__dot--${e.type}"></span>
+        <span class="ds-timeline__dot ds-timeline__dot--${escapeHtml(e.type)}"></span>
         <div class="ds-timeline__content">
           <div class="ds-timeline__time">${ago(e.time)}</div>
-          <div class="ds-timeline__title">${e.title}</div>
-          <div class="ds-timeline__meta">${e.meta}</div>
+          <div class="ds-timeline__title">${escapeHtml(e.title)}</div>
+          <div class="ds-timeline__meta">${escapeHtml(e.meta)}</div>
         </div>
       </div>
     `).join('');
@@ -574,6 +629,12 @@ async function renderAnalyticsCharts() {
   try {
     const d = await api('/bet-ticker-wagers?limit=100');
     const wagers = d.wagers || [];
+    if (!wagers.length) {
+      ['trafficChartWrap', 'latencyChartWrap', 'typeChartWrap', 'agentChartWrap'].forEach((id) => {
+        $(id).innerHTML = '<div class="ds-loading">No data</div>';
+      });
+      return;
+    }
 
     // Traffic chart (wagers per hour)
     const hourBuckets = {};
@@ -583,11 +644,15 @@ async function renderAnalyticsCharts() {
     }
     const hours = Object.keys(hourBuckets).sort();
     if (!trafficChart) trafficChart = new ChartWrapper('trafficChart', 'bar');
+    $('trafficChartWrap').style.display = 'none';
+    $('trafficChart').style.display = 'block';
     await trafficChart.render();
     trafficChart.update({ labels: hours, datasets: [{ label: 'Wagers', data: hours.map((h) => hourBuckets[h]), backgroundColor: '#00BFFF' }] });
 
     // Latency chart (mock — no real latency data yet)
     if (!latencyChart) latencyChart = new ChartWrapper('latencyChart', 'line');
+    $('latencyChartWrap').style.display = 'none';
+    $('latencyChart').style.display = 'block';
     await latencyChart.render();
     latencyChart.update({
       labels: ['/summary', '/performance', '/graded', '/auth', '/alerts'],
@@ -598,6 +663,8 @@ async function renderAnalyticsCharts() {
     const typeBuckets = { S: 0, P: 0, M: 0, L: 0 };
     for (const w of wagers) typeBuckets[w.wager_type] = (typeBuckets[w.wager_type] || 0) + 1;
     if (!typeChart) typeChart = new ChartWrapper('typeChart', 'doughnut');
+    $('typeChartWrap').style.display = 'none';
+    $('typeChart').style.display = 'block';
     await typeChart.render();
     typeChart.update({
       labels: ['Straight', 'Parlay', 'Moneyline', 'Live'],
@@ -609,19 +676,23 @@ async function renderAnalyticsCharts() {
     for (const w of wagers) agentBuckets[w.agent_id] = (agentBuckets[w.agent_id] || 0) + (w.amount_wagered || 0);
     const topAgents = Object.entries(agentBuckets).sort((a, b) => b[1] - a[1]).slice(0, 5);
     if (!agentChart) agentChart = new ChartWrapper('agentChart', 'bar');
+    $('agentChartWrap').style.display = 'none';
+    $('agentChart').style.display = 'block';
     await agentChart.render();
     agentChart.update({
       labels: topAgents.map((a) => a[0]),
       datasets: [{ label: 'Volume', data: topAgents.map((a) => a[1] / 100), backgroundColor: '#FF6B35' }],
     });
-  } catch (e) { console.warn('analytics charts failed', e); }
+  } catch (e) {
+    ['trafficChartWrap', 'latencyChartWrap', 'typeChartWrap', 'agentChartWrap'].forEach((id) => {
+      $(id).innerHTML = renderErrorState(e.message);
+    });
+  }
 }
 
 // ── Logs ──
 async function loadLogs() {
-  await loadLogTimeline();
-  await loadAgentLogTable();
-  loadSystemLog();
+  await Promise.all([loadLogTimeline(), loadAgentLogTable(), loadSystemLog()]);
 }
 
 async function loadLogTimeline() {
@@ -638,14 +709,14 @@ async function loadLogTimeline() {
 
     if (status) events = events.filter((e) => e.status === status);
 
-    if (!events.length) { $('logTimeline').innerHTML = '<div class="ds-loading">No events</div>'; return; }
+    if (!events.length) { $('logTimeline').innerHTML = '<div class="ds-empty-state"><div class="ds-empty-state__icon">📭</div><div class="ds-empty-state__message">No events</div></div>'; return; }
     $('logTimeline').innerHTML = events.map((e) => `
       <div class="ds-timeline__item">
-        <span class="ds-timeline__dot ds-timeline__dot--${e.status}"></span>
+        <span class="ds-timeline__dot ds-timeline__dot--${escapeHtml(e.status)}"></span>
         <div class="ds-timeline__content">
           <div class="ds-timeline__time">${ago(e.time)}</div>
-          <div class="ds-timeline__title">${e.title}</div>
-          <div class="ds-timeline__meta">${e.meta}</div>
+          <div class="ds-timeline__title">${escapeHtml(e.title)}</div>
+          <div class="ds-timeline__meta">${escapeHtml(e.meta)}</div>
         </div>
       </div>
     `).join('');
@@ -667,27 +738,36 @@ async function loadAgentLogTable() {
   } catch (e) { $('agentLogTable').innerHTML = renderErrorState(e.message, '/performance'); }
 }
 
-function loadSystemLog() {
-  $('systemLog').innerHTML = `
-    <div class="ds-timeline">
+async function loadSystemLog() {
+  try {
+    const status = statusPoller.status;
+    const run = status?.latestRun;
+    const failures = status?.recentFailures || [];
+    const events = [
+      { time: new Date().toISOString(), title: 'Dashboard initialized', meta: 'v3.0.0 — ESM modules loaded', type: 'success' },
+      { time: status?.timestamp, title: 'Endpoint status poll', meta: `Worker: ${status?.worker || 'unknown'}`, type: 'info' },
+    ];
+    if (run) {
+      events.push({ time: run.started_at, title: `Ingestion run ${run.status}`, meta: `${run.endpoints_succeeded || 0} succeeded, ${run.endpoints_failed || 0} failed`, type: run.status === 'success' ? 'success' : 'warning' });
+    }
+    for (const f of failures.slice(0, 5)) {
+      events.push({ time: f.last_failure, title: `Failure: ${escapeHtml(f.endpoint_key || 'unknown')}`, meta: `${f.failure_count} failures in last 24h`, type: 'error' });
+    }
+    events.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+
+    $('systemLog').innerHTML = events.map((e) => `
       <div class="ds-timeline__item">
-        <span class="ds-timeline__dot ds-timeline__dot--success"></span>
+        <span class="ds-timeline__dot ds-timeline__dot--${escapeHtml(e.type)}"></span>
         <div class="ds-timeline__content">
-          <div class="ds-timeline__time">Just now</div>
-          <div class="ds-timeline__title">Dashboard initialized</div>
-          <div class="ds-timeline__meta">v3.0.0 — ESM modules loaded</div>
+          <div class="ds-timeline__time">${ago(e.time)}</div>
+          <div class="ds-timeline__title">${escapeHtml(e.title)}</div>
+          <div class="ds-timeline__meta">${escapeHtml(e.meta)}</div>
         </div>
       </div>
-      <div class="ds-timeline__item">
-        <span class="ds-timeline__dot ds-timeline__dot--info"></span>
-        <div class="ds-timeline__content">
-          <div class="ds-timeline__time">${ago(statusPoller.status?.timestamp)}</div>
-          <div class="ds-timeline__title">Status poll</div>
-          <div class="ds-timeline__meta">Worker: ${statusPoller.status?.worker || 'unknown'}</div>
-        </div>
-      </div>
-    </div>
-  `;
+    `).join('');
+  } catch (e) {
+    $('systemLog').innerHTML = renderErrorState(e.message);
+  }
 }
 
 // ── Settings ──
@@ -714,9 +794,15 @@ function saveGeneral() {
 }
 
 function saveApi() {
-  settings.set('apiBase', $('settingApiBase').value);
-  settings.set('refreshInterval', parseInt($('settingRefresh').value));
-  settings.set('maxTickerItems', parseInt($('settingMaxItems').value));
+  const base = $('settingApiBase').value.trim();
+  if (!base || !base.startsWith('/')) { showAlert('API base must start with /', 'error'); return; }
+  const refresh = parseInt($('settingRefresh').value);
+  if (isNaN(refresh) || refresh < 1000 || refresh > 60000) { showAlert('Refresh interval must be 1000-60000ms', 'error'); return; }
+  const maxItems = parseInt($('settingMaxItems').value);
+  if (isNaN(maxItems) || maxItems < 10 || maxItems > 1000) { showAlert('Max items must be 10-1000', 'error'); return; }
+  settings.set('apiBase', base);
+  settings.set('refreshInterval', refresh);
+  settings.set('maxTickerItems', maxItems);
   showAlert('API settings saved', 'info');
 }
 
@@ -749,8 +835,8 @@ function storeTTL(refreshMs) {
 
 function showAlert(msg, severity = 'warn') {
   const el = document.createElement('div');
-  el.className = `ds-toast-item ds-toast-item--${severity}`;
-  el.innerHTML = `${msg} <span class="ds-dismiss" data-action="dismiss-toast">✕</span>`;
+  el.className = `ds-toast-item ds-toast-item--${escapeHtml(severity)}`;
+  el.innerHTML = `${escapeHtml(msg)} <span class="ds-dismiss" data-action="dismiss-toast">✕</span>`;
   $('alertContainer').appendChild(el);
   setTimeout(() => el.remove(), 8000);
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -760,7 +846,7 @@ function showAlert(msg, severity = 'warn') {
 
 function renderErrorState(msg, endpoint = '') {
   const zone = getZoneName(endpoint);
-  return `<div class="ds-error-state ${zone !== 'worker' ? `ds-error-state--${zone}` : ''}">${msg}</div>`;
+  return `<div class="ds-error-state ${zone !== 'worker' ? `ds-error-state--${escapeHtml(zone)}` : ''}">${escapeHtml(msg)}</div>`;
 }
 
 function requestNotificationPermission() {
@@ -773,6 +859,13 @@ function switchChartTab(name) {
   document.querySelectorAll('#view-analytics .ds-tab-content').forEach((c) => {
     c.style.display = c.id === `tab-${name}` ? 'block' : 'none';
   });
+  // Re-render charts when tab becomes visible
+  if (name === 'traffic' && trafficChart) trafficChart.render();
+  if (name === 'latency' && latencyChart) latencyChart.render();
+  if (name === 'distribution') {
+    if (typeChart) typeChart.render();
+    if (agentChart) agentChart.render();
+  }
 }
 
 function switchLogTab(name) {
@@ -818,7 +911,7 @@ document.querySelectorAll('[data-settings-tab]').forEach((t) => {
 });
 
 $('tickerType').addEventListener('change', renderTicker);
-$('tickerMin').addEventListener('input', renderTicker);
+$('tickerMin').addEventListener('input', debounce(renderTicker, 300));
 $('logStatus').addEventListener('change', loadLogTimeline);
 $('saveGeneralBtn').addEventListener('click', saveGeneral);
 $('saveApiBtn').addEventListener('click', saveApi);
@@ -832,31 +925,38 @@ dropzoneEvents($('importDropzone'));
 function dropzoneEvents(el) {
   el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('ds-dropzone--dragover'); });
   el.addEventListener('dragleave', () => el.classList.remove('ds-dropzone--dragover'));
+
+  function handleFile(file) {
+    if (!file) return;
+    if (file.size > 1024 * 1024) { showAlert('File too large (max 1MB)', 'error'); return; }
+    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+      showAlert('Only JSON files accepted', 'error'); return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (typeof data !== 'object' || data === null) throw new Error('Not an object');
+        Object.entries(data).forEach(([k, v]) => settings.set(k, v));
+        showAlert('Config imported successfully', 'info');
+        loadSettings();
+      } catch (err) { showAlert('Invalid config file: ' + err.message, 'error'); }
+    };
+    reader.onerror = () => showAlert('Failed to read file', 'error');
+    reader.readAsText(file);
+  }
+
   el.addEventListener('drop', (e) => {
     e.preventDefault();
     el.classList.remove('ds-dropzone--dragover');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type === 'application/json') {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          Object.entries(data).forEach(([k, v]) => settings.set(k, v));
-          showAlert('Config imported', 'info');
-          loadSettings();
-        } catch { showAlert('Invalid JSON', 'error'); }
-      };
-      reader.readAsText(file);
-    }
+    handleFile(e.dataTransfer.files[0]);
   });
+
   el.addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) el.dispatchEvent(new DragEvent('drop', { dataTransfer: new DataTransfer() }));
-    };
+    input.accept = 'application/json,.json';
+    input.onchange = (e) => handleFile(e.target.files[0]);
     input.click();
   });
 }

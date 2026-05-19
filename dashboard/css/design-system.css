@@ -339,3 +339,17 @@ button.ds-tab {
   --z-dropdown: 4000;
   --z-tooltip: 5000;
 }
+
+/* ── Print Styles ── */
+@media print {
+  .ds-sidebar,
+  .ds-toast,
+  .ds-modal,
+  .ds-theme-toggle,
+  .ds-conn-status { display: none !important; }
+  body { background: #fff !important; color: #000 !important; padding: 0 !important; }
+  .ds-content { padding: 0 !important; }
+  .ds-card { break-inside: avoid; border-color: #ccc !important; }
+  .ds-stat-card { break-inside: avoid; }
+  table { font-size: 0.7rem; }
+}

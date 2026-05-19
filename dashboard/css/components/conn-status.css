@@ -8,6 +8,10 @@
   margin-right: 0.5rem;
 }
 
+.ds-conn-status--connected { background: var(--green); }
+.ds-conn-status--error     { background: var(--red); }
+.ds-conn-status--polling   { background: var(--amber); }
+/* backward-compat aliases */
 .ds-conn-connected { background: var(--green); }
 .ds-conn-error     { background: var(--red); }
 .ds-conn-polling   { background: var(--amber); }

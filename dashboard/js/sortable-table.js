@@ -1,6 +1,16 @@
 // dashboard/js/sortable-table.js
 // Lightweight sortable table with click-to-sort headers.
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export class SortableTable {
   constructor(containerId, columns, options = {}) {
     this.container = document.getElementById(containerId);
@@ -32,7 +42,7 @@ export class SortableTable {
       const cells = this.columns.map((col) => {
         const value = row[col.key];
         const display = col.formatter ? col.formatter(value, row) : (value == null ? '-' : value);
-        return `<td>${display}</td>`;
+        return `<td>${escapeHtml(display)}</td>`;
       }).join('');
       return `<tr>${cells}</tr>`;
     }).join('');

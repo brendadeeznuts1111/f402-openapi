@@ -12,8 +12,11 @@
 
 .ds-btn:hover { opacity: 0.85; }
 
-.ds-btn-sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
+.ds-btn-sm,
+.ds-btn--sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
 
-.ds-btn-danger { background: var(--red); }
+.ds-btn-danger,
+.ds-btn--danger { background: var(--red); }
 
-.ds-btn-amber { background: var(--amber); color: #000; }
+.ds-btn-amber,
+.ds-btn--amber { background: var(--amber); color: #000; }

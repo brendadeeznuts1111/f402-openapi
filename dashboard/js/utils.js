@@ -371,6 +371,10 @@ export const ModalFactory = {
     if (this._mutationObserver) return;
     this._mutationObserver = new MutationObserver(() => {
       this._refreshFocusableList();
+      if (this._activeModal && !this._activeModal.contains(document.activeElement)) {
+        if (this._focusableList.length) this._focusableList[0].focus();
+        else this._activeModal.focus();
+      }
     });
     if (this._activeModal) {
       this._mutationObserver.observe(this._activeModal, {

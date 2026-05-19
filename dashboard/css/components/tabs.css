@@ -19,10 +19,12 @@
 
 .ds-tab:hover { color: var(--text); }
 
-.ds-tab.ds-active {
+.ds-tab.ds-active,
+.ds-tab--active {
   color: var(--blue);
   border-bottom-color: var(--blue);
 }
 
 .ds-tab-content { display: none; }
-.ds-tab-content.ds-active { display: block; }
+.ds-tab-content.ds-active,
+.ds-tab-content--active { display: block; }

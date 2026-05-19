@@ -29,6 +29,7 @@
 <link rel="stylesheet" href="css/components/dropzone.css">
 <link rel="stylesheet" href="css/components/breadcrumb.css">
 <link rel="stylesheet" href="css/components/drawer.css">
+<script>if(location.search.includes('dev=true'))document.write('<script src="http://localhost:35729/livereload.js"><'+'/script>')</script>
 </head>
 <body>
 
@@ -54,6 +55,9 @@
       </button>
       <button class="ds-sidebar__item" data-view="settings">
         <span class="ds-sidebar__icon">⚙️</span> Settings
+      </button>
+      <button class="ds-sidebar__item" data-view="endpoints">
+        <span class="ds-sidebar__icon">🛡️</span> Endpoints
       </button>
     </div>
     <div class="ds-sidebar__status" id="sidebarStatus">
@@ -288,6 +292,40 @@
       </div>
     </div>
 
+    <!-- ═══ Endpoints View ═══ -->
+    <div class="ds-view" id="view-endpoints">
+      <div class="ds-card">
+        <h2>Endpoint Manifest <span class="ds-subtitle" id="endpointsCount"></span></h2>
+        <div class="ds-filters ds-filters-bar">
+          <label>Zone <select id="endpointZoneFilter"><option value="">All</option><option value="query">Query</option><option value="auth">Auth</option><option value="network">Network</option><option value="do">Durable Object</option><option value="ingestion">Ingestion</option><option value="cookie">Cookie</option></select></label>
+          <label>Method <select id="endpointMethodFilter"><option value="">All</option><option value="GET">GET</option><option value="POST">POST</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select></label>
+        </div>
+        <div id="endpointsTable">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+        </div>
+      </div>
+
+      <div class="ds-grid ds-main-grid ds-mt-0">
+        <div class="ds-card">
+          <h2>Ingestion Health</h2>
+          <div id="endpointHealth">
+            <div class="ds-skeleton ds-skeleton-row"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          </div>
+        </div>
+        <div class="ds-card">
+          <h2>Quick Actions</h2>
+          <div class="ds-form-row">
+            <button class="ds-btn" id="triggerIngestBtn">▶ Trigger Ingestion</button>
+            <button class="ds-btn ds-btn--amber" id="refreshAuthBtn">🔄 Refresh Auth</button>
+          </div>
+          <div class="ds-subtitle" id="cookieHealth" style="margin-top: var(--space-sm)"></div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -356,7 +394,10 @@ pollFallback.onWager = (wager) => addWagerToTicker(wager);
 
 // Status Poller
 const statusPoller = new StatusPoller(api, store);
-statusPoller.onUpdate = (status) => renderSidebarStatus(status);
+statusPoller.onUpdate = (status) => {
+  renderSidebarStatus(status);
+  updateCookieHealth();
+};
 statusPoller.start();
 
 // Charts
@@ -439,6 +480,9 @@ function switchView(name) {
   } else if (name === 'settings') {
     stopSSE();
     loadSettings();
+  } else if (name === 'endpoints') {
+    stopSSE();
+    loadEndpoints();
   }
 }
 
@@ -890,6 +934,92 @@ async function loadSystemLog() {
   }
 }
 
+// ── Endpoints ──
+async function loadEndpoints() {
+  try {
+    const [manifest, health] = await Promise.all([
+      store.fetch('endpoints-manifest', () => api('/endpoints'), 60000),
+      api('/endpoint-status').catch(() => ({ latestRun: null, recentFailures: [] })),
+    ]);
+    $('endpointsCount').textContent = `${manifest?.count || 0} routes`;
+
+    // Filter
+    const zoneFilter = $('endpointZoneFilter').value;
+    const methodFilter = $('endpointMethodFilter').value;
+    let routes = manifest?.routes || [];
+    if (zoneFilter) routes = routes.filter((r) => r.zone === zoneFilter);
+    if (methodFilter) routes = routes.filter((r) => r.method === methodFilter);
+
+    if (!routes.length) {
+      $('endpointsTable').innerHTML = '<div class="ds-loading">No endpoints match filter</div>';
+    } else {
+      const rows = routes.map((r) => {
+        const zoneColor = r.zone ? `ds-zone-badge--${r.zone}` : 'ds-zone-badge--worker';
+        return `<tr>
+          <td><span class="ds-zone-badge ${zoneColor}">${escapeHtml(r.zone || 'worker')}</span></td>
+          <td><code>${escapeHtml(r.method)}</code></td>
+          <td><code>${escapeHtml(r.path)}</code></td>
+          <td class="ds-cell-sm">${escapeHtml(r.description)}</td>
+          <td class="ds-cell-sm">${r.refreshMs === 'realtime' ? '⚡ live' : r.refreshMs === 'manual' ? '—' : (r.refreshMs / 1000) + 's'}</td>
+        </tr>`;
+      }).join('');
+      $('endpointsTable').innerHTML = `<table class="ds-table-sm"><thead><tr><th>Zone</th><th>Method</th><th>Path</th><th>Description</th><th>Refresh</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    // Ingestion health
+    const run = health?.latestRun;
+    const failures = health?.recentFailures || [];
+    let healthHtml = '';
+    if (run) {
+      const statusDot = run.status === 'success' ? '🟢' : '🔴';
+      healthHtml += `<div class="ds-timeline__item"><span class="ds-timeline__dot ds-timeline__dot--${run.status === 'success' ? 'success' : 'error'}"></span><div class="ds-timeline__content"><div class="ds-timeline__time">${ago(run.finished_at || run.started_at)}</div><div class="ds-timeline__title">${statusDot} Run ${run.status}</div><div class="ds-timeline__meta">${run.endpoints_succeeded || 0} OK · ${run.endpoints_failed || 0} failed</div></div></div>`;
+    }
+    if (failures.length) {
+      for (const f of failures.slice(0, 5)) {
+        healthHtml += `<div class="ds-timeline__item"><span class="ds-timeline__dot ds-timeline__dot--error"></span><div class="ds-timeline__content"><div class="ds-timeline__time">${ago(f.last_failure)}</div><div class="ds-timeline__title">Failed: ${escapeHtml(f.endpoint_key || '?')}</div><div class="ds-timeline__meta">${f.failure_count}x in 24h</div></div></div>`;
+      }
+    }
+    $('endpointHealth').innerHTML = healthHtml ? `<div class="ds-timeline">${healthHtml}</div>` : '<div class="ds-loading">No ingestion data</div>';
+  } catch (e) {
+    $('endpointsTable').innerHTML = renderErrorState(e.message, '/endpoints');
+  }
+}
+
+async function triggerIngestion() {
+  try {
+    await apiPost('/ingest/local', { source: 'dashboard' });
+    showAlert('Ingestion triggered', 'info');
+    loadEndpoints();
+  } catch (e) {
+    showAlert(`Ingestion failed: ${e.message}`, 'error');
+  }
+}
+
+async function refreshAuth() {
+  try {
+    await apiPost('/refresh-auth');
+    showAlert('Auth refresh triggered', 'info');
+  } catch (e) {
+    showAlert(`Auth refresh failed: ${e.message}`, 'error');
+  }
+}
+
+function updateCookieHealth() {
+  const status = statusPoller.status;
+  const zones = status?.zones || {};
+  const cookie = zones['cookie'];
+  const failures = status?.recentFailures || [];
+  const cookieFailures = failures.filter((f) => (f.path || f.endpoint_key || '').includes('cookie') || (f.path || f.endpoint_key || '').includes('refresh'));
+  const el = $('cookieHealth');
+  if (cookieFailures.length) {
+    el.innerHTML = `<span class="ds-badge ds-badge--warn">⚠️ ${cookieFailures.length} cookie failure(s) in 24h</span>`;
+    el.style.color = '';
+  } else {
+    el.innerHTML = `<span class="ds-badge ds-badge--info">🍪 Cookies OK</span>`;
+    el.style.color = '';
+  }
+}
+
 // ── Settings ──
 function syncDrawerFromSettings() {
   const s = settings.getAll();
@@ -1084,6 +1214,11 @@ $('saveApiBtn').addEventListener('click', saveApi);
 $('saveAppearanceBtn').addEventListener('click', saveAppearance);
 $('clearCacheBtn').addEventListener('click', clearCache);
 $('exportConfigBtn').addEventListener('click', exportConfig);
+
+$('endpointZoneFilter').addEventListener('change', loadEndpoints);
+$('endpointMethodFilter').addEventListener('change', loadEndpoints);
+$('triggerIngestBtn').addEventListener('click', triggerIngestion);
+$('refreshAuthBtn').addEventListener('click', refreshAuth);
 
 // Dropzone
 dropzoneEvents($('importDropzone'));

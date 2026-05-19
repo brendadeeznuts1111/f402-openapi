@@ -48,22 +48,28 @@
 </header>
 
 <div class="ds-layout">
-  <nav class="ds-sidebar">
+  <nav class="ds-sidebar" aria-label="Main navigation">
+    <button class="ds-sidebar__toggle" id="sidebarToggle" title="Collapse sidebar" aria-label="Toggle sidebar">&laquo;</button>
     <div class="ds-sidebar__nav">
-      <button class="ds-sidebar__item ds-sidebar__item--active" data-view="overview">
-        <span class="ds-sidebar__icon">📊</span> Overview
+      <button class="ds-sidebar__item ds-sidebar__item--active" data-view="overview" aria-current="page">
+        <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        <span class="ds-sidebar__label">Overview</span>
       </button>
       <button class="ds-sidebar__item" data-view="analytics">
-        <span class="ds-sidebar__icon">📈</span> Analytics
+        <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg></span>
+        <span class="ds-sidebar__label">Analytics</span>
       </button>
       <button class="ds-sidebar__item" data-view="logs">
-        <span class="ds-sidebar__icon">📋</span> Logs
+        <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg></span>
+        <span class="ds-sidebar__label">Logs</span>
       </button>
       <button class="ds-sidebar__item" data-view="settings">
-        <span class="ds-sidebar__icon">⚙️</span> Settings
+        <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+        <span class="ds-sidebar__label">Settings</span>
       </button>
       <button class="ds-sidebar__item" data-view="endpoints">
-        <span class="ds-sidebar__icon">🛡️</span> Endpoints
+        <span class="ds-sidebar__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><line x1="12" y1="9" x2="12" y2="3"/><line x1="15" y1="12" x2="21" y2="12"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="9" y1="12" x2="3" y2="12"/></svg></span>
+        <span class="ds-sidebar__label">Endpoints</span>
       </button>
     </div>
     <div class="ds-sidebar__status" id="sidebarStatus">
@@ -466,7 +472,10 @@ function switchView(name) {
   currentView = name;
   destroyAllCharts();
   document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
-    item.classList.toggle('ds-sidebar__item--active', item.dataset.view === name);
+    const isActive = item.dataset.view === name;
+    item.classList.toggle('ds-sidebar__item--active', isActive);
+    if (isActive) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
   });
   document.querySelectorAll('.ds-view').forEach((v) => {
     v.style.display = v.id === `view-${name}` ? 'block' : 'none';
@@ -1145,6 +1154,12 @@ document.addEventListener('click', (e) => {
 
 // ── DOM wiring ──
 $('themeToggle').addEventListener('click', toggleTheme);
+$('sidebarToggle').addEventListener('click', () => {
+  document.querySelector('.ds-sidebar').classList.toggle('ds-sidebar--collapsed');
+  const collapsed = document.querySelector('.ds-sidebar').classList.contains('ds-sidebar--collapsed');
+  $('sidebarToggle').innerHTML = collapsed ? '&raquo;' : '&laquo;';
+  $('sidebarToggle').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+});
 
 document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
   item.addEventListener('click', () => switchView(item.dataset.view));

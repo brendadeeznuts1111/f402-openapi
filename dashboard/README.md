@@ -6,11 +6,13 @@ Zero-build-step live monitoring dashboard for the Fantasy402 ingestion pipeline.
 
 ```bash
 # Deploy Worker
-cd workers/fantasy402-ingestion && wrangler deploy
+cd workers/fantasy402-ingestion && npm run deploy
 
-# Deploy Dashboard
-cd dashboard && wrangler pages deploy . --project-name=fantasy402-dashboard
+# Pages API proxy needs INGESTION_TRIGGER_TOKEN (production + preview)
+cd dashboard && ./scripts/set-pages-secrets.sh && npm run deploy
 ```
+
+If the dashboard shows **500 / missing token** on `/api/*`, run `set-pages-secrets.sh` then redeploy.
 
 ## Views
 

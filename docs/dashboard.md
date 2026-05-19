@@ -75,11 +75,18 @@ cd dashboard
 npx wrangler pages deploy . --project-name=fantasy402-dashboard
 ```
 
-Set the Pages secret (required for protected `/api` routes):
+Set the Pages secret on **both** production and preview (branch deploys use preview secrets):
 
 ```bash
-npx wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard
+cd dashboard
+./scripts/set-pages-secrets.sh
+# or: npm run secrets:all   # pipes from ../workers/fantasy402-ingestion/.archive-auth-token
+npm run deploy
 ```
+
+If `wrangler` fails with API token auth errors, run without `CLOUDFLARE_API_TOKEN` in the environment so Wrangler uses OAuth (`unset CLOUDFLARE_API_TOKEN`).
+
+Without this secret, `/api/*` returns **500** `Server misconfigured: missing token` from `dashboard/_worker.js`.
 
 Redeploy the Worker when adding new API fields (e.g. `routeLatency` on `/endpoint-status`).
 

@@ -8,17 +8,17 @@ TOKEN_FILE="${INGESTION_TRIGGER_TOKEN_FILE:-$ROOT/workers/fantasy402-ingestion/.
 PROJECT="${PAGES_PROJECT:-fantasy402-dashboard}"
 
 read_token() {
-  if [[ -f "$TOKEN_FILE" ]]; then
-    cat "$TOKEN_FILE"
-    return 0
-  fi
-  if command -v op >/dev/null 2>&1; then
+  if command -v op >/dev/null 2>&1 && [[ "${USE_LOCAL_TOKEN_FILE:-}" != "1" ]]; then
     echo "Reading INGESTION_TRIGGER_TOKEN from 1Password (Fantasy402 Worker)..." >&2
     op item get "Fantasy402 Worker" --vault=DEV --field=INGESTION_TRIGGER_TOKEN --reveal
     return 0
   fi
+  if [[ -f "$TOKEN_FILE" ]]; then
+    cat "$TOKEN_FILE"
+    return 0
+  fi
   echo "Missing token file: $TOKEN_FILE" >&2
-  echo "Set INGESTION_TRIGGER_TOKEN_FILE, create .archive-auth-token, or install 1Password CLI (op)." >&2
+  echo "Set INGESTION_TRIGGER_TOKEN_FILE, create .archive-auth-token, install 1Password CLI (op), or USE_LOCAL_TOKEN_FILE=1." >&2
   exit 1
 }
 

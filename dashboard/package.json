@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "wrangler pages dev . --binding INGESTION_TRIGGER_TOKEN=$(cat ../workers/fantasy402-ingestion/.archive-auth-token 2>/dev/null || echo '')",
-    "deploy": "wrangler pages deploy . --project-name=fantasy402-dashboard",
+    "deploy": "wrangler pages deploy . --project-name=fantasy402-dashboard --branch=main",
+    "deploy:preview": "wrangler pages deploy . --project-name=fantasy402-dashboard",
     "secrets:production": "wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard --env=production",
     "secrets:preview": "wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard --env=preview",
     "secrets:all": "npm run secrets:production && npm run secrets:preview",

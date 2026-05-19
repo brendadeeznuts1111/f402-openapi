@@ -343,22 +343,22 @@
 
 <div class="ds-toast" id="alertContainer"></div>
 
-<div class="ds-drawer" id="settingsDrawer">
+<div class="ds-drawer" id="settingsDrawer" role="dialog" aria-modal="true" aria-label="Quick settings">
   <div class="ds-drawer__header">
-    <span class="ds-drawer__title">Quick Settings</span>
-    <button class="ds-drawer__close" id="drawerClose">&times;</button>
+    <span class="ds-drawer__title" id="drawerTitle">Quick Settings</span>
+    <button class="ds-drawer__close" id="drawerClose" aria-label="Close settings drawer">&times;</button>
   </div>
   <div class="ds-drawer__body">
     <div class="ds-form-group">
-      <label>Chart Type</label>
+      <label for="drawerChartType">Chart Type</label>
       <select id="drawerChartType"><option value="line">Line</option><option value="bar">Bar</option><option value="area">Area</option></select>
     </div>
     <div class="ds-form-group">
-      <label>Log Level</label>
+      <label for="drawerLogLevel">Log Level</label>
       <select id="drawerLogLevel"><option value="debug">Debug</option><option value="info">Info</option><option value="warn">Warning</option><option value="error">Error</option></select>
     </div>
     <div class="ds-form-group">
-      <label>Notifications</label>
+      <label for="drawerNotifications">Notifications</label>
       <select id="drawerNotifications"><option value="true">Enabled</option><option value="false">Disabled</option></select>
     </div>
   </div>
@@ -366,7 +366,7 @@
     <button class="ds-btn" id="drawerSaveBtn">Save</button>
   </div>
 </div>
-<div class="ds-drawer__backdrop" id="drawerBackdrop"></div>
+<div class="ds-drawer__backdrop" id="drawerBackdrop" aria-hidden="true"></div>
 
 <script type="module">
 import { api, apiPost, apiPatch, apiDelete, setGlobalErrorHandler } from './js/api-client.js';
@@ -505,6 +505,8 @@ function openDrawer() {
   $('settingsDrawer').classList.add('ds-drawer--open');
   $('drawerBackdrop').classList.add('ds-drawer__backdrop--visible');
   document.body.style.overflow = 'hidden';
+  const first = $('settingsDrawer').querySelector('button, select, input, textarea, [tabindex]:not([tabindex="-1"])');
+  if (first) first.focus();
 }
 
 function closeDrawer() {

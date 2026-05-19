@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "iterations": 2000,
+  "threshold": 1.15,
+  "generatedAt": "2026-05-19T18:19:11.679Z",
+  "schemas": {
+    "dashboard.searchCustomersQuerySchema": {
+      "msPerOp": 0.0030480625000000004,
+      "iterations": 2000
+    },
+    "dashboard.pendingWagersFiltersSchema": {
+      "msPerOp": 0.0052625834999999906,
+      "iterations": 2000
+    },
+    "dashboard.transactionsLiveFiltersSchema": {
+      "msPerOp": 0.013073270500000006,
+      "iterations": 2000
+    },
+    "dashboard.customerNavSchema": {
+      "msPerOp": 0.000718062500000002,
+      "iterations": 2000
+    },
+    "worker.searchCustomersQuerySchema": {
+      "msPerOp": 0.002755833499999994,
+      "iterations": 2000
+    },
+    "worker.pendingWagersQuerySchema": {
+      "msPerOp": 0.0024106250000000104,
+      "iterations": 2000
+    }
+  }
+}

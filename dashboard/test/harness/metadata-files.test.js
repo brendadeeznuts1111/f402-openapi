@@ -13,6 +13,10 @@ import {
   readRepoFile,
 } from '../../harness/verify.js';
 
+function readAgentsMd() {
+  return readRepoFile('AGENTS.md');
+}
+
 const testDir = dirname(fileURLToPath(import.meta.url));
 const dashboardRoot = join(testDir, '../..');
 const repoRoot = join(dashboardRoot, '..');
@@ -62,12 +66,10 @@ test('components.manifest matches dashboard.css and files on disk', () => {
   assert.deepEqual(findings, [], findings.join('\n'));
 });
 
-test('optional AGENTS.md documented when absent', () => {
-  const repoMeta = loadMetadata('repo-metadata.json');
+test('AGENTS.md exists and references harness', () => {
   const agentsPath = join(repoRoot, 'AGENTS.md');
-  const optional = repoMeta.optionalFiles?.find((f) => f.path === 'AGENTS.md');
-  assert.ok(optional, 'repo-metadata should list optional AGENTS.md');
-  if (!existsSync(agentsPath)) {
-    assert.ok(optional.description, 'document AGENTS.md when not present');
-  }
+  assert.ok(existsSync(agentsPath), 'AGENTS.md required at repo root');
+  const content = readAgentsMd();
+  assert.match(content, /test:harness/);
+  assert.match(content, /llms\.txt/);
 });

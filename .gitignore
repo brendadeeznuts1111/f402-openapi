@@ -23,6 +23,9 @@ node_modules/
 .dev.vars
 .env
 
+# Generated harness health report (CI artifact; npm run harness:report)
+dashboard/harness/harness-report.json
+
 # Wrangler local build cache
 dashboard/.wrangler/
 workers/fantasy402-ingestion/.wrangler/

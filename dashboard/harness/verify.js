@@ -17,6 +17,42 @@ export function loadMetadata(name) {
 }
 
 /** Mirrors dashboard/_worker.js isPublicWorkerPath (keep in sync). */
+export function readPagesWorkerSource() {
+  return readFileSync(join(repoRoot, 'dashboard/_worker.js'), 'utf8');
+}
+
+/** Ensure _worker.js isPublicWorkerPath matches harness metadata (no drift). */
+export function verifyPagesWorkerPublicPaths(publicRoutesMeta) {
+  const findings = [];
+  const src = readPagesWorkerSource();
+  const fnMatch = src.match(/function isPublicWorkerPath\(pathname\)\s*\{([\s\S]*?)\n\}/);
+  if (!fnMatch) {
+    findings.push('_worker.js: isPublicWorkerPath function not found');
+    return findings;
+  }
+  const body = fnMatch[1];
+  for (const path of publicRoutesMeta.paths ?? []) {
+    if (path === '/live-wagers') {
+      if (!body.includes('"/live-wagers"') && !body.includes("'/live-wagers'")) {
+        findings.push('_worker.js missing /live-wagers public check');
+      }
+      continue;
+    }
+    const needle = path.includes("'") ? `"${path}"` : `'${path}'`;
+    const alt = needle.startsWith('"') ? `'${path}'` : `"${path}"`;
+    if (!body.includes(needle) && !body.includes(alt)) {
+      findings.push(`_worker.js isPublicWorkerPath missing check for ${path}`);
+    }
+  }
+  const samples = ['/summary', '/pending-wagers', '/customer-profile'];
+  for (const p of samples) {
+    if (body.includes(`'${p}'`) || body.includes(`"${p}"`)) {
+      findings.push(`_worker.js must not treat protected path ${p} as public`);
+    }
+  }
+  return findings;
+}
+
 export function pagesProxyIsPublicPath(pathname) {
   if (pathname === '/health') return true;
   if (pathname === '/auth/health') return true;

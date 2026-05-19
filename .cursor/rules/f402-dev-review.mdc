@@ -74,8 +74,8 @@ curl -H "Authorization: Bearer $INGESTION_TRIGGER_TOKEN" \
 
 - **`online`** = at least one successful `api_snapshots` row. **`pending`** = never ingested. Historical R2 **403 failures** do not mean the route is offline if local ingest succeeded.
 - Dashboard has **no mock API layer** — all views call Worker routes; live routes fall back to **D1** (`graded_wagers`) or **R2 archives** (`api_snapshots`) when upstream auth fails.
-- Run **`cd dashboard && npm run test:harness`** after changing routes, `schemas.js`, `constants.js`, or component CSS — updates must match `dashboard/harness/metadata/*.json`.
-- After intentional Zod/OpenAPI shape changes: **`npm run test:harness:update`** (snapshots). If `llms.txt` or views drift: **`npm run harness:sync-check`**.
+- Run **`cd dashboard && npm run harness:verify`** after changing routes, `schemas.js`, `constants.js`, `_worker.js`, or component CSS — updates must match `dashboard/harness/metadata/*.json`.
+- After intentional Zod/OpenAPI shape changes: **`npm run test:harness:update`** (snapshots). Quick drift check: **`npm run harness:sync-check`** or **`npm run harness:report`**.
 - New Worker fields: parse **real upstream JSON** (saved under `fantasy402/*-response.json` locally); add tests with **minimal synthetic** payloads, not production dumps in repo.
 
 ## When to seed (bootstrap, not substitute for live)

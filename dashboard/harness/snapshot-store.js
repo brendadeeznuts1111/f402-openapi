@@ -5,6 +5,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { diffSnapshots, formatSnapshotDiff } from './snapshot-diff.js';
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
 export const snapshotsDir = join(harnessDir, 'snapshots');
@@ -14,7 +15,7 @@ export function stableStringify(value) {
   return JSON.stringify(sortKeys(value), null, 2);
 }
 
-function sortKeys(value) {
+export function sortKeys(value) {
   if (value === null || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(sortKeys);
   const out = {};
@@ -44,7 +45,15 @@ export function writeSnapshot(name, value) {
   writeFileSync(snapshotPath(name), `${stableStringify(value)}\n`, 'utf8');
 }
 
-export function assertMatchesSnapshot(name, value, { update = process.env.UPDATE_SNAPSHOTS === '1' } = {}) {
+export function isHarnessCiMode() {
+  return process.env.HARNESS_CI === '1' || process.env.CI === 'true';
+}
+
+export function assertMatchesSnapshot(
+  name,
+  value,
+  { update = process.env.UPDATE_SNAPSHOTS === '1' && !isHarnessCiMode() } = {},
+) {
   if (update) {
     writeSnapshot(name, value);
     return { updated: true, path: snapshotPath(name) };
@@ -53,9 +62,12 @@ export function assertMatchesSnapshot(name, value, { update = process.env.UPDATE
   const actual = sortKeys(value);
   const expectedSorted = sortKeys(expected);
   if (JSON.stringify(actual) !== JSON.stringify(expectedSorted)) {
-    throw new Error(
-      `snapshot drift: ${snapshotPath(name)} — run npm run test:harness:update to approve`,
-    );
+    const changes = diffSnapshots(expectedSorted, actual);
+    const diffText = formatSnapshotDiff(name, changes);
+    const hint = isHarnessCiMode()
+      ? 'CI mode: snapshot updates disabled. Approve locally with npm run test:harness:update'
+      : 'run npm run test:harness:update to approve';
+    throw new Error(`snapshot drift: ${snapshotPath(name)} — ${hint}\n${diffText}`);
   }
   return { updated: false };
 }

@@ -4,7 +4,13 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadMetadata, parseWorkerApiManifest, readWorkerIndexSource, readRepoFile } from './verify.js';
+import {
+  loadMetadata,
+  parseWorkerApiManifest,
+  readWorkerIndexSource,
+  readRepoFile,
+  verifyPagesWorkerPublicPaths,
+} from './verify.js';
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(harnessDir, '../..');
@@ -152,6 +158,7 @@ export function verifyHarnessManifestInventory() {
     'view-routes.json',
     'schema-registry.json',
     'zod-cases.json',
+    'openapi-samples.json',
   ];
   for (const file of expectedCore) {
     if (!onDisk.includes(file)) {
@@ -179,6 +186,33 @@ export function verifyWorkerRoutesInDashboardManifest() {
   return findings;
 }
 
+/** Every non-public dashboard API route should be mentioned in llms.txt. */
+export function verifyLlmsTxtListsAllDashboardRoutes({ llmsContent, dashboardRoutes }) {
+  const findings = [];
+  for (const route of dashboardRoutes) {
+    if (route.public) continue;
+    const bare = route.path.split('?')[0];
+    if (!llmsContent.includes(bare)) {
+      findings.push(`llms.txt missing dashboard route ${bare}`);
+    }
+  }
+  return findings;
+}
+
+/** Sidebar view ids should appear in docs (llms.txt or harness README). */
+export function verifyViewIdsDocumented({ views, llmsContent, harnessReadme }) {
+  const findings = [];
+  const haystack = `${llmsContent}\n${harnessReadme}`;
+  for (const view of views) {
+    if (!haystack.includes(view.id) && !haystack.includes(view.module.replace('.js', ''))) {
+      findings.push(
+        `docs missing reference to view "${view.id}" (add to llms.txt or harness README)`,
+      );
+    }
+  }
+  return findings;
+}
+
 /** Run all metadata sync checks; returns string[] findings. */
 export function runMetadataSyncChecks() {
   const findings = [];
@@ -189,8 +223,14 @@ export function runMetadataSyncChecks() {
   const schemasJs = readFileSync(join(dashboardRoot, 'js/lib/schemas.js'), 'utf8');
   const viewsDir = join(dashboardRoot, 'js/views');
 
+  const harnessReadme = readFileSync(join(harnessDir, 'README.md'), 'utf8');
+  const pub = loadMetadata('public-routes.json');
+
   findings.push(...verifyLlmsTxtArtifacts(llms));
   findings.push(...verifyLlmsTxtRouteCoverage({ llmsContent: llms, viewRoutes: views, dashboardRoutes: routes }));
+  findings.push(...verifyLlmsTxtListsAllDashboardRoutes({ llmsContent: llms, dashboardRoutes: routes }));
+  findings.push(...verifyViewIdsDocumented({ views, llmsContent: llms, harnessReadme }));
+  findings.push(...verifyPagesWorkerPublicPaths(pub));
   findings.push(...verifyViewModulesInManifest({ views, viewsDir }));
   findings.push(
     ...verifySchemaBindingsInCode({

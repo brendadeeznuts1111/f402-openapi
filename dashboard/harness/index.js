@@ -11,6 +11,8 @@ export {
   verifyComponentsManifest,
   verifyViewRouteIsolation,
   verifyViewApiPathsDeclared,
+  verifyPagesWorkerPublicPaths,
+  readPagesWorkerSource,
   verifyRepoMetadataFiles,
   runDashboardZodCases,
   runWorkerZodCases,

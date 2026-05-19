@@ -14,17 +14,23 @@
     "secrets:preview": "wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard --env=preview",
     "secrets:all": "npm run secrets:production && npm run secrets:preview",
     "secrets:list": "wrangler pages secret list --project-name=fantasy402-dashboard",
-    "verify": "npm run sync:dev-vars:check",
+    "verify": "npm run sync:dev-vars:check && npm run harness:sync-check",
     "test": "bun test test/",
     "test:harness": "bun test test/harness/ test/harness-contract.test.js",
+    "test:harness:ci": "HARNESS_CI=1 bun test test/harness/ test/harness-contract.test.js",
     "test:harness:update": "node scripts/harness-update-snapshots.mjs",
-    "harness:sync-check": "node scripts/harness-sync-check.mjs"
+    "harness:sync-check": "node scripts/harness-sync-check.mjs",
+    "harness:verify": "npm run harness:sync-check && npm run test:harness && bunx tsc --noEmit -p harness/tsconfig.harness.json",
+    "harness:report": "node scripts/harness-report.mjs",
+    "harness:watch": "node scripts/harness-watch.mjs"
   },
   "dependencies": {
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "typescript": "^5.8.3"
   }
 }

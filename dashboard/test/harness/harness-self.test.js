@@ -27,7 +27,7 @@ test('harness module inventory is non-empty', () => {
   }
 });
 
-test('harness compiles under strict checkJs (tsconfig.harness.json)', () => {
+test('harness compiles under strict checkJs (tsconfig.harness.json)', { timeout: 30_000 }, () => {
   const tsc = spawnSync(
     'bunx',
     ['tsc', '--noEmit', '-p', join(harnessRoot, 'tsconfig.harness.json')],

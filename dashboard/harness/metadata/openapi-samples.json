@@ -1,0 +1,48 @@
+{
+  "description": "Sample payloads validated by Ajv against openapi.worker.json components (must match snapshot shapes).",
+  "samples": [
+    {
+      "schema": "HealthResponse",
+      "valid": { "status": "ok", "environment": "production" },
+      "invalid": { "status": "failed", "environment": "production" },
+      "expectType": "object"
+    },
+    {
+      "schema": "ErrorResponse",
+      "valid": { "status": "failed", "message": "validation failed" },
+      "invalid": { "status": "ok", "message": "x" }
+    },
+    {
+      "schema": "RefreshAuthRequest",
+      "valid": { "sessionCookie": "session=test" },
+      "invalid": {}
+    },
+    {
+      "schema": "AuthHealthResponse",
+      "valid": {
+        "status": "ready",
+        "ingestionReadiness": { "status": "ready", "blocker": null },
+        "authorizationExpiry": {
+          "status": "ok",
+          "expiresAt": "2026-12-31T00:00:00.000Z",
+          "ttlSeconds": 3600
+        },
+        "timestamp": "2026-05-19T00:00:00.000Z"
+      }
+    },
+    {
+      "schema": "EndpointStatusResponse",
+      "valid": {
+        "worker": "fantasy402-ingestion",
+        "latestRun": null,
+        "recentFailures": [],
+        "routeLatency": [],
+        "timestamp": "2026-05-19T00:00:00.000Z"
+      }
+    },
+    {
+      "schema": "EndpointsManifestResponse",
+      "valid": { "count": 0, "routes": [] }
+    }
+  ]
+}

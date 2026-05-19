@@ -1,0 +1,54 @@
+name: Fantasy402 Dashboard Harness
+
+on:
+  pull_request:
+    paths:
+      - "dashboard/**"
+      - "workers/fantasy402-ingestion/src/schemas.ts"
+      - "workers/fantasy402-ingestion/openapi.worker.json"
+      - "workers/fantasy402-ingestion/src/index.ts"
+      - "tools/lib/f402-schemas.mjs"
+      - "llms.txt"
+      - "AGENTS.md"
+      - ".github/workflows/fantasy402-dashboard-harness.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fantasy402-dashboard-harness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dashboard dependencies
+        run: bun install
+
+      - name: Harness verify (sync + CI tests + typecheck)
+        run: npm run harness:sync-check && npm run test:harness:ci && bunx tsc --noEmit -p harness/tsconfig.harness.json
+
+      - name: Harness health report
+        if: always()
+        run: npm run harness:report || true
+
+      - name: Upload harness-report.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-report
+          path: dashboard/harness/harness-report.json
+          if-no-files-found: ignore

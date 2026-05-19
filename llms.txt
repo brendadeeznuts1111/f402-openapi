@@ -7,6 +7,8 @@
 - Upstream base URL: https://fantasy402.com/cloud/api/
 - Worker docs: ./workers/fantasy402-ingestion/README.md
 - Dashboard docs: ./docs/dashboard.md
+- Agent guide: ./AGENTS.md
+- Harness: `dashboard/harness` (`npm run harness:verify`)
 
 ## Upstream catalog (86 endpoints)
 - Manifest: `workers/fantasy402-ingestion/upstream-endpoints.json` — all 86 read-only routes.
@@ -58,6 +60,24 @@
 | `GET /customer-activity` | Customer activity timeline |
 | `GET /customer-activity-search` | Activity search (POST body on worker) |
 | `GET /transactions-live` | Transaction report (live or R2 archive) |
+| `GET /summary` | Dashboard overview aggregates |
+| `GET /graded-wagers` | Graded wagers (D1) |
+| `GET /prop-wagers` | Prop wagers |
+| `GET /position-data` | Agent position data |
+| `GET /authorizations` | Authorizations list |
+| `GET /players` | Players list |
+| `GET /weekly-figures` | Weekly figures |
+| `GET /endpoint-status` | Upstream endpoint health |
+| `GET /diagnostics` | Worker diagnostics |
+| `GET /runs` | Ingestion runs |
+| `GET /alerts` | Active alerts |
+| `GET /alerts/summary` | Alert summary |
+| `GET /alert-log` | Alert log |
+| `GET /alert-rules` | Alert rules |
+
+## Dashboard (Pages SPA)
+
+Sidebar views: `overview`, `analytics`, `logs`, `settings`, `endpoints`, `activity`, `data`, `pending`, `alerts`, `customers`, `transactions`. Contract harness: `dashboard/harness` (`npm run harness:verify`).
 
 ## Visual Reference
 - ANSI wiring diagram: `./endpoint_frontend_wiring_ansi_v2.sh` — run in a true‑color terminal for a color‑coded map of all components and API flows.

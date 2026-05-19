@@ -48,17 +48,25 @@
       "mustInclude": ["dashboardSchemas", "workerSchemas"]
     },
     {
+      "path": "dashboard/harness/metadata/openapi-samples.json",
+      "mustInclude": ["samples"]
+    },
+    {
+      "path": "dashboard/harness/snapshots/performance-baseline.json",
+      "json": true,
+      "jsonFields": ["schemas", "threshold"]
+    },
+    {
       "path": "workers/fantasy402-ingestion/openapi.worker.json",
       "json": true,
       "jsonFields": ["openapi", "components.schemas", "paths"]
-    }
-  ],
-  "optionalFiles": [
+    },
     {
       "path": "AGENTS.md",
-      "description": "Optional Cursor/Codex agent guide; create when documenting agent workflows"
+      "mustInclude": ["test:harness", "harness", "llms.txt"]
     }
   ],
+  "optionalFiles": [],
   "openApiNaming": {
     "pattern": "^[A-Z][A-Za-z0-9]*$",
     "forbiddenSubstrings": ["password", "secret", "tokenauth", "cf_clearance"],

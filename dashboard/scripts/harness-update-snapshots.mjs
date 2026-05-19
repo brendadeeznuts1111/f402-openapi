@@ -11,6 +11,10 @@ import {
   fingerprintSchemaMap,
 } from '../harness/zod-shape.js';
 import { writeSnapshot, snapshotsDir } from '../harness/snapshot-store.js';
+import {
+  worstBenchmarkSchemaParse,
+  writePerformanceBaseline,
+} from '../harness/performance-benchmark.js';
 import { readOpenApiWorkerSpec } from '../harness/verify.js';
 import {
   pendingWagersQuerySchema,
@@ -55,4 +59,36 @@ Do not hand-edit. Re-run the update script when Zod or OpenAPI shapes change int
   'utf8',
 );
 
+const perf = {
+  'dashboard.searchCustomersQuerySchema': worstBenchmarkSchemaParse(
+    dashboardSchemas.searchCustomersQuerySchema,
+    { q: 'GX195', limit: 25 },
+  ),
+  'dashboard.pendingWagersFiltersSchema': worstBenchmarkSchemaParse(
+    dashboardSchemas.pendingWagersFiltersSchema,
+    { date: '2026-05-17', customer_id: '0' },
+  ),
+  'dashboard.transactionsLiveFiltersSchema': worstBenchmarkSchemaParse(
+    dashboardSchemas.transactionsLiveFiltersSchema,
+    { type: 'player', start_date: '2026-05-01', end_date: '2026-05-17' },
+  ),
+  'dashboard.customerNavSchema': worstBenchmarkSchemaParse(dashboardSchemas.customerNavSchema, {
+    customerId: 'GX195',
+  }),
+  'worker.searchCustomersQuerySchema': worstBenchmarkSchemaParse(searchCustomersQuerySchema, {
+    q: 'GX195',
+    limit: '25',
+  }),
+  'worker.pendingWagersQuerySchema': worstBenchmarkSchemaParse(pendingWagersQuerySchema, {
+    date: '2026-05-17',
+    limit: '50',
+  }),
+};
+const perfOut = {};
+for (const [k, v] of Object.entries(perf)) {
+  perfOut[k] = { msPerOp: v.msPerOp, iterations: v.iterations };
+}
+writePerformanceBaseline(perfOut);
+
 console.log('Updated snapshots in', snapshotsDir);
+console.log('Updated performance baseline');

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Fantasy402 auth stack monitor every 15 minutes
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=15min
+Unit=fantasy402-monitor.service
+
+[Install]
+WantedBy=timers.target

@@ -4,26 +4,24 @@ import {
   authShape,
   isPlaceholderToken,
   parseBrowserCurl,
-  parseJson,
   readBrowserCurlInput,
   readTokenFile,
   refreshPayload,
   validateBrowserAuthPayload,
 } from "./browser-auth-utils.mjs";
+import { callWorkerJson, requireOperatorTokenUnlessProxy } from "./proxy-client-utils.mjs";
 
 const defaultOrigin = "https://fantasy402-ingestion.utahj4754.workers.dev";
 
 export async function runUnblockProductionIngestion(options = {}) {
   const inputPath = options.inputPath ?? process.env.FANTASY402_BROWSER_CURL_FILE ?? "fantasy402/browser-request.curl";
   const outputPath = options.outputPath ?? process.env.FANTASY402_BROWSER_AUTH_FILE ?? "fantasy402/browser-auth.json";
-  const workerOrigin = new URL(options.workerOrigin ?? process.env.WORKER_ORIGIN ?? defaultOrigin);
+  const workerOrigin = options.workerOrigin ?? process.env.WORKER_ORIGIN ?? defaultOrigin;
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const operatorToken = options.operatorToken ?? process.env.INGESTION_TRIGGER_TOKEN ?? process.env.ARCHIVE_AUTH_TOKEN ?? readTokenFile();
 
-  if (!operatorToken) {
-    throw new Error("Missing INGESTION_TRIGGER_TOKEN or ARCHIVE_AUTH_TOKEN. Set one as an environment variable or create .archive-auth-token.");
-  }
-  if (isPlaceholderToken(operatorToken)) {
+  requireOperatorTokenUnlessProxy(operatorToken, workerOrigin);
+  if (operatorToken && isPlaceholderToken(operatorToken)) {
     throw new Error("INGESTION_TRIGGER_TOKEN/ARCHIVE_AUTH_TOKEN looks like a placeholder. Use the real operator bearer token or omit the env var so .archive-auth-token can be used.");
   }
 
@@ -64,7 +62,7 @@ export async function runUnblockProductionIngestion(options = {}) {
 
   const summary = {
     status: trigger.httpStatus === 202 && trigger.body?.status === "success" ? "ok" : "trigger-failed",
-    workerOrigin: workerOrigin.origin,
+    workerOrigin: String(workerOrigin).replace(/\/$/, ""),
     importedAuth: {
       input: inputPath,
       output: options.writeAuthFile === false ? null : outputPath,
@@ -96,29 +94,6 @@ export function assertDiagnosticsReady(body) {
     const blocker = readiness?.blocker ?? "unknown upstream auth blocker";
     throw new Error(`Worker diagnostics are not ingestion-ready: status=${JSON.stringify(status)}, upstream=${JSON.stringify(readiness?.status)}, blocker=${blocker}`);
   }
-}
-
-async function callWorkerJson(fetchImpl, workerOrigin, operatorToken, path, options) {
-  const headers = {
-    Authorization: `Bearer ${operatorToken}`,
-    Accept: "application/json",
-  };
-  const init = {
-    method: options.method,
-    headers,
-    signal: AbortSignal.timeout(120_000),
-  };
-  if (options.body) {
-    headers["Content-Type"] = "application/json";
-    init.body = JSON.stringify(options.body);
-  }
-  const response = await fetchImpl(new URL(path, workerOrigin), init);
-  const text = await response.text();
-  const body = parseJson(text);
-  if (!options.expectedStatuses.includes(response.status)) {
-    throw new Error(`${path} returned HTTP ${response.status}: ${String(body?.message || body?.error || text).slice(0, 240)}`);
-  }
-  return { httpStatus: response.status, body };
 }
 
 function sanitizeTrigger(result) {

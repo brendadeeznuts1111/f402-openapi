@@ -1,0 +1,23 @@
+.ds-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--tertiary-text);
+}
+
+.ds-breadcrumb__item {
+  color: var(--tertiary-text);
+  cursor: default;
+}
+
+.ds-breadcrumb__separator {
+  color: var(--border-ds);
+  user-select: none;
+}
+
+.ds-breadcrumb__item--active {
+  color: var(--primary-text);
+}

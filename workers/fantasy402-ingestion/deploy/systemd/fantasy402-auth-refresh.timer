@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Fantasy402 browser auth every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=fantasy402-auth-refresh.service
+
+[Install]
+WantedBy=timers.target

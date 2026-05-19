@@ -13,12 +13,17 @@ const expectedOperations = [
   ["GET", "/archive/object"],
   ["GET", "/archive/viewer"],
   ["GET", "/diagnostics"],
+  ["GET", "/endpoints"],
+  ["GET", "/endpoint-status"],
   ["GET", "/health"],
+  ["GET", "/auth/health"],
   ["POST", "/ingest/local"],
   ["POST", "/refresh-auth"],
   ["GET", "/runs"],
   ["GET", "/runs/endpoints"],
   ["GET", "/scanner/diagnostics"],
+  ["POST", "/update-cookies"],
+  ["GET", "/upstream-cookies-status"],
   ["GET", "/scans"],
   ["GET", "/scans/detail"],
   ["GET", "/scans/export"],
@@ -31,7 +36,7 @@ const expectedOperations = [
   ["POST", "/trigger"],
   ["POST", "/trigger-scan"],
 ];
-const publicOperations = new Set(["GET /archive/viewer", "GET /health"]);
+const publicOperations = new Set(["GET /archive/viewer", "GET /health", "GET /auth/health"]);
 const expectedOperationKeys = new Set(expectedOperations.map(([method, path]) => `${method} ${path}`));
 
 if (spec.openapi !== "3.1.0") findings.push("openapi must be 3.1.0");

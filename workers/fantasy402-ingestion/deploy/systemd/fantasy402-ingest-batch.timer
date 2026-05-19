@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Fantasy402 local ingest batch every 5 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Unit=fantasy402-ingest-batch.service
+
+[Install]
+WantedBy=timers.target

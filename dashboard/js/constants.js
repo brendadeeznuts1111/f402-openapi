@@ -4,6 +4,52 @@
 // ESM exports (loaded via <script type="module"> import).
 // Backward-compat globals set on window for the existing inline <script>.
 
+/** Semantic colors for Chart.js and inline charts (matches :root tokens). */
+/** Worker routes reachable without bearer token via Pages proxy (see dashboard/_worker.js). */
+export const PUBLIC_API_PATHS = ['/health', '/live-wagers'];
+
+const CHART_COLOR_FALLBACKS = {
+  success: '#00FF88',
+  warning: '#FFD700',
+  info: '#00BFFF',
+  accent: '#FF6B35',
+  purple: '#DA70D6',
+};
+
+/** Static fallbacks (SSR / tests). Prefer getChartColors() at render time. */
+export const CHART_COLORS = { ...CHART_COLOR_FALLBACKS };
+
+function readCssToken(name, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+/** Read chart dataset colors from CSS tokens (theme-aware). */
+export function getChartColors() {
+  return {
+    success: readCssToken('--success', CHART_COLOR_FALLBACKS.success),
+    warning: readCssToken('--warning', CHART_COLOR_FALLBACKS.warning),
+    info: readCssToken('--info', CHART_COLOR_FALLBACKS.info),
+    accent: readCssToken('--accent', CHART_COLOR_FALLBACKS.accent),
+    purple: readCssToken('--purple', CHART_COLOR_FALLBACKS.purple),
+  };
+}
+
+/** Wager type distribution: Straight, Parlay, Moneyline, Live */
+export function getWagerTypeChartColors() {
+  const c = getChartColors();
+  return [c.success, c.warning, c.info, c.purple];
+}
+
+/** @deprecated use getWagerTypeChartColors() */
+export const WAGER_TYPE_CHART_COLORS = [
+  CHART_COLORS.success,
+  CHART_COLORS.warning,
+  CHART_COLORS.info,
+  CHART_COLORS.purple,
+];
+
 export const ZONE_COLORS = {
   worker:    { bg: '#1E3A5F', fg: '#FFFFFF', ansi: '48;5;17;38;5;255' },
   ingestion: { bg: '#2D1B0E', fg: '#FF6B35', ansi: '48;5;52;38;5;208' },
@@ -17,7 +63,10 @@ export const ZONE_COLORS = {
 };
 
 export const ENDPOINT_ZONE_MAP = {
+  '/upstream':           'upstream',
   '/ingest':             'ingestion',
+  '/chart-aggregates':   'query',
+  '/upstream-endpoints': 'upstream',
   '/bet-ticker':         'query',
   '/performance':        'query',
   '/graded':             'query',
@@ -27,7 +76,9 @@ export const ENDPOINT_ZONE_MAP = {
   '/summary':            'query',
   '/alert-rules':        'auth',
   '/alert-log':          'auth',
+  '/alerts':             'auth',
   '/health':             'auth',
+  '/auth/health':        'auth',
   '/diagnostics':        'auth',
   '/runs':               'auth',
   '/endpoints':          'auth',
@@ -38,10 +89,17 @@ export const ENDPOINT_ZONE_MAP = {
   '/live-wagers':        'do',
   '/broadcast':          'do',
   '/players':            'query',
+  '/customer-activity':         'query',
+  '/customer-activity-search':  'query',
+  '/search-customers':   'query',
+  '/customer-profile':   'query',
+  '/weekly-figures':     'query',
 };
 
 export const REFRESH_INTERVALS = {
   '/live-wagers':        'realtime',
+  '/chart-aggregates':    15000,
+  '/upstream-endpoints':  60000,
   '/bet-ticker-wagers':   5000,
   '/graded-wagers':      10000,
   '/summary':            15000,
@@ -51,12 +109,21 @@ export const REFRESH_INTERVALS = {
   '/authorizations':     30000,
   '/position-data':      30000,
   '/players':            30000,
+  '/search-customers':   30000,
+  '/customer-profile':   30000,
+  '/weekly-figures':     30000,
   '/health':             30000,
+  '/auth/health':        30000,
   '/diagnostics':        60000,
   '/runs':               30000,
   '/scans':              30000,
   '/endpoints':          60000,
   '/endpoint-status':    30000,
+  '/alerts':             30000,
+  '/alerts/summary':     30000,
+  '/alert-rules':        30000,
+  '/customer-activity':         30000,
+  '/customer-activity-search':  30000,
 };
 
 export function getZoneColor(endpoint) {

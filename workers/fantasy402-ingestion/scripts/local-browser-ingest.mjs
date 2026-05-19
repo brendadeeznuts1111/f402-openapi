@@ -1,5 +1,11 @@
 import fs from "node:fs";
 import { jwtExpiryDiagnostics } from "./browser-auth-utils.mjs";
+import {
+  extractPlayerCustomerId,
+  findGetPlayersSpec,
+  planNeedsCustomerIdResolution,
+} from "./customer-id-utils.mjs";
+import { isLocalIngestProxyUrl, requireOperatorTokenUnlessProxy, workerAuthorizationHeaders } from "./proxy-client-utils.mjs";
 
 const EXPECTED_BROWSER_HEADER_NAMES = [
   "accept",
@@ -42,6 +48,10 @@ const endpoints = {
   getPlayers: { path: "/cloud/api/Manager/getPlayers", operation: "getPlayers", contentType: "form" },
   getAddedInfo: { path: "/cloud/api/Manager/getAddedInfo", operation: "getAddedInfo", contentType: "form" },
   getListAgenstByAgent: { path: "/cloud/api/Manager/getListAgenstByAgent", operation: "getListAgenstByAgent", contentType: "form", agentType: "M", omitDateRange: true },
+  getInfoPlayer: { path: "/cloud/api/Manager/getInfoPlayer", operation: "getInfoPlayer", contentType: "form", omitDateRange: true, requiresCustomerId: true },
+  getCryptoInfo: { path: "/cloud/api/Manager/getCryptoInfo", operation: "getCryptoInfo", contentType: "form", omitDateRange: true, requiresCustomerId: true },
+  getMail: { path: "/cloud/api/Manager/getMail", operation: "getMail", contentType: "form", omitDateRange: true, requiresCustomerId: true },
+  getTeaserProfile: { path: "/cloud/api/Manager/getTeaserProfile", operation: "getTeaserProfile", contentType: "form", omitDateRange: true, requiresCustomerId: true },
   getLineTypes: { path: "/cloud/api/Manager/getLineTypes", operation: "getLineTypes", contentType: "form" },
   getHeriarchy: { path: "/cloud/api/Manager/getHeriarchy", operation: "getHeriarchy", contentType: "form" },
   getPending: { path: "/cloud/api/Manager/getPending", operation: "getPending", contentType: "json", requiresCustomerId: true },
@@ -60,18 +70,27 @@ const endpoints = {
   getWagersByFigureDate: { path: "/cloud/api/Report/getWagersByFigureDate", operation: "getWagersByFigureDate", contentType: "form", omitDateRange: true },
   getWagerDetailTransaction: { path: "/cloud/api/Report/getWagerDetailTransaction", operation: "getWagerDetailTransaction", contentType: "form", omitDateRange: true },
   getPendingByTicket: { path: "/cloud/api/Report/getPendingByTicket", operation: "getPendingByTicket", contentType: "form", omitDateRange: true },
+  reportGetDailyFiguresByCustomer: { path: "/cloud/api/Report/getDailyFiguresByCustomer", operation: "getDailyFiguresByCustomer", contentType: "form" },
+  reportGetGrading: { path: "/cloud/api/Report/getGrading", operation: "getGrading", contentType: "form" },
+  reportGetLeaderBoard: { path: "/cloud/api/Report/getLeaderBoard", operation: "getLeaderBoard", contentType: "form" },
+  reportGetScoresLiveDynamic: { path: "/cloud/api/Report/getScoresLiveDynamic", operation: "getScoresLiveDynamic", contentType: "json", omitDateRange: true },
+  reportGetTicketDetailPrint: { path: "/cloud/api/Report/getTicketDetailPrint", operation: "getTicketDetailPrint", contentType: "form" },
+  reportGetTransactions: { path: "/cloud/api/Report/getTransactions", operation: "getTransactions", contentType: "form" },
 };
 const endpointsByPath = new Map(Object.entries(endpoints).map(([key, endpoint]) => [endpoint.path, key]));
 
-if (!operatorToken) {
-  fail("Missing INGESTION_TRIGGER_TOKEN or ARCHIVE_AUTH_TOKEN. Set one as an environment variable or create .archive-auth-token.");
+try {
+  requireOperatorTokenUnlessProxy(operatorToken, workerOrigin.href);
+} catch (error) {
+  fail(error.message);
 }
-if (isPlaceholderToken(operatorToken)) {
+if (operatorToken && isPlaceholderToken(operatorToken) && !isLocalIngestProxyUrl(workerOrigin.href)) {
   fail("INGESTION_TRIGGER_TOKEN/ARCHIVE_AUTH_TOKEN looks like a placeholder. Use the real operator bearer token or omit the env var so .archive-auth-token can be used.");
 }
 
 const authPayload = readAuthPayload(authFile);
 validateBrowserAuthPayload(authPayload, authFile);
+const planSpecs = readPlanSpecs();
 const authorizationExpiry = jwtExpiryDiagnostics(authPayload.authorization);
 const browserHeaderShape = browserHeaderPresence(normalizeBrowserHeaders(authPayload.browserHeadersJson ?? authPayload.browserHeaders), authPayload);
 const agentId = process.env.FANTASY402_AGENT_ID || authPayload.agentId || authPayload.customerId || "";
@@ -80,23 +99,34 @@ if (!agentId) fail("Missing agent id. Set FANTASY402_AGENT_ID or add agentId to 
 
 const startedAt = new Date();
 
-const refresh = await callWorkerJson("/refresh-auth", {
-  method: "POST",
-  body: refreshPayload(authPayload),
-  expectedStatuses: [200],
-});
+const skipRefreshAuth = process.env.SKIP_REFRESH_AUTH === "1" || process.env.SKIP_REFRESH_AUTH === "true";
+let refresh = { httpStatus: 200, body: { accepted: [], skipped: true } };
+if (!skipRefreshAuth) {
+  refresh = await callWorkerJson("/refresh-auth", {
+    method: "POST",
+    body: refreshPayload(authPayload),
+    expectedStatuses: [200],
+  });
+}
 
 const fetched = [];
-for (const key of endpointKeys) {
-  const endpoint = endpoints[key];
-  if (!endpoint) fail(`Unknown local ingestion endpoint: ${key}`);
-  if (endpoint.requiresCustomerId && !customerId) fail(`${key} requires FANTASY402_CUSTOMER_ID or customerId in ${authFile}`);
-  fetched.push(await fetchFantasy402Endpoint(key, endpoint));
+if (planSpecs?.length) {
+  const resolvedSpecs = await resolvePlanSpecs(planSpecs);
+  for (const spec of resolvedSpecs) {
+    fetched.push(await fetchFantasy402Spec(spec));
+  }
+} else {
+  for (const key of endpointKeys) {
+    const endpoint = endpoints[key];
+    if (!endpoint) fail(`Unknown local ingestion endpoint: ${key}`);
+    if (endpoint.requiresCustomerId && !customerId) fail(`${key} requires FANTASY402_CUSTOMER_ID or customerId in ${authFile}`);
+    fetched.push(await fetchFantasy402Endpoint(key, endpoint));
+  }
 }
 
 const upload = await callWorkerJson("/ingest/local", {
   method: "POST",
-  body: { capturedAt: startedAt.toISOString(), results: fetched },
+  body: { capturedAt: startedAt.toISOString(), results: fetched, advanceCursor: true },
   expectedStatuses: [202, 500],
 });
 
@@ -132,6 +162,36 @@ const summary = {
 
 console.log(JSON.stringify(summary, null, 2));
 if (summary.status !== "ok") process.exitCode = 1;
+
+async function fetchFantasy402Spec(spec) {
+  const now = new Date();
+  const contentType = spec.contentType || "application/x-www-form-urlencoded; charset=UTF-8";
+  let body;
+  if (contentType.includes("json")) {
+    body = JSON.stringify(spec.body ?? {});
+  } else {
+    const form = new URLSearchParams();
+    for (const [key, value] of Object.entries(spec.body ?? {})) form.set(key, String(value));
+    body = form;
+  }
+  const response = await fetch(new URL(spec.path, fantasyOrigin), {
+    method: spec.method || "POST",
+    body,
+    headers: upstreamHeaders(contentType),
+    signal: AbortSignal.timeout(60_000),
+  });
+  const text = await response.text();
+  const data = parseJson(text);
+  if (!response.ok) {
+    fail(`${spec.key} returned HTTP ${response.status}. ${diagnosticHint(spec.key, response.status, text)}`);
+  }
+  return {
+    endpointKey: spec.key,
+    httpStatus: response.status,
+    capturedAt: now.toISOString(),
+    data,
+  };
+}
 
 async function fetchFantasy402Endpoint(endpointKey, endpoint) {
   const now = new Date();
@@ -326,7 +386,7 @@ function refreshPayload(payload) {
 
 async function callWorkerJson(path, options) {
   const headers = {
-    Authorization: `Bearer ${operatorToken}`,
+    ...workerAuthorizationHeaders(operatorToken, workerOrigin.href),
     Accept: "application/json",
   };
   const init = {
@@ -518,6 +578,52 @@ function readTokenFile() {
 function isPlaceholderToken(value) {
   const trimmed = String(value).trim();
   return trimmed === "..." || /^<.+>$/.test(trimmed) || /redacted|placeholder|changeme/i.test(trimmed);
+}
+
+function readPlanSpecs() {
+  const raw = process.env.FANTASY402_LOCAL_PLAN_JSON;
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    const specs = parsed.endpoints ?? parsed;
+    return Array.isArray(specs) && specs.length ? specs : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolvePlanSpecs(specs) {
+  if (!planNeedsCustomerIdResolution(specs)) return specs;
+
+  let getPlayersSpec = findGetPlayersSpec(specs);
+  if (!getPlayersSpec) {
+    const planRes = await callWorkerJson("/ingest/local/plan", { expectedStatuses: [200] });
+    const planSpecs = planRes.body?.endpoints ?? [];
+    getPlayersSpec = findGetPlayersSpec(planSpecs);
+    if (getPlayersSpec) specs = planSpecs;
+  }
+  if (!getPlayersSpec) {
+    fail("Plan missing getPlayers spec for customer ID resolution");
+  }
+
+  const gpResult = await fetchFantasy402Spec(getPlayersSpec);
+  const customerId = extractPlayerCustomerId(gpResult.data);
+  if (!customerId) {
+    fail("getPlayers returned no player customerID — cannot resolve customer-scoped endpoints");
+  }
+
+  await callWorkerJson("/ingest/local", {
+    method: "POST",
+    body: { results: [gpResult], advanceCursor: false },
+    expectedStatuses: [202, 500],
+  });
+
+  const planRes = await callWorkerJson("/ingest/local/plan", { expectedStatuses: [200] });
+  const refreshed = planRes.body?.endpoints ?? [];
+  if (planNeedsCustomerIdResolution(refreshed)) {
+    fail("Customer ID still unresolved after getPlayers prefetch");
+  }
+  return refreshed.length ? refreshed : specs.filter((spec) => !spec.requiresCustomerIdResolution);
 }
 
 function fail(message) {

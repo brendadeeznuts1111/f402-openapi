@@ -1119,7 +1119,7 @@ test("ingestion uses browser bearer plus Cloudflare cookies when app session coo
   }
 });
 
-test("failure archive records upstream cookie shape without cookie values", async () => {
+test("403 responses are skipped without failure archives", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -1148,22 +1148,17 @@ test("failure archive records upstream cookie shape without cookie values", asyn
         FANTASY402_INGESTION_ENDPOINTS: "getAgentPerformance",
       }),
     );
-    assert.equal(response.status, 500);
+    assert.equal(response.status, 202);
+    const body = await response.json() as {
+      status: string;
+      endpointsSkipped: number;
+      endpointsFailed: number;
+    };
+    assert.equal(body.status, "success");
+    assert.equal(body.endpointsSkipped, 1);
+    assert.equal(body.endpointsFailed, 0);
     const listed = await bucket.list({ prefix: "fantasy402/getAgentPerformance/failures", limit: 1 });
-    assert.equal(listed.objects.length, 1);
-    const failureObject = listed.objects[0];
-    assert.ok(failureObject);
-    const archived = JSON.parse(await failureObject.text());
-    assert.equal(archived.upstream.status, 403);
-    assert.equal(archived.upstream.request.hasCookie, true);
-    assert.equal(archived.upstream.request.hasSessionCookie, true);
-    assert.equal(archived.upstream.request.hasCfClearance, true);
-    assert.equal(archived.upstream.request.hasCfBm, true);
-    assert.deepEqual(archived.upstream.request.cookieNames, ["app_session", "cf_clearance", "__cf_bm"]);
-    assert.equal(archived.upstream.request.browserHeaders.complete, true);
-    assert.ok(archived.upstream.request.browserHeaders.present.includes("sec-ch-ua"));
-    assert.ok(archived.upstream.request.browserHeaders.present.includes("x-requested-with"));
-    assert.doesNotMatch(JSON.stringify(archived), /session-from-secret|clearance-token|bm-token|browser-token/);
+    assert.equal(listed.objects.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1247,6 +1242,118 @@ test("refresh-auth rejects expired bearer before poisoning AUTH_CACHE", async ()
   assert.equal(await authKv.get("fantasy402:auth-overlay"), null);
 });
 
+test("refresh-auth with empty JSON body renews cached upstream token", async () => {
+  const originalFetch = globalThis.fetch;
+  const authKv = new MemoryKVNamespace();
+  await authKv.put(
+    "fantasy402:auth-overlay",
+    JSON.stringify({
+      authorization: "Bearer cached-token",
+      sessionCookie: "app_session=cached",
+      expiresAt: Date.now() + 3_600_000,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
+
+  globalThis.fetch = async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith("/cloud/api/System/renewToken")) {
+      return Response.json(
+        { tokenauth: "Bearer renewed-token" },
+        {
+          headers: {
+            "Set-Cookie": "app_session=renewed-session; Path=/",
+          },
+        },
+      );
+    }
+    return Response.json({});
+  };
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://worker.test/refresh-auth", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }),
+      env(new MemoryR2Bucket(), new MemoryD1Database(), {
+        AUTH_CACHE: authKv,
+        FANTASY402_SESSION_COOKIE: "app_session=cached",
+        FANTASY402_CF_CLEARANCE: "cf-clearance",
+        FANTASY402_CF_BM: "cf-bm",
+      }),
+    );
+    assert.equal(response.status, 200);
+    const body = await response.json() as { status: string; mode: string; accepted: string[] };
+    assert.equal(body.status, "ok");
+    assert.equal(body.mode, "renew");
+    assert.ok(body.accepted.includes("authorization"));
+    const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
+    assert.equal(stored.authorization, "Bearer renewed-token");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("auth-health is public and returns sanitized readiness", async () => {
+  const authKv = new MemoryKVNamespace();
+  await authKv.put(
+    "fantasy402:auth-overlay",
+    JSON.stringify({
+      authorization: `Bearer ${fakeJwt(Math.floor(Date.now() / 1000) + 3600)}`,
+      cfClearance: "cf_clearance=clearance-token",
+      cfBm: "__cf_bm=bm-token",
+      updatedAt: new Date().toISOString(),
+      expiresAt: Date.now() + 3_600_000,
+    }),
+  );
+  const response = await worker.fetch(
+    new Request("https://worker.test/auth/health"),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), {
+      AUTH_CACHE: authKv,
+      FANTASY402_CF_CLEARANCE: "clearance-token",
+      FANTASY402_CF_BM: "bm-token",
+      FANTASY402_AUTHORIZATION: fakeJwt(Math.floor(Date.now() / 1000) + 3600),
+    }),
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json() as {
+    status: string;
+    ingestionReadiness: { status: string; blocker: string | null };
+    authorizationExpiry: { status: string; ttlSeconds: number | null };
+    hasCfClearance: boolean;
+    hasCfBm: boolean;
+    authCacheOverlay: { active: boolean; updatedAt: string | null };
+  };
+  assert.equal(body.status, "ready");
+  assert.equal(body.ingestionReadiness.status, "ready");
+  assert.equal(body.ingestionReadiness.blocker, null);
+  assert.equal(body.hasCfClearance, true);
+  assert.equal(body.hasCfBm, true);
+  assert.equal(body.authCacheOverlay.active, true);
+  assert.ok(body.authCacheOverlay.updatedAt);
+  assert.doesNotMatch(JSON.stringify(body), /clearance-token|signature/);
+});
+
+test("auth-health returns 503 when bearer is expired", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/auth/health"),
+    env(new MemoryR2Bucket(), new MemoryD1Database(), {
+      FANTASY402_CF_CLEARANCE: "clearance-token",
+      FANTASY402_CF_BM: "bm-token",
+      FANTASY402_AUTHORIZATION: fakeJwt(Math.floor(Date.now() / 1000) - 60),
+    }),
+  );
+  assert.equal(response.status, 503);
+  const body = await response.json() as { status: string; ingestionReadiness: { status: string } };
+  assert.equal(body.status, "degraded");
+  assert.equal(body.ingestionReadiness.status, "blocked");
+});
+
 test("refresh-auth accepts bearer plus Cloudflare cookies without sessionCookie", async () => {
   const authKv = new MemoryKVNamespace();
   const response = await worker.fetch(
@@ -1271,6 +1378,88 @@ test("refresh-auth accepts bearer plus Cloudflare cookies without sessionCookie"
   const stored = await authKv.get("fantasy402:auth-overlay") as Record<string, unknown>;
   assert.equal(stored.authorization, "Bearer refreshed-token");
   assert.equal(stored.sessionCookie, undefined);
+});
+
+test("refresh-auth persists Cloudflare cookies to D1", async () => {
+  const authKv = new MemoryKVNamespace();
+  const db = new MemoryD1Database();
+  const response = await worker.fetch(
+    new Request("https://worker.test/refresh-auth", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        authorization: "Bearer refreshed-token",
+        cfClearance: "clearance-token",
+        cfBm: "bm-token",
+      }),
+    }),
+    env(new MemoryR2Bucket(), db, { AUTH_CACHE: authKv }),
+  );
+  assert.equal(response.status, 200);
+  const cookieUpserts = db.statements.filter((entry) => entry.sql.includes("INSERT INTO cookies"));
+  assert.equal(cookieUpserts.length, 2);
+  assert.deepEqual(
+    cookieUpserts.map((entry) => entry.bindings),
+    [["cf_clearance", "clearance-token"], ["__cf_bm", "bm-token"]],
+  );
+});
+
+test("ingestion prefers auth overlay Cloudflare cookies over stale D1 cookie cache", async () => {
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; cookie: string | null }> = [];
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push({
+      url: String(input),
+      cookie: headers.get("Cookie"),
+    });
+    if (String(input).endsWith("/cloud/api/Manager/getAgentPerformance")) {
+      return Response.json({ performance: [] });
+    }
+    return Response.json({ status: "failed" }, { status: 404 });
+  };
+
+  class CookieD1Database extends MemoryD1Database {
+    prepare(sql = "") {
+      if (sql.includes("FROM cookies")) {
+        return {
+          bind: () => ({
+            all: async () => ({
+              results: [
+                { name: "cf_clearance", value: "stale-clearance", updated_at: "2026-01-01 00:00:00" },
+                { name: "__cf_bm", value: "stale-bm", updated_at: "2026-01-01 00:00:00" },
+              ],
+            }),
+            run: async () => ({ success: true }),
+          }),
+        };
+      }
+      return super.prepare(sql);
+    }
+  }
+
+  try {
+    const response = await worker.fetch(
+      new Request("https://worker.test/trigger", {
+        method: "POST",
+        headers: { Authorization: "Bearer test-token" },
+      }),
+      env(new MemoryR2Bucket(), new CookieD1Database(), {
+        FANTASY402_CF_CLEARANCE: "fresh-clearance",
+        FANTASY402_CF_BM: "fresh-bm",
+        FANTASY402_AUTHORIZATION: "Bearer browser-token",
+        FANTASY402_INGESTION_ENDPOINTS: "getAgentPerformance",
+      }),
+    );
+    assert.equal(response.status, 202);
+    const apiRequest = seen.find((request) => request.url.endsWith("/cloud/api/Manager/getAgentPerformance"));
+    assert.equal(apiRequest?.cookie, "cf_clearance=fresh-clearance; __cf_bm=fresh-bm");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("refresh-auth extracts auth fields from full Cookie header aliases", async () => {

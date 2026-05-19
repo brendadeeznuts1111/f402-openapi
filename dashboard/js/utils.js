@@ -45,6 +45,11 @@ export const DateFormatter = {
 
 // ── NumberFormatter ──
 export const NumberFormatter = {
+  integer(n) {
+    if (n == null) return "-";
+    return Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  },
+
   currency(n, currency = "USD") {
     if (n == null) return "-";
     const abs = Math.abs(n);
@@ -122,6 +127,30 @@ export const Exporter = {
       return value;
     };
     const blob = new Blob([JSON.stringify(data, replacer, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  async jsonStream(data, filename = "export.json") {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode("[\n"));
+        let first = true;
+        for (const item of data) {
+          if (!first) controller.enqueue(encoder.encode(",\n"));
+          controller.enqueue(encoder.encode(JSON.stringify(item, null, 2)));
+          first = false;
+        }
+        controller.enqueue(encoder.encode("\n]"));
+        controller.close();
+      },
+    });
+    const blob = await new Response(stream).blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -233,6 +262,9 @@ export const ModalFactory = {
   _lastFocus: null,
   _focusableSelector:
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+  _mutationObserver: null,
+  _focusableList: [],
+  _hiddenElements: [],
 
   create(id, options = {}) {
     const { title = "", body = "", onClose, buttons = [] } = options;
@@ -253,7 +285,7 @@ export const ModalFactory = {
 
     modal.innerHTML = `
       <div class="ds-modal__backdrop" data-modal-close></div>
-      <div class="ds-modal__content">
+      <div class="ds-modal__content" id="${id}-content">
         <div class="ds-modal__header">
           <span class="ds-modal__title" id="${id}-title">${title}</span>
           <button class="ds-modal__close" data-modal-close aria-label="Close">&times;</button>
@@ -277,7 +309,7 @@ export const ModalFactory = {
     // Escape to close
     modal._keydown = (e) => {
       if (e.key === "Escape") this.close(id);
-      if (e.key === "Tab") this._trapFocus(e, modal);
+      if (e.key === "Tab") this._trapFocus(e);
     };
 
     document.body.appendChild(modal);
@@ -293,10 +325,21 @@ export const ModalFactory = {
     document.addEventListener("keydown", modal._keydown);
     this._activeModal = modal;
 
+    // Hide background content from screen readers
+    document.querySelectorAll("body > *").forEach((el) => {
+      if (el !== modal && !el.classList.contains("ds-toast") && el.tagName !== "SCRIPT") {
+        el.setAttribute("aria-hidden", "true");
+        this._hiddenElements.push(el);
+      }
+    });
+
+    // Initialize focusable list with MutationObserver for dynamic content
+    this._refreshFocusableList();
+    this._startMutationObserver();
+
     // Focus first focusable element, or modal container as fallback
-    const focusable = modal.querySelectorAll(this._focusableSelector);
-    if (focusable.length) {
-      focusable[0].focus();
+    if (this._focusableList.length) {
+      this._focusableList[0].focus();
     } else {
       modal.setAttribute("tabindex", "-1");
       modal.focus();
@@ -309,28 +352,60 @@ export const ModalFactory = {
     modal.classList.remove("ds-modal--open");
     document.body.classList.remove("ds-modal-open");
     document.removeEventListener("keydown", modal._keydown);
+    this._stopMutationObserver();
+    this._focusableList = [];
     // Clean up fallback tabindex if we added it
     if (modal.hasAttribute("tabindex") && modal.getAttribute("tabindex") === "-1") {
       modal.removeAttribute("tabindex");
     }
+    // Restore background content for screen readers
+    this._hiddenElements.forEach((el) => el.removeAttribute("aria-hidden"));
+    this._hiddenElements = [];
     this._activeModal = null;
     if (this._lastFocus) this._lastFocus.focus();
   },
 
-  _trapFocus(e, modal) {
-    // Re-query DOM on every Tab keypress to handle dynamically injected content
-    // (e.g., modal body that loads async data after open).
-    // Alternative: MutationObserver would fire on every DOM change; re-querying
-    // on Tab is cheaper since we only need focusable elements when the user tabs.
-    const focusable = Array.from(modal.querySelectorAll(this._focusableSelector));
-    if (!focusable.length) {
-      // No focusable children — keep focus on modal container
+  _refreshFocusableList() {
+    if (!this._activeModal) return;
+    this._focusableList = Array.from(
+      this._activeModal.querySelectorAll(this._focusableSelector)
+    );
+  },
+
+  _startMutationObserver() {
+    if (this._mutationObserver) return;
+    this._mutationObserver = new MutationObserver(() => {
+      this._refreshFocusableList();
+      if (this._activeModal && !this._activeModal.contains(document.activeElement)) {
+        if (this._focusableList.length) this._focusableList[0].focus();
+        else this._activeModal.focus();
+      }
+    });
+    if (this._activeModal) {
+      this._mutationObserver.observe(this._activeModal, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["tabindex", "disabled", "hidden"],
+      });
+    }
+  },
+
+  _stopMutationObserver() {
+    if (this._mutationObserver) {
+      this._mutationObserver.disconnect();
+      this._mutationObserver = null;
+    }
+  },
+
+  _trapFocus(e) {
+    if (!this._focusableList.length) {
       e.preventDefault();
-      modal.focus();
+      this._activeModal?.focus();
       return;
     }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
+    const first = this._focusableList[0];
+    const last = this._focusableList[this._focusableList.length - 1];
     if (e.shiftKey && document.activeElement === first) {
       e.preventDefault();
       last.focus();
@@ -346,6 +421,30 @@ export const ModalFactory = {
     if (modal) modal.remove();
   },
 };
+
+/** Bucket wagers by hour for charts (unified datetime keys: YYYY-MM-DDTHH:00). */
+export function bucketWagersByHour(wagers, { value = 'count' } = {}) {
+  const buckets = {};
+  for (const w of wagers) {
+    if (!w.captured_at) continue;
+    const hour = w.captured_at.slice(0, 13) + ':00';
+    const add = value === 'volume' ? (w.amount_wagered || 0) : 1;
+    buckets[hour] = (buckets[hour] || 0) + add;
+  }
+  const labels = Object.keys(buckets).sort();
+  return { labels, values: labels.map((l) => buckets[l]) };
+}
+
+/** Map settings chartType to Chart.js type + fill (area → line + fill). */
+export function resolveVolumeChartType(chartTypeSetting) {
+  if (chartTypeSetting === 'area' || chartTypeSetting === 'line') {
+    return { type: 'line', fill: chartTypeSetting === 'area' };
+  }
+  if (chartTypeSetting === 'bar') {
+    return { type: 'bar', fill: false };
+  }
+  return { type: 'line', fill: true };
+}
 
 // Backward-compat globals for the existing inline <script> in index.html
 // Remove once index.html migrates to <script type="module">

@@ -1,6 +1,31 @@
 import { diagnoseUrlScanner, submitAndWait, UrlScannerApiError } from "./url-scanner";
+import { UPSTREAM_MANIFEST } from "./upstream-manifest";
+import {
+  INGESTION_ALL,
+  INGESTION_CURSOR_KEY,
+  ingestionBatchSize,
+  planIngestionBatch,
+  resolveIngestionEndpointKeys,
+} from "./ingestion-config";
+import {
+  classifyIngestionOutcome,
+  deriveRunStatus,
+  formatRunMeta,
+  parseRunMeta,
+  skipNoteForRun,
+} from "./ingestion-outcome";
+import {
+  GET_PLAYERS_CUSTOMER_ID_SOURCE,
+  cachePlayerCustomerId,
+  canDeriveCustomerId,
+  customerIdSourceForKey,
+  extractPlayerCustomerId,
+  readCachedPlayerCustomerId,
+} from "./customer-id";
+import { ingestPlaneSummary, workerTriggerMode } from "./ingest-plane";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
-import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema } from "./schemas";
+import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
+import { ingestCustomerProfileSnapshot, loadCustomerProfile } from "./customer-profile";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
 
 export interface Env {
@@ -15,6 +40,9 @@ export interface Env {
   CLOUDFLARE_API_TOKEN: string;
   FANTASY402_BASE_URL: string;
   FANTASY402_INGESTION_ENDPOINTS: string;
+  /** attempt | skip — skip disables 15-min cron Worker /trigger for browser-plane catalog */
+  FANTASY402_WORKER_TRIGGER_MODE?: string;
+  FANTASY402_INGESTION_BATCH_SIZE?: string;
   FANTASY402_USERNAME: string;
   FANTASY402_PASSWORD: string;
   FANTASY402_SESSION_COOKIE?: string;
@@ -28,6 +56,7 @@ export interface Env {
   FANTASY402_CUSTOMER_ID?: string;
   LIVE_WAGER_BROADCASTER: DurableObjectNamespace;
   FANTASY402_ALLOWED_SCAN_HOSTS?: string;
+  FANTASY402_DASHBOARD_URL?: string;
   UPSTREAM_TOKEN?: string;
   INGESTION_TRIGGER_TOKEN?: string;
   ARCHIVE_AUTH_TOKEN?: string;
@@ -41,7 +70,8 @@ interface SecretsStoreBinding {
 type EndpointKey =
   | "getAccountInfoOwner" | "getAuthorizations" | "getAgentPerformance" | "getAgentBilling"
   | "getEnterTransactions" | "getPending" | "Pending" | "getPlayers" | "getAddedInfo"
-  | "getCommunicationMessages" | "getListAgenstByAgent" | "getLineTypes" | "getHeriarchy"
+  | "getCommunicationMessages" | "getListAgenstByAgent" | "getInfoPlayer" | "getCryptoInfo" | "getMail" | "getTeaserProfile"
+  | "getLineTypes" | "getHeriarchy"
   | "getConfigWebReports" | "getConfigWebReportsPending" | "getSportsType" | "getMessage"
   | "getNewEmailsCount" | "getWeeklyFigureByAgentLite" | "getBetTicker" | "getBetTickerConfig"
   | "getAgentPositionData" | "getAgentPositionList" | "getSubSportByReport" | "getPropWagers"
@@ -100,7 +130,25 @@ interface EndpointConfig {
   path: string;
   contentType?: "form" | "json";
   requiresCustomerId?: boolean;
-  buildBody: (env: Env, now: Date) => Record<string, string | number>;
+  buildBody: (env: IngestionEnv, now: Date) => Record<string, string | number>;
+}
+
+type IngestionEnv = Env & { __ingestionCustomerId?: string };
+
+function ingestionHasCustomerId(env: Env): boolean {
+  return hasEnvValue(env.FANTASY402_CUSTOMER_ID) || canDeriveCustomerId();
+}
+
+function customerIdForEndpoint(env: IngestionEnv): string {
+  return required(
+    env.FANTASY402_CUSTOMER_ID ?? env.__ingestionCustomerId,
+    "customerID (FANTASY402_CUSTOMER_ID or Manager/getPlayers)",
+  );
+}
+
+function customerIdHint(env: IngestionEnv): string | undefined {
+  const id = (env.FANTASY402_CUSTOMER_ID ?? env.__ingestionCustomerId ?? "").trim();
+  return id || undefined;
 }
 
 interface UpstreamRequestDiagnostics {
@@ -143,9 +191,10 @@ interface ApiResult {
 
 interface RunResult {
   runId: string;
-  status: "success" | "failed";
+  status: "success" | "partial" | "failed";
   endpointsSucceeded: number;
   endpointsFailed: number;
+  endpointsSkipped: number;
 }
 
 interface LocalIngestItem {
@@ -401,7 +450,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       RRO: 1,
       agentID: env.FANTASY402_AGENT_ID,
       agentOwner: env.FANTASY402_AGENT_ID,
-      customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
+      customerID: customerIdForEndpoint(env),
       date: now.toISOString(),
       path: "",
       wagerType: "",
@@ -417,7 +466,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     buildBody: (env, now) =>
       withDateRange(env, now, {
         agentID: env.FANTASY402_AGENT_ID,
-        customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
+        customerID: customerIdForEndpoint(env),
         operation: "Pending",
       }),
   },
@@ -438,7 +487,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     buildBody: (env, now) =>
       withDateRange(env, now, {
         agentID: env.FANTASY402_AGENT_ID,
-        customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
+        customerID: customerIdForEndpoint(env),
         operation: "getCommunicationMessages",
       }),
   },
@@ -451,6 +500,54 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       operation: "getListAgenstByAgent",
       RRO: "1",
       agentOwner: env.FANTASY402_AGENT_ID,
+    }),
+  },
+  getInfoPlayer: {
+    key: "getInfoPlayer",
+    path: "/cloud/api/Manager/getInfoPlayer",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getInfoPlayer",
+    }),
+  },
+  getCryptoInfo: {
+    key: "getCryptoInfo",
+    path: "/cloud/api/Manager/getCryptoInfo",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getCryptoInfo",
+    }),
+  },
+  getMail: {
+    key: "getMail",
+    path: "/cloud/api/Manager/getMail",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getMail",
+    }),
+  },
+  getTeaserProfile: {
+    key: "getTeaserProfile",
+    path: "/cloud/api/Manager/getTeaserProfile",
+    requiresCustomerId: true,
+    buildBody: (env) => ({
+      RRO: 1,
+      agentID: env.FANTASY402_AGENT_ID,
+      agentOwner: env.FANTASY402_AGENT_ID,
+      customerID: customerIdForEndpoint(env),
+      operation: "getTeaserProfile",
     }),
   },
   getLineTypes: {
@@ -896,11 +993,25 @@ const worker = {
       return;
     }
 
+    if (workerTriggerMode(runtimeEnv) === "skip") {
+      console.info(
+        "[Ingestion] Worker /trigger cron skipped (FANTASY402_WORKER_TRIGGER_MODE=skip); use local/browser ingest",
+      );
+      return;
+    }
     ctx.waitUntil(runIngestion(runtimeEnv));
   },
 
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/" && request.method === "GET") {
+      return workerRoot(env, request);
+    }
+
+    if (url.pathname === "/auth/health" && request.method === "GET") {
+      return await authHealth(env);
+    }
 
     if (url.pathname === "/health") {
       const checks: Record<string, string> = {};
@@ -960,11 +1071,46 @@ const worker = {
       return upstreamCookiesStatus(env);
     }
 
+    if (url.pathname === "/ingest/local/plan" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getLocalIngestPlan(await materializeSecretBindings(env));
+    }
+
+    if (url.pathname === "/ingest/catalog-status" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getIngestCatalogStatus(await materializeSecretBindings(env));
+    }
+
+    if (url.pathname === "/ingest/local/bootstrap" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getLocalIngestBootstrap(env);
+    }
+
+    if (url.pathname === "/ingestion/advance-cursor" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return advanceIngestionCursor(env);
+    }
+
     if (url.pathname === "/ingest/local" && request.method === "POST") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return ingestLocalResponses(request, env);
+    }
+
+    if (url.pathname === "/ingest/sync" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return ingestSync(request, env);
     }
 
     if (url.pathname === "/trigger" && request.method === "POST") {
@@ -974,7 +1120,7 @@ const worker = {
 
       try {
         const result = await runIngestion(await materializeSecretBindings(env));
-        return json(result, result.status === "success" ? 202 : 500);
+        return json(result, result.status === "failed" ? 500 : 202);
       } catch (error) {
         return json(
           {
@@ -1019,6 +1165,20 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return listIngestionRunEndpoints(url, env);
+    }
+
+    if (url.pathname === "/chart-aggregates" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryChartAggregates(url, env);
+    }
+
+    if (url.pathname === "/upstream-endpoints" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return await listUpstreamEndpoints(env);
     }
 
     if (url.pathname === "/bet-ticker-wagers" && request.method === "GET") {
@@ -1067,7 +1227,7 @@ const worker = {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
-      return getDashboardSummary(env);
+      return getDashboardSummary(url, env);
     }
 
     if (url.pathname === "/alerts" && request.method === "GET") {
@@ -1131,6 +1291,49 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return queryPlayers(url, env);
+    }
+
+    if (url.pathname === "/search-customers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return searchCustomers(url, env);
+    }
+
+    if (url.pathname === "/customer-profile" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      const customerId = (url.searchParams.get("customer_id") ?? url.searchParams.get("id") ?? "").trim();
+      if (!customerId) {
+        return json({ status: "failed", message: "customer_id is required" }, 400);
+      }
+      return json(await loadCustomerProfile(env, customerId), 200);
+    }
+
+    if (url.pathname === "/weekly-figures" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryWeeklyFigures(url, env);
+    }
+
+    if (url.pathname === "/customer-activity-search" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryCustomerActivitySearch(request, env);
+    }
+
+    if (url.pathname === "/customer-activity" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      const login = (url.searchParams.get("login") ?? "").trim();
+      if (!login) {
+        return json({ status: "failed", message: "login is required" }, 400);
+      }
+      return queryCustomerActivity(url, env);
     }
 
     if (url.pathname === "/alert-log" && request.method === "GET") {
@@ -1265,32 +1468,45 @@ export default worker;
 async function runIngestion(env: Env): Promise<RunResult> {
   const runId = crypto.randomUUID();
   const startedAt = new Date();
-  const endpointConfigs = selectEndpoints(env);
+  const { endpoints: endpointConfigs, batch } = await selectEndpointsForRun(env);
 
   await env.ANALYTICS_DB.prepare(
     "INSERT INTO ingestion_runs (id, started_at, status, endpoints_requested) VALUES (?, ?, 'running', ?)",
   )
-    .bind(runId, startedAt.toISOString(), endpointConfigs.map((endpoint) => endpoint.key).join(","))
+    .bind(
+      runId,
+      startedAt.toISOString(),
+      formatEndpointsRequested(batch, endpointConfigs),
+    )
     .run();
 
   let endpointsSucceeded = 0;
   let endpointsFailed = 0;
+  let endpointsSkipped = 0;
 
   try {
     const sessionCookie = await getOrRefreshSession(env);
+    const ingestionRuntime: IngestionEnv = { ...env };
 
     for (const endpoint of endpointConfigs) {
       const traceId = crypto.randomUUID();
       const startedMs = Date.now();
       try {
         if (await shouldCircuitBreak(endpoint, env)) {
-          endpointsFailed += 1;
-          console.error("endpoint ingestion skipped", safeError(new Error("circuit breaker open"), { endpoint: endpoint.key, runId, traceId }));
+          endpointsSkipped += 1;
+          console.warn("endpoint ingestion skipped", safeError(new Error("circuit breaker open"), { endpoint: endpoint.key, runId, traceId }));
           continue;
         }
-        const result = await fetchAndArchiveEndpoint(env, runId, traceId, startedMs, endpoint, sessionCookie, new Date());
+        const result = await fetchAndArchiveEndpoint(env, runId, traceId, startedMs, endpoint, sessionCookie, new Date(), ingestionRuntime);
         await storeSnapshot(env, runId, result);
 
+        if (endpoint.key === "getPlayers") {
+          const playerCustomerId = extractPlayerCustomerId(result.data);
+          if (playerCustomerId) {
+            ingestionRuntime.__ingestionCustomerId = playerCustomerId;
+            await cachePlayerCustomerId(env, playerCustomerId);
+          }
+        }
         if (endpoint.key === "getAgentPerformance") {
           const metric = mapAgentPerformance(result.data, env.FANTASY402_AGENT_ID, result.snapshotId, runId);
           await storeAgentPerformance(env, metric);
@@ -1325,14 +1541,37 @@ async function runIngestion(env: Env): Promise<RunResult> {
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
-        if (endpoint.key === "getWeeklyFigureByAgent") {
-          const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
+        if (endpoint.key === "getWebLog") {
+          const records = mapWebLogEntries(result.data, result.snapshotId, runId);
+          await storeWebLogEntries(env, records);
+        }
+        await ingestCustomerProfileSnapshot(
+          env,
+          endpoint.key,
+          result.data,
+          result.snapshotId,
+          customerIdHint(ingestionRuntime),
+        );
+        if (endpoint.key === "getWeeklyFigureByAgent" || endpoint.key === "getWeeklyFigureByAgentLite") {
+          const records = mapWeeklyFigures(result.data, result.snapshotId, runId, env.FANTASY402_AGENT_ID);
           await storeWeeklyFigures(env, records);
         }
 
         endpointsSucceeded += 1;
         recordCircuitStatus(endpoint, true, env);
       } catch (error) {
+        const upstream = unwrapUpstreamHttpError(error);
+        const outcome = classifyIngestionOutcome(upstream?.status);
+        if (outcome === "skipped") {
+          endpointsSkipped += 1;
+          recordCircuitStatus(endpoint, true, env);
+          console.warn(
+            "endpoint ingestion skipped",
+            safeError(error, { endpoint: endpoint.key, runId, traceId, upstreamStatus: upstream?.status }),
+          );
+          continue;
+        }
+
         endpointsFailed += 1;
         const durationMs = Math.max(0, Date.now() - startedMs);
         await storeEndpointFailure(env, runId, traceId, durationMs, endpoint, error);
@@ -1341,29 +1580,366 @@ async function runIngestion(env: Env): Promise<RunResult> {
       }
     }
 
-    const status = endpointsFailed === 0 ? "success" : "failed";
-    await finishRun(env, runId, status, endpointsSucceeded, endpointsFailed, endpointsFailed ? "One or more endpoints failed" : undefined);
+    const status = deriveRunStatus(endpointsSucceeded, endpointsFailed);
+    const dbStatus = endpointsFailed === 0 ? "success" : "failed";
+    const runMeta = formatRunMeta(
+      endpointsSkipped,
+      skipNoteForRun(endpointsSucceeded, endpointsFailed, endpointsSkipped),
+    );
+    await finishRun(env, runId, dbStatus, endpointsSucceeded, endpointsFailed, runMeta);
 
-    if (status === "failed") {
+    if (endpointsFailed > 0) {
       await sendFailureAlert(env, {
-        severity: "warning",
+        severity: status === "partial" ? "warning" : "warning",
         type: "ingestion-endpoint-failures",
-        message: `Fantasy402 ingestion run ${runId} had ${endpointsFailed} endpoint failure(s).`,
-        context: { runId, endpointsSucceeded, endpointsFailed },
+        message: `Fantasy402 ingestion run ${runId}: ${endpointsSucceeded} OK, ${endpointsFailed} failed, ${endpointsSkipped} skipped.`,
+        context: { runId, endpointsSucceeded, endpointsFailed, endpointsSkipped },
       });
     }
 
-    return { runId, status, endpointsSucceeded, endpointsFailed };
+    return { runId, status, endpointsSucceeded, endpointsFailed, endpointsSkipped };
   } catch (error) {
-    await finishRun(env, runId, "failed", endpointsSucceeded, endpointsFailed, errorMessage(error));
+    await finishRun(
+      env,
+      runId,
+      "failed",
+      endpointsSucceeded,
+      endpointsFailed,
+      formatRunMeta(endpointsSkipped, errorMessage(error)),
+    );
     await sendFailureAlert(env, {
       severity: "critical",
       type: "ingestion-run-failed",
       message: `Fantasy402 ingestion run ${runId} failed: ${errorMessage(error)}`,
-      context: { runId, endpointsSucceeded, endpointsFailed },
+      context: { runId, endpointsSucceeded, endpointsFailed, endpointsSkipped },
     });
     throw error;
   }
+}
+
+async function ingestSync(request: Request, env: Env): Promise<Response> {
+  const runtimeEnv = await materializeSecretBindings(env);
+  let payload: Record<string, unknown> = {};
+  const rawBody = await request.text();
+  if (rawBody.trim()) {
+    try {
+      payload = JSON.parse(rawBody) as Record<string, unknown>;
+    } catch {
+      return json({ status: "failed", message: "Expected JSON body" }, 400);
+    }
+  }
+
+  const trigger = payload.trigger !== false;
+  const refresh = payload.refresh !== false;
+  const authPayload = { ...payload };
+  delete authPayload.trigger;
+  delete authPayload.refresh;
+
+  let auth: Record<string, unknown> | null = null;
+  if (refresh) {
+    const authRequest = new Request(request.url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(authPayload),
+    });
+    const authResponse = await refreshAuth(authRequest, env);
+    auth = (await authResponse.json()) as Record<string, unknown>;
+    if (!authResponse.ok) {
+      return json({ status: "failed", stage: "auth", auth }, authResponse.status);
+    }
+  }
+
+  let ingestion: RunResult | null = null;
+  if (trigger) {
+    try {
+      ingestion = await runIngestion(runtimeEnv);
+    } catch (error) {
+      return json(
+        { status: "failed", stage: "ingestion", auth, message: errorMessage(error) },
+        500,
+      );
+    }
+  }
+
+  let plan: Awaited<ReturnType<typeof getIngestionPlan>> | null = null;
+  try {
+    plan = await getIngestionPlan(runtimeEnv);
+  } catch {
+    plan = null;
+  }
+
+  const httpStatus = ingestion
+    ? ingestion.status === "failed"
+      ? 500
+      : 202
+    : 200;
+
+  return json({ status: "ok", auth, ingestion, plan }, httpStatus);
+}
+
+async function getLocalIngestPlan(env: Env): Promise<Response> {
+  const plan = await getIngestionPlan(env);
+  const now = new Date();
+  const cachedPlayerCustomerId = await readCachedPlayerCustomerId(env);
+  const ingestionRuntime: IngestionEnv = {
+    ...env,
+    __ingestionCustomerId: cachedPlayerCustomerId ?? undefined,
+  };
+  const endpoints: Array<Record<string, unknown>> = [];
+  const unsupported: string[] = [];
+
+  const needsCustomerPrefetch =
+    !hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+    && !cachedPlayerCustomerId
+    && plan.keys.some((key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId));
+  const keysToProcess =
+    needsCustomerPrefetch && !plan.keys.includes("getPlayers")
+      ? ["getPlayers", ...plan.keys]
+      : plan.keys;
+
+  for (const key of keysToProcess) {
+    if (!isEndpointKey(key)) {
+      unsupported.push(key);
+      continue;
+    }
+    try {
+      const endpoint = resolveEndpointConfig(key, env, ingestionRuntime);
+      if (
+        endpoint.requiresCustomerId
+        && !hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+        && !ingestionRuntime.__ingestionCustomerId
+      ) {
+        endpoints.push({
+          key,
+          path: endpoint.path,
+          method: "POST",
+          customerIdSource: customerIdSourceForKey(key) ?? GET_PLAYERS_CUSTOMER_ID_SOURCE,
+          requiresCustomerIdResolution: true,
+        });
+        continue;
+      }
+      const body = endpoint.buildBody(ingestionRuntime, now);
+      const encoded = encodeRequestBody(endpoint, body);
+      endpoints.push({
+        key,
+        path: endpoint.path,
+        method: "POST",
+        contentType: encoded.contentType,
+        body: serializeRequestBody(encoded),
+      });
+    } catch (error) {
+      unsupported.push(key);
+      console.warn("local ingest plan skipped endpoint", safeError(error, { key }));
+    }
+  }
+
+  return json(
+    {
+      status: "ok",
+      baseUrl: baseUrl(env),
+      agentId: env.FANTASY402_AGENT_ID,
+      batch: {
+        keys: plan.keys,
+        cursor: plan.cursor,
+        nextCursor: plan.nextCursor,
+        batchSize: plan.batchSize,
+        catalogSize: plan.catalogSize,
+        batching: plan.batching,
+        customerIdPrefetch: needsCustomerPrefetch,
+      },
+      endpoints,
+      unsupported,
+      localFetchNote: "Fetch from the browser session on fantasy402.com; Worker /trigger cannot reuse IP-bound cf_clearance.",
+    },
+    200,
+  );
+}
+
+async function readFailureBreakdown(env: Env): Promise<Array<{ code: string; count: number; example: string | null }>> {
+  try {
+    const rows = await env.ANALYTICS_DB.prepare(
+      `SELECT error_message, COUNT(*) AS count
+       FROM endpoint_failures
+       WHERE failed_at > datetime('now', '-1 day')
+       GROUP BY error_message
+       ORDER BY count DESC
+       LIMIT 10`,
+    ).all<{ error_message: string; count: number }>();
+
+    return (rows.results ?? []).map((row) => ({
+      code: classifyFailureMessage(row.error_message),
+      count: Number(row.count ?? 0),
+      example: String(row.error_message ?? "").slice(0, 120) || null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function classifyFailureMessage(message: string): string {
+  const text = String(message ?? "");
+  if (/HTTP 403/.test(text)) return "UPSTREAM_403_IP_OR_PERMISSION";
+  if (/HTTP 404/.test(text)) return "UPSTREAM_404_NOT_FOUND";
+  if (/HTTP 401/.test(text)) return "UPSTREAM_401_UNAUTHORIZED";
+  if (/HTTP 429/.test(text)) return "UPSTREAM_429_RATE_LIMIT";
+  if (/JWT expired/i.test(text)) return "AUTH_JWT_EXPIRED";
+  if (/circuit breaker/i.test(text)) return "CIRCUIT_BREAKER_OPEN";
+  if (/customerID/i.test(text)) return "CUSTOMER_ID_MISSING";
+  return "OTHER";
+}
+
+function buildIngestionBlockers(
+  auth: Record<string, unknown>,
+  pendingCount: number,
+  failureBreakdown: Array<{ code: string; count: number }>,
+): Array<{ code: string; severity: "error" | "warn" | "info"; message: string; action: string }> {
+  const blockers: Array<{ code: string; severity: "error" | "warn" | "info"; message: string; action: string }> = [];
+  const readiness = auth.ingestionReadiness as { status?: string; blocker?: string | null } | undefined;
+  const expiry = auth.authorizationExpiry as { status?: string; expiresAt?: string | null } | undefined;
+
+  if (expiry?.status === "expired") {
+    blockers.push({
+      code: "AUTH_JWT_EXPIRED",
+      severity: "error",
+      message: `Bearer JWT expired at ${expiry.expiresAt ?? "unknown"}`,
+      action: "Paste a fresh DevTools capture from fantasy402.com into Endpoints → Sync auth",
+    });
+  } else if (readiness?.status !== "ready") {
+    blockers.push({
+      code: "AUTH_NOT_READY",
+      severity: "error",
+      message: readiness?.blocker ?? "Upstream auth not ingestion-ready",
+      action: "Refresh auth via browser capture or POST /refresh-auth with valid bearer + CF cookies",
+    });
+  }
+
+  if (pendingCount > 0) {
+    blockers.push({
+      code: "CATALOG_INCOMPLETE",
+      severity: "warn",
+      message: `${pendingCount} upstream route(s) have no successful D1 snapshot yet`,
+      action: "Run local/browser ingest (npm run ingest:local-all or manager.html auto-runner)",
+    });
+  }
+
+  const worker403 = failureBreakdown.find((row) => row.code === "UPSTREAM_403_IP_OR_PERMISSION");
+  if (worker403 && worker403.count > 0) {
+    blockers.push({
+      code: "WORKER_TRIGGER_403",
+      severity: "info",
+      message: `${worker403.count} worker /trigger failure(s) in 24h with HTTP 403 (Cloudflare error 1106 — IP-bound cookies)`,
+      action: "Do not rely on Worker /trigger for catalog backfill; use local ingest from browser IP",
+    });
+  }
+
+  return blockers;
+}
+
+async function getIngestCatalogStatus(env: Env): Promise<Response> {
+  const configured = configuredIngestionKeys(env);
+  const snapshotTimes = await readLatestSnapshotTimes(env);
+  const manifestKeys = UPSTREAM_MANIFEST.endpoints.map((entry) => entry.key);
+  const onlineKeys = manifestKeys.filter((key) => snapshotTimes.has(key));
+  const pendingKeys = manifestKeys.filter((key) => configured.has(key) && !snapshotTimes.has(key));
+  const plan = await getIngestionPlan(env);
+  const auth = upstreamAuthDiagnostics(env);
+  const batchSize = plan.batchSize || ingestionBatchSize(env.FANTASY402_INGESTION_BATCH_SIZE);
+  const batchesRemaining = plan.batching
+    ? Math.ceil(pendingKeys.length / Math.max(1, batchSize))
+    : pendingKeys.length > 0 ? 1 : 0;
+
+  const failureBreakdown = await readFailureBreakdown(env);
+  const plane = ingestPlaneSummary(manifestKeys);
+
+  return json(
+    {
+      status: "ok",
+      catalogSize: manifestKeys.length,
+      configuredCount: configured.size,
+      onlineCount: onlineKeys.length,
+      pendingCount: pendingKeys.length,
+      ingestPlane: plane,
+      workerTriggerMode: workerTriggerMode(env),
+      onlineKeys,
+      pendingKeys,
+      cursor: plan.cursor,
+      nextCursor: plan.nextCursor,
+      batchSize,
+      batching: plan.batching,
+      batchesRemaining,
+      auth: {
+        ingestionReadiness: auth.ingestionReadiness,
+        authorizationExpiry: auth.authorizationExpiry,
+      },
+      blockers: buildIngestionBlockers(auth, pendingKeys.length, failureBreakdown),
+      failureBreakdown24h: failureBreakdown,
+      backfillNote: pendingKeys.length > 0
+        ? "Use local/browser ingest (manager.html auto-runner or npm run ingest:local-all). Worker /trigger alone will not backfill pending routes."
+        : "Full catalog has at least one successful snapshot per route.",
+    },
+    200,
+  );
+}
+
+async function getLocalIngestBootstrap(env: Env): Promise<Response> {
+  const cached = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  if (!cached?.authorization) {
+    return json({ status: "failed", message: "No cached browser auth on worker" }, 404);
+  }
+  let browserHeaders: Record<string, string> | undefined;
+  if (cached.browserHeadersJson) {
+    try {
+      browserHeaders = JSON.parse(cached.browserHeadersJson) as Record<string, string>;
+    } catch {
+      browserHeaders = undefined;
+    }
+  }
+  return json(
+    {
+      status: "ok",
+      authorization: cached.authorization,
+      sessionCookie: cached.sessionCookie,
+      cfClearance: cached.cfClearance,
+      cfBm: cached.cfBm,
+      browserHeaders,
+      referer: cached.referer,
+      userAgent: cached.userAgent,
+      customerId: cached.customerId,
+      updatedAt: cached.updatedAt,
+      expiresAt: cached.expiresAt,
+    },
+    200,
+  );
+}
+
+async function advanceIngestionCursor(env: Env): Promise<Response> {
+  const advanced = await advanceIngestionCursorRecord(env);
+  if (!advanced) {
+    return json({ status: "failed", message: "Ingestion batching is not enabled" }, 400);
+  }
+  return json({ status: "ok", ...advanced }, 200);
+}
+
+async function advanceIngestionCursorRecord(env: Env): Promise<Record<string, unknown> | null> {
+  const plan = await getIngestionPlan(env);
+  if (!plan.batching) return null;
+  await writeIngestionCursor(env, plan.nextCursor);
+  return {
+    previousCursor: plan.cursor,
+    nextCursor: plan.nextCursor,
+    batchSize: plan.batchSize,
+    catalogSize: plan.catalogSize,
+  };
+}
+
+function serializeRequestBody(encoded: ReturnType<typeof encodeRequestBody>): Record<string, string> | unknown {
+  if (encoded.contentType.includes("json")) {
+    return JSON.parse(String(encoded.body));
+  }
+  const form = encoded.body instanceof URLSearchParams
+    ? encoded.body
+    : new URLSearchParams(String(encoded.body));
+  return Object.fromEntries(form.entries());
 }
 
 async function ingestLocalResponses(request: Request, env: Env): Promise<Response> {
@@ -1393,6 +1969,7 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
   const stored: Array<Record<string, unknown>> = [];
 
   try {
+    const ingestionRuntime: IngestionEnv = { ...env };
     for (const rawItem of items) {
       const item = normalizeLocalIngestItem(rawItem);
       if (!item) {
@@ -1437,8 +2014,26 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
-        if (endpoint.key === "getWeeklyFigureByAgent") {
-          const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
+        if (endpoint.key === "getPlayers") {
+          const playerCustomerId = extractPlayerCustomerId(result.data);
+          if (playerCustomerId) {
+            ingestionRuntime.__ingestionCustomerId = playerCustomerId;
+            await cachePlayerCustomerId(env, playerCustomerId);
+          }
+        }
+        if (endpoint.key === "getWebLog") {
+          const records = mapWebLogEntries(result.data, result.snapshotId, runId);
+          await storeWebLogEntries(env, records);
+        }
+        await ingestCustomerProfileSnapshot(
+          env,
+          endpoint.key,
+          result.data,
+          result.snapshotId,
+          customerIdHint(ingestionRuntime),
+        );
+        if (endpoint.key === "getWeeklyFigureByAgent" || endpoint.key === "getWeeklyFigureByAgentLite") {
+          const records = mapWeeklyFigures(result.data, result.snapshotId, runId, env.FANTASY402_AGENT_ID);
           await storeWeeklyFigures(env, records);
         }
         endpointsSucceeded += 1;
@@ -1460,7 +2055,16 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
       .bind(endpointKeys.join(","), runId)
       .run();
     await finishRun(env, runId, status, endpointsSucceeded, endpointsFailed);
-    return json({ runId, status, endpointsSucceeded, endpointsFailed, stored }, status === "success" ? 202 : 500);
+
+    let cursorAdvanced: Record<string, unknown> | null = null;
+    if (parsed.data.advanceCursor && endpointsSucceeded > 0) {
+      cursorAdvanced = await advanceIngestionCursorRecord(env);
+    }
+
+    return json(
+      { runId, status, endpointsSucceeded, endpointsFailed, stored, cursorAdvanced },
+      status === "success" ? 202 : 500,
+    );
   } catch (error) {
     await finishRun(env, runId, "failed", endpointsSucceeded, endpointsFailed, errorMessage(error));
     return json({ status: "failed", message: errorMessage(error), runId }, 500);
@@ -1684,12 +2288,17 @@ function normalizeHost(host: string): string {
 }
 
 async function refreshAuth(request: Request, env: Env): Promise<Response> {
-  let payload: unknown;
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ status: "failed", message: "Expected JSON body" }, 400);
+  const runtimeEnv = await materializeSecretBindings(env);
+  let payload: unknown = {};
+  const rawBody = await request.text();
+  if (rawBody.trim()) {
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return json({ status: "failed", message: "Expected JSON body" }, 400);
+    }
   }
+
   const parsed = refreshAuthSchema.safeParse(payload);
   if (!parsed.success) {
     return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
@@ -1741,21 +2350,77 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
   }
 
   if (accepted.length === 0) {
-    return json({ status: "failed", message: "No supported auth fields provided" }, 400);
+    return renewUpstreamAuthFromWorker(runtimeEnv);
   }
 
   const ttl = Math.max(60, Math.ceil((record.expiresAt - Date.now()) / 1000));
-  await env.AUTH_CACHE.put(AUTH_CACHE_KEY, JSON.stringify(record), { expirationTtl: ttl });
+  await runtimeEnv.AUTH_CACHE.put(AUTH_CACHE_KEY, JSON.stringify(record), { expirationTtl: ttl });
+  if (accepted.some((field) => field === "cfClearance" || field === "cfBm")) {
+    await persistCloudflareCookies(runtimeEnv, record.cfClearance, record.cfBm);
+  } else {
+    d1CookiesCache = null;
+  }
 
   return json(
     {
       status: "ok",
+      mode: "overlay",
       accepted,
       expiresAt: new Date(record.expiresAt).toISOString(),
       ttlSeconds: ttl,
     },
     200,
   );
+}
+
+async function renewUpstreamAuthFromWorker(env: Env): Promise<Response> {
+  const cachedAuth = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  if (cachedAuth?.authorization) {
+    applyAuthRecord(env, cachedAuth);
+    const sessionCookie = cachedAuth.sessionCookie ?? env.FANTASY402_SESSION_COOKIE ?? "";
+    const renewed = await tryRenewFantasy402Token(env, sessionCookie);
+    if (renewed) {
+      const stored = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+      const accepted = [
+        renewed.authorization ? "authorization" : null,
+        renewed.sessionCookie ? "sessionCookie" : null,
+        renewed.cfClearance ? "cfClearance" : null,
+        renewed.cfBm ? "cfBm" : null,
+      ].filter(Boolean);
+      return json(
+        {
+          status: "ok",
+          mode: "renew",
+          accepted,
+          expiresAt: stored?.expiresAt ? new Date(stored.expiresAt).toISOString() : undefined,
+        },
+        200,
+      );
+    }
+  }
+
+  try {
+    const sessionCookie = await getOrRefreshSession(env);
+    const stored = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+    const accepted = [
+      stored?.authorization ? "authorization" : null,
+      sessionCookie ? "sessionCookie" : null,
+      stored?.cfClearance ? "cfClearance" : null,
+      stored?.cfBm ? "cfBm" : null,
+    ].filter(Boolean);
+    return json(
+      {
+        status: "ok",
+        mode: "session",
+        accepted,
+        hasSession: Boolean(sessionCookie),
+        expiresAt: stored?.expiresAt ? new Date(stored.expiresAt).toISOString() : undefined,
+      },
+      200,
+    );
+  } catch (error) {
+    return json({ status: "failed", message: errorMessage(error) }, 502);
+  }
 }
 
 async function updateCookies(request: Request, env: Env): Promise<Response> {
@@ -1771,23 +2436,45 @@ async function updateCookies(request: Request, env: Env): Promise<Response> {
   }
 
   const { cf_clearance, __cf_bm } = parsed.data;
-  const stmt = env.ANALYTICS_DB.prepare(
-    `INSERT INTO cookies (name, value, updated_at) VALUES (?1, ?2, datetime('now'))
-     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
-  );
 
   try {
-    await stmt.bind("cf_clearance", cf_clearance).run();
-    await stmt.bind("__cf_bm", __cf_bm).run();
+    await persistCloudflareCookies(env, cf_clearance, __cf_bm);
   } catch (error) {
     console.error("[Cookies] D1 upsert failed:", errorMessage(error));
     return json({ status: "failed", message: "D1 upsert failed", detail: errorMessage(error) }, 500);
   }
 
-  // Clear in-memory cache so the next request picks up fresh cookies immediately
-  d1CookiesCache = null;
-
   return json({ status: "ok", updated: ["cf_clearance", "__cf_bm"] }, 200);
+}
+
+async function persistCloudflareCookies(
+  env: Env,
+  cfClearance: string | undefined,
+  cfBm: string | undefined,
+): Promise<void> {
+  const clearanceValue = cookieValueOnly(cfClearance);
+  const bmValue = cookieValueOnly(cfBm);
+  if (!clearanceValue && !bmValue) {
+    d1CookiesCache = null;
+    return;
+  }
+
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO cookies (name, value, updated_at) VALUES (?1, ?2, datetime('now'))
+     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+  );
+
+  if (clearanceValue) await stmt.bind("cf_clearance", clearanceValue).run();
+  if (bmValue) await stmt.bind("__cf_bm", bmValue).run();
+  d1CookiesCache = null;
+}
+
+function cookieValueOnly(cookie: string | undefined): string | null {
+  if (typeof cookie !== "string") return null;
+  const trimmed = cookie.trim();
+  if (!trimmed) return null;
+  const index = trimmed.indexOf("=");
+  return index > 0 ? trimmed.slice(index + 1).trim() : trimmed;
 }
 
 async function upstreamCookiesStatus(env: Env): Promise<Response> {
@@ -2083,9 +2770,13 @@ async function fetchAndArchiveEndpoint(
   endpoint: EndpointConfig,
   sessionCookie: string,
   now: Date,
+  ingestionRuntime: IngestionEnv,
 ): Promise<ApiResult> {
   const startedAt = new Date(startedMs);
-  const attempted = await withRetries(() => postFantasy402(env, endpoint, sessionCookie, now), MAX_ENDPOINT_ATTEMPTS);
+  const attempted = await withRetries(
+    () => postFantasy402(env, endpoint, sessionCookie, now, ingestionRuntime),
+    MAX_ENDPOINT_ATTEMPTS,
+  );
   const data = await attempted.response.json<unknown>();
   const serialized = JSON.stringify(redactResponse(data));
   const responseHash = await sha256Hex(serialized);
@@ -2140,8 +2831,47 @@ interface AttemptedResponse {
   attempts: number;
 }
 
-async function postFantasy402(env: Env, endpoint: EndpointConfig, sessionCookie: string, now: Date): Promise<Response> {
-  const body = endpoint.buildBody(env, now);
+async function ensureIngestionCustomerId(
+  env: Env,
+  runtime: IngestionEnv,
+  endpoint: EndpointConfig,
+  sessionCookie: string,
+  now: Date,
+): Promise<void> {
+  if (!endpoint.requiresCustomerId || hasEnvValue(env.FANTASY402_CUSTOMER_ID) || runtime.__ingestionCustomerId) {
+    return;
+  }
+
+  const cached = await readCachedPlayerCustomerId(env);
+  if (cached) {
+    runtime.__ingestionCustomerId = cached;
+    return;
+  }
+
+  const playersEndpoint = ENDPOINTS.getPlayers;
+  const response = await withRetries(
+    () => postFantasy402(env, playersEndpoint, sessionCookie, now, runtime),
+    MAX_ENDPOINT_ATTEMPTS,
+  );
+  const data = await response.json<unknown>();
+  const customerId = extractPlayerCustomerId(data);
+  if (!customerId) {
+    throw new Error("Unable to derive player customerID from Manager/getPlayers");
+  }
+  runtime.__ingestionCustomerId = customerId;
+  await cachePlayerCustomerId(env, customerId);
+}
+
+async function postFantasy402(
+  env: Env,
+  endpoint: EndpointConfig,
+  sessionCookie: string,
+  now: Date,
+  ingestionRuntime?: IngestionEnv,
+): Promise<Response> {
+  const runtime: IngestionEnv = ingestionRuntime ?? { ...env };
+  await ensureIngestionCustomerId(env, runtime, endpoint, sessionCookie, now);
+  const body = endpoint.buildBody(runtime, now);
   const encodedBody = encodeRequestBody(endpoint, body);
   const headers = await fantasy402ApiHeaders(env, sessionCookie, encodedBody.contentType);
 
@@ -2247,9 +2977,10 @@ function fantasy402CookieHeader(env: Env, sessionCookie: string, upstreamCookies
   const cookies: string[] = [];
   appendCookieHeaderIfMissing(cookies, env.FANTASY402_SESSION_COOKIE);
   appendCookieHeaderIfMissing(cookies, sessionCookie);
-  appendCookieHeaderIfMissing(cookies, upstreamCookies);
+  // Auth overlay / secrets must win over stale D1 cookie cache entries.
   appendCookieIfMissing(cookies, "cf_clearance", env.FANTASY402_CF_CLEARANCE);
   appendCookieIfMissing(cookies, "__cf_bm", env.FANTASY402_CF_BM);
+  appendCookieHeaderIfMissing(cookies, upstreamCookies);
   return cookies.join("; ");
 }
 
@@ -2714,6 +3445,19 @@ interface BetTickerWagerRecord {
   idempotencyKey: string;
 }
 
+interface WebLogEntryRecord {
+  id: string;
+  snapshotId: string;
+  runId: string;
+  capturedAt: string;
+  login: string;
+  operation: string | null;
+  data: string | null;
+  ipAddress: string | null;
+  accessDateTime: string;
+  rawJson: string;
+}
+
 function mapBetTickerWagers(data: unknown, rawSnapshotId: string, runId: string): BetTickerWagerRecord[] {
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
@@ -2800,25 +3544,35 @@ interface WeeklyFigureRecord {
   capturedAt: string;
 }
 
-function mapWeeklyFigures(data: unknown, snapshotId: string, runId: string): WeeklyFigureRecord[] {
+function weeklyFigureListItems(data: unknown): Record<string, unknown>[] {
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  if (Array.isArray(root.LIST)) return root.LIST as Record<string, unknown>[];
+  if (root.LIST && typeof root.LIST === "object") {
+    const list = root.LIST as Record<string, unknown>;
+    if (Array.isArray(list.ARRAY)) return list.ARRAY as Record<string, unknown>[];
+  }
+  return Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+}
+
+function mapWeeklyFigures(data: unknown, snapshotId: string, runId: string, fallbackAgentId = ""): WeeklyFigureRecord[] {
+  const items = weeklyFigureListItems(data);
+  const capturedAt = new Date().toISOString();
   return items.map((item) => {
-    const raw = item as Record<string, unknown>;
+    const liteShape = "ThisWeek" in item || "Today" in item || "Active" in item;
     return {
       id: crypto.randomUUID(),
       snapshotId,
       runId,
-      agentId: stringField(item, ["AgentID", "agentID", "Agent"], "").trim() || "unknown",
-      week: numberField(item, ["Week"], 0),
-      type: stringField(item, ["Type", "type"], "O"),
-      figureDate: stringField(item, ["Date", "date", "FigureDate", "figureDate"], ""),
-      wagerCount: numberField(item, ["WagerCount", "wagerCount", "TotalWagers", "totalWagers"], 0),
+      agentId: stringField(item, ["AgentID", "agentID", "Agent"], fallbackAgentId).trim() || fallbackAgentId || "unknown",
+      week: numberField(item, ["Week", "week"], 0),
+      type: stringField(item, ["Type", "type"], liteShape ? "A" : "O"),
+      figureDate: stringField(item, ["Date", "date", "FigureDate", "figureDate"], liteShape ? "lite-summary" : ""),
+      wagerCount: numberField(item, ["WagerCount", "wagerCount", "TotalWagers", "totalWagers", "Active", "active"], 0),
       volume: numberField(item, ["Volume", "volume", "TotalVolume", "totalVolume"], 0),
-      netAmount: numberField(item, ["NetAmount", "netAmount", "Net", "net"], 0),
+      netAmount: numberField(item, ["NetAmount", "netAmount", "Net", "net", "ThisWeek", "Today"], 0),
       bigWagers: numberField(item, ["BigWagers", "bigWagers", "BigAmountCount"], 0),
       rawJson: JSON.stringify(item),
-      capturedAt: new Date().toISOString(),
+      capturedAt,
     };
   });
 }
@@ -2827,10 +3581,10 @@ async function storeWeeklyFigures(env: Env, records: WeeklyFigureRecord[]): Prom
   for (const r of records) {
     await env.ANALYTICS_DB.prepare(
       `INSERT INTO weekly_figures
-         (id, snapshot_id, run_id, agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, raw_json, captured_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (snapshot_id, run_id, agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, raw_json, captured_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(r.id, r.snapshotId, r.runId, r.agentId, r.week, r.type, r.figureDate, r.wagerCount, r.volume, r.netAmount, r.bigWagers, r.rawJson, r.capturedAt)
+      .bind(r.snapshotId, r.runId, r.agentId, r.week, r.type, r.figureDate, r.wagerCount, r.volume, r.netAmount, r.bigWagers, r.rawJson, r.capturedAt)
       .run();
   }
 }
@@ -3031,6 +3785,39 @@ async function storeAgentPositionData(env: Env, records: AgentPositionRecord[]):
   }
 }
 
+function mapWebLogEntries(data: unknown, rawSnapshotId: string, runId: string): WebLogEntryRecord[] {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const items = (Array.isArray(root.LIST) ? root.LIST : Array.isArray(data) ? data : []) as Record<string, unknown>[];
+  const now = new Date().toISOString();
+  return items.map((item) => ({
+    id: crypto.randomUUID(),
+    snapshotId: rawSnapshotId,
+    runId,
+    capturedAt: now,
+    login: stringField(item, ["LoginID", "loginID", "Login", "login"], "").trim(),
+    operation: stringField(item, ["Operation", "operation"], "") || null,
+    data: stringField(item, ["Data", "data"], "") || null,
+    ipAddress: stringField(item, ["IPAddress", "ipAddress", "IP", "ip"], "") || null,
+    accessDateTime: stringField(item, ["AccessDateTime", "accessDateTime", "AccessDate", "accessDate"], ""),
+    rawJson: JSON.stringify(item),
+  }));
+}
+
+async function storeWebLogEntries(env: Env, records: WebLogEntryRecord[]): Promise<void> {
+  if (!records.length) return;
+  const BATCH_SIZE = 1000;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    const stmts = batch.map((r) =>
+      env.ANALYTICS_DB.prepare(
+        `INSERT OR REPLACE INTO web_logs (id, snapshot_id, run_id, captured_at, login, operation, data, ip_address, access_date_time, raw_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(r.id, r.snapshotId, r.runId, r.capturedAt, r.login, r.operation, r.data, r.ipAddress, r.accessDateTime, r.rawJson),
+    );
+    await env.ANALYTICS_DB.batch(stmts);
+  }
+}
+
 async function finishRun(
   env: Env,
   runId: string,
@@ -3091,6 +3878,117 @@ async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> 
       runId,
       snapshots: snapshots.results ?? [],
       failures: failures.results ?? [],
+    },
+    200,
+  );
+}
+
+async function queryChartAggregates(url: URL, env: Env): Promise<Response> {
+  const { hours } = chartAggregatesSchema.parse(Object.fromEntries(url.searchParams));
+  const sinceExpr = `datetime('now', '-${hours} hours')`;
+
+  const hourly = await env.ANALYTICS_DB.prepare(
+    `SELECT substr(captured_at, 1, 13) || ':00' AS hour,
+            COUNT(*) AS count,
+            COALESCE(SUM(amount_wagered), 0) AS volume_cents
+     FROM bet_ticker_wagers
+     WHERE captured_at >= ${sinceExpr}
+     GROUP BY hour
+     ORDER BY hour ASC`,
+  ).all();
+
+  const byType = await env.ANALYTICS_DB.prepare(
+    `SELECT wager_type, COUNT(*) AS count
+     FROM bet_ticker_wagers
+     WHERE captured_at >= ${sinceExpr}
+     GROUP BY wager_type`,
+  ).all();
+
+  const topAgents = await env.ANALYTICS_DB.prepare(
+    `SELECT agent_id,
+            COUNT(*) AS count,
+            COALESCE(SUM(amount_wagered), 0) AS volume_cents
+     FROM bet_ticker_wagers
+     WHERE captured_at >= ${sinceExpr}
+     GROUP BY agent_id
+     ORDER BY volume_cents DESC
+     LIMIT 5`,
+  ).all();
+
+  const typeMap: Record<string, number> = { S: 0, P: 0, M: 0, L: 0 };
+  for (const row of byType.results ?? []) {
+    const wt = String((row as { wager_type?: string }).wager_type ?? "");
+    if (wt in typeMap) typeMap[wt] = Number((row as { count?: number }).count) || 0;
+  }
+
+  return json(
+    {
+      hours,
+      since: new Date(Date.now() - hours * 3600000).toISOString(),
+      hourly: hourly.results ?? [],
+      byType: typeMap,
+      topAgents: topAgents.results ?? [],
+    },
+    200,
+  );
+}
+
+async function readLatestSnapshotTimes(env: Env): Promise<Map<string, { lastSnapshotAt: string; snapshotCount: number }>> {
+  const map = new Map<string, { lastSnapshotAt: string; snapshotCount: number }>();
+  try {
+    const rows = await env.ANALYTICS_DB.prepare(
+      `SELECT endpoint_key, MAX(captured_at) AS last_snapshot_at, COUNT(*) AS snapshot_count
+       FROM api_snapshots
+       GROUP BY endpoint_key`,
+    ).all<{ endpoint_key: string; last_snapshot_at: string; snapshot_count: number }>();
+    for (const row of rows.results ?? []) {
+      const key = String(row.endpoint_key ?? "").trim();
+      if (!key) continue;
+      map.set(key, {
+        lastSnapshotAt: String(row.last_snapshot_at ?? ""),
+        snapshotCount: Number(row.snapshot_count ?? 0),
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
+  return map;
+}
+
+async function listUpstreamEndpoints(env: Env): Promise<Response> {
+  const configured = configuredIngestionKeys(env);
+  const snapshotTimes = await readLatestSnapshotTimes(env);
+  const routes = UPSTREAM_MANIFEST.endpoints.map((entry) => {
+    const isConfigured = configured.has(entry.key);
+    const implemented = Object.prototype.hasOwnProperty.call(ENDPOINTS, entry.key);
+    const snapshot = snapshotTimes.get(entry.key);
+    const online = Boolean(snapshot?.lastSnapshotAt);
+    return {
+      key: entry.key,
+      path: entry.path,
+      method: entry.method.toUpperCase(),
+      zone: "upstream",
+      configured: isConfigured,
+      implemented,
+      online,
+      lastSnapshotAt: snapshot?.lastSnapshotAt ?? null,
+      snapshotCount: snapshot?.snapshotCount ?? 0,
+      contentType: entry.contentType,
+      operationId: entry.operationId,
+      requiresCustomerId: entry.requiresCustomerId === true,
+      customerIdSource: entry.customerIdSource,
+      description: entry.operationId,
+      refreshMs: isConfigured ? "ingestion" : "—",
+    };
+  });
+  return json(
+    {
+      count: routes.length,
+      configuredCount: routes.filter((r) => r.configured).length,
+      implementedCount: routes.filter((r) => r.implemented).length,
+      onlineCount: routes.filter((r) => r.online).length,
+      spec: UPSTREAM_MANIFEST.spec,
+      routes,
     },
     200,
   );
@@ -3171,6 +4069,7 @@ async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
 async function queryPlayers(url: URL, env: Env): Promise<Response> {
   const customerId = (url.searchParams.get("customer_id") ?? "").trim();
   const agentId = (url.searchParams.get("agent_id") ?? "").trim();
+  const q = (url.searchParams.get("q") ?? "").trim();
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
 
   let sql = "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE 1=1";
@@ -3178,8 +4077,105 @@ async function queryPlayers(url: URL, env: Env): Promise<Response> {
 
   if (customerId) { sql += " AND customer_id = ?"; bindings.push(customerId); }
   if (agentId) { sql += " AND agent_id = ?"; bindings.push(agentId); }
+  if (q) {
+    const like = `%${q}%`;
+    sql += " AND (login LIKE ? COLLATE NOCASE OR name_first LIKE ? COLLATE NOCASE OR customer_id LIKE ?)";
+    bindings.push(like, like, like);
+  }
 
   sql += " ORDER BY login ASC LIMIT ?";
+  bindings.push(limit);
+
+  const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function searchCustomers(url: URL, env: Env): Promise<Response> {
+  const q = (url.searchParams.get("q") ?? "").trim();
+  if (!q) {
+    return json({ status: "failed", message: "q is required" }, 400);
+  }
+  url.searchParams.set("q", q);
+  url.searchParams.set("limit", url.searchParams.get("limit") ?? "25");
+  return queryPlayers(url, env);
+}
+
+async function queryCustomerActivitySearch(request: Request, env: Env): Promise<Response> {
+  const body = await safeJson(request);
+  if (!body) {
+    return json({ status: "failed", message: "Invalid JSON body" }, 400);
+  }
+  const q = (typeof body.q === "string" ? body.q : "").trim();
+  if (!q) {
+    return json({ status: "failed", message: "q is required" }, 400);
+  }
+  const limit = clampInteger(typeof body.limit === "number" ? body.limit : 20, 1, 100);
+  const like = `%${q}%`;
+  const result = await env.ANALYTICS_DB.prepare(
+    "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login LIKE ? COLLATE NOCASE OR name_first LIKE ? COLLATE NOCASE ORDER BY login ASC LIMIT ?",
+  ).bind(like, like, limit).all();
+  return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
+}
+
+async function queryCustomerActivity(url: URL, env: Env): Promise<Response> {
+  const login = (url.searchParams.get("login") ?? "").trim();
+  const hours = clampInteger(Number(url.searchParams.get("hours") ?? "24"), 1, 168);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  const player = await env.ANALYTICS_DB.prepare(
+    "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login = ?",
+  ).bind(login).first<{ customer_id: string; login: string; name_first: string; agent_id: string; captured_at: string }>();
+
+  const webLogs = await env.ANALYTICS_DB.prepare(
+    `SELECT id, login, operation, data, ip_address, access_date_time, captured_at
+     FROM web_logs
+     WHERE login = ? AND access_date_time >= ?
+     ORDER BY access_date_time DESC
+     LIMIT ?`,
+  ).bind(login, since, limit).all<{ id: string; login: string; operation: string | null; data: string | null; ip_address: string | null; access_date_time: string; captured_at: string }>();
+
+  const wagers = await env.ANALYTICS_DB.prepare(
+    `SELECT id, wager_number, wager_type, amount_wagered, to_win_amount, short_desc, captured_at
+     FROM bet_ticker_wagers
+     WHERE login = ? AND captured_at >= ?
+     ORDER BY captured_at DESC
+     LIMIT ?`,
+  ).bind(login, since, limit).all<{ id: string; wager_number: number; wager_type: string; amount_wagered: number; to_win_amount: number | null; short_desc: string | null; captured_at: string }>();
+
+  const summary = await env.ANALYTICS_DB.prepare(
+    `SELECT
+       COUNT(DISTINCT b.id) AS total_wagers,
+       COALESCE(SUM(b.amount_wagered), 0) AS total_volume,
+       (SELECT COUNT(*) FROM web_logs WHERE login = ? AND access_date_time >= ?) AS total_logins,
+       (SELECT COUNT(DISTINCT w.ip_address) FROM web_logs w WHERE w.login = ? AND w.access_date_time >= ?) AS unique_ips
+     FROM bet_ticker_wagers b
+     WHERE b.login = ? AND b.captured_at >= ?`,
+  ).bind(login, since, login, since, login, since).first<{ total_wagers: number; total_volume: number; total_logins: number; unique_ips: number }>();
+
+  return json({
+    customer: player ?? null,
+    webLogs: webLogs.results ?? [],
+    wagers: wagers.results ?? [],
+    summary: summary ?? { total_wagers: 0, total_volume: 0, total_logins: 0, unique_ips: 0 },
+    period: { hours, since },
+  }, 200);
+}
+
+async function queryWeeklyFigures(url: URL, env: Env): Promise<Response> {
+  const agentId = (url.searchParams.get("agent_id") ?? "").trim();
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "10"), 1, 50);
+
+  let sql = `SELECT agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, captured_at
+             FROM weekly_figures WHERE 1=1`;
+  const bindings: (string | number)[] = [];
+
+  if (agentId) {
+    sql += " AND agent_id = ?";
+    bindings.push(agentId);
+  }
+
+  sql += " ORDER BY captured_at DESC LIMIT ?";
   bindings.push(limit);
 
   const result = await env.ANALYTICS_DB.prepare(sql).bind(...bindings).all();
@@ -3260,9 +4256,20 @@ async function queryPositionData(url: URL, env: Env): Promise<Response> {
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
-async function getDashboardSummary(env: Env): Promise<Response> {
+async function getDashboardSummary(url: URL, env: Env): Promise<Response> {
+  const mode = url.searchParams.get("mode") === "calendar" ? "calendar" : "rolling";
+  const days = clampInteger(Number(url.searchParams.get("days") ?? "1"), 1, 90);
   const today = new Date().toISOString().slice(0, 10);
-  const since = `${today}T00:00:00.000Z`;
+  const since =
+    mode === "calendar"
+      ? `${today}T00:00:00.000Z`
+      : new Date(Date.now() - days * 86400000).toISOString();
+  const windowLabel =
+    mode === "calendar"
+      ? `UTC day ${today}`
+      : days === 1
+        ? "Last 24 hours"
+        : `Last ${days} days`;
 
   const [tickerCount, gradedCount, perfRows, posRows] = await Promise.all([
     env.ANALYTICS_DB.prepare(
@@ -3296,6 +4303,7 @@ async function getDashboardSummary(env: Env): Promise<Response> {
 
   return json({
     date: today,
+    window: { mode, days, since, label: windowLabel },
     liveWagers: {
       total: tickerCount?.total ?? 0,
       volume: tickerCount?.volume ?? 0,
@@ -3879,20 +4887,137 @@ async function liveWagersStream(url: URL, env: Env, ctx?: ExecutionContext): Pro
   });
 }
 
+function configuredIngestionKeys(env: Env): Set<string> {
+  return new Set(
+    resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
+      hasCustomerId: ingestionHasCustomerId(env),
+      isKnownKey: (key) => isEndpointKey(key),
+      requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+    }),
+  );
+}
+
+function formatEndpointsRequested(
+  batch: ReturnType<typeof planIngestionBatch>,
+  endpoints: EndpointConfig[],
+): string {
+  const keys = endpoints.map((endpoint) => endpoint.key).join(",");
+  if (batch.catalogSize <= batch.batchSize) return keys;
+  return `[batch ${batch.cursor}-${batch.cursor + batch.batchSize - 1}/${batch.catalogSize}] ${keys}`;
+}
+
+async function readIngestionCursor(env: Env): Promise<number> {
+  try {
+    const raw = await env.AUTH_CACHE.get(INGESTION_CURSOR_KEY);
+    const parsed = Number.parseInt(raw ?? "0", 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function writeIngestionCursor(env: Env, cursor: number): Promise<void> {
+  try {
+    await env.AUTH_CACHE.put(INGESTION_CURSOR_KEY, String(cursor));
+  } catch {
+    /* cursor is best-effort */
+  }
+}
+
+async function getIngestionPlan(env: Env): Promise<
+  ReturnType<typeof planIngestionBatch> & { configured: string; batching: boolean }
+> {
+  const configured = env.FANTASY402_INGESTION_ENDPOINTS.trim();
+  const catalogKeys = resolveIngestionEndpointKeys(configured, {
+    hasCustomerId: ingestionHasCustomerId(env),
+    isKnownKey: (key) => isEndpointKey(key),
+    requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+  });
+
+  const batchSize = ingestionBatchSize(env.FANTASY402_INGESTION_BATCH_SIZE);
+  const batching = configured.toLowerCase() === INGESTION_ALL;
+
+  if (!batching) {
+    return {
+      keys: catalogKeys,
+      cursor: 0,
+      nextCursor: 0,
+      batchSize: catalogKeys.length,
+      catalogSize: catalogKeys.length,
+      configured,
+      batching: false,
+    };
+  }
+
+  const cursor = await readIngestionCursor(env);
+  return {
+    ...planIngestionBatch(catalogKeys, cursor, batchSize),
+    configured,
+    batching: true,
+  };
+}
+
+async function selectEndpointsForRun(env: Env): Promise<{
+  endpoints: EndpointConfig[];
+  batch: ReturnType<typeof planIngestionBatch>;
+}> {
+  const catalogKeys = resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
+    hasCustomerId: ingestionHasCustomerId(env),
+    isKnownKey: (key) => isEndpointKey(key),
+    requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+  });
+
+  if (!catalogKeys.length) {
+    throw new Error("No ingestion endpoints resolved from FANTASY402_INGESTION_ENDPOINTS");
+  }
+
+  const batchSize = ingestionBatchSize(env.FANTASY402_INGESTION_BATCH_SIZE);
+  const useBatching = env.FANTASY402_INGESTION_ENDPOINTS.trim().toLowerCase() === INGESTION_ALL;
+
+  if (!useBatching) {
+    const endpoints = catalogKeys.map((key) => resolveEndpointConfig(key, env));
+    return {
+      endpoints,
+      batch: {
+        keys: catalogKeys,
+        cursor: 0,
+        nextCursor: 0,
+        batchSize: catalogKeys.length,
+        catalogSize: catalogKeys.length,
+      },
+    };
+  }
+
+  const cursor = await readIngestionCursor(env);
+  const batch = planIngestionBatch(catalogKeys, cursor, batchSize);
+  await writeIngestionCursor(env, batch.nextCursor);
+  const endpoints = batch.keys.map((key) => resolveEndpointConfig(key, env));
+  return { endpoints, batch };
+}
+
+function resolveEndpointConfig(key: string, env: Env, runtime?: IngestionEnv): EndpointConfig {
+  if (!isEndpointKey(key)) {
+    throw new Error(`Unknown endpoint configured: ${key}`);
+  }
+  const endpoint = ENDPOINTS[key];
+  if (
+    endpoint.requiresCustomerId
+    && !hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+    && !runtime?.__ingestionCustomerId
+    && !canDeriveCustomerId()
+  ) {
+    throw new Error(`${key} requires FANTASY402_CUSTOMER_ID`);
+  }
+  return endpoint;
+}
+
 function selectEndpoints(env: Env): EndpointConfig[] {
-  return env.FANTASY402_INGESTION_ENDPOINTS.split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((key) => {
-      if (!isEndpointKey(key)) {
-        throw new Error(`Unknown endpoint configured: ${key}`);
-      }
-      const endpoint = ENDPOINTS[key];
-      if (endpoint.requiresCustomerId && !env.FANTASY402_CUSTOMER_ID) {
-        throw new Error(`${key} requires FANTASY402_CUSTOMER_ID`);
-      }
-      return endpoint;
-    });
+  const catalogKeys = resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
+    hasCustomerId: ingestionHasCustomerId(env),
+    isKnownKey: (key) => isEndpointKey(key),
+    requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+  });
+  return catalogKeys.map((key) => resolveEndpointConfig(key, env));
 }
 
 function withDateRange(env: Env, now: Date, input: Record<string, string | number>): Record<string, string | number> {
@@ -4590,13 +5715,55 @@ function diagnostics(env: Env): Response {
       scanPolicy: {
         allowedHosts: [...allowedScanHosts(env)],
       },
-      configuredEndpoints: env.FANTASY402_INGESTION_ENDPOINTS.split(",").map((endpoint) => endpoint.trim()).filter(Boolean),
+      configuredEndpoints: [...configuredIngestionKeys(env)],
       archive: {
         prefix: R2_ARCHIVE_PREFIX,
         storageClass: R2_ARCHIVE_STORAGE_CLASS,
       },
     },
     200,
+  );
+}
+
+async function authHealth(env: Env): Promise<Response> {
+  const runtimeEnv = await materializeSecretBindings(env);
+  const shape = upstreamAuthDiagnostics(runtimeEnv);
+  const readiness = shape.ingestionReadiness as { status?: string; blocker?: string | null };
+  const authorizationExpiry = shape.authorizationExpiry as {
+    status?: string;
+    expiresAt?: string | null;
+    secondsRemaining?: number | null;
+  };
+  const overlay = await runtimeEnv.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  const overlayActive = Boolean(
+    overlay?.authorization &&
+      typeof overlay.expiresAt === "number" &&
+      overlay.expiresAt > Date.now(),
+  );
+  const ready = readiness?.status === "ready";
+  return json(
+    {
+      status: ready ? "ready" : "degraded",
+      ingestionReadiness: readiness,
+      authorizationExpiry: {
+        status: authorizationExpiry?.status ?? "unknown",
+        expiresAt: authorizationExpiry?.expiresAt ?? null,
+        ttlSeconds:
+          typeof authorizationExpiry?.secondsRemaining === "number"
+            ? authorizationExpiry.secondsRemaining
+            : null,
+      },
+      hasCfClearance: shape.hasCfClearance,
+      hasCfBm: shape.hasCfBm,
+      hasSessionCookie: shape.hasSessionCookie,
+      authCacheOverlay: {
+        active: overlayActive,
+        updatedAt: overlay?.updatedAt ?? null,
+        expiresAt: overlay?.expiresAt ? new Date(overlay.expiresAt).toISOString() : null,
+      },
+      timestamp: new Date().toISOString(),
+    },
+    ready ? 200 : 503,
   );
 }
 
@@ -4811,6 +5978,116 @@ async function safeJson(request: Request): Promise<Record<string, unknown> | nul
   } catch {
     return null;
   }
+}
+
+const DEFAULT_DASHBOARD_URL = "https://fantasy402-dashboard-5q6.pages.dev";
+
+function dashboardUrl(env: Env): string {
+  const configured = env.FANTASY402_DASHBOARD_URL?.trim();
+  return configured && isHttpUrl(configured) ? configured : DEFAULT_DASHBOARD_URL;
+}
+
+function prefersHtml(request: Request): boolean {
+  const accept = request.headers.get("Accept") ?? "";
+  if (!accept.includes("text/html")) return false;
+  const htmlQ = qualityValue(accept, "text/html");
+  const jsonQ = qualityValue(accept, "application/json");
+  return htmlQ >= jsonQ;
+}
+
+function qualityValue(accept: string, mime: string): number {
+  const parts = accept.split(",").map((part) => part.trim());
+  for (const part of parts) {
+    const [type, ...params] = part.split(";").map((piece) => piece.trim());
+    if (type !== mime) continue;
+    const qParam = params.find((param) => param.startsWith("q="));
+    if (!qParam) return 1;
+    const q = Number.parseFloat(qParam.slice(2));
+    return Number.isFinite(q) ? q : 1;
+  }
+  return 0;
+}
+
+function workerRoot(env: Env, request: Request): Response {
+  if (prefersHtml(request)) {
+    return workerRootHtml(env);
+  }
+  return workerRootJson(env);
+}
+
+function workerRootJson(env: Env): Response {
+  const dashboard = dashboardUrl(env);
+  return json(
+    {
+      service: env.WORKER_NAME,
+      environment: env.ENVIRONMENT,
+      message: "Fantasy402 ingestion API. Use Bearer auth for protected routes.",
+      links: {
+        dashboard,
+        health: "/health",
+        authHealth: "/auth/health",
+        archiveViewer: "/archive/viewer",
+        endpoints: "/endpoints",
+        upstreamEndpoints: "/upstream-endpoints",
+      },
+    },
+    200,
+  );
+}
+
+function workerRootHtml(env: Env): Response {
+  const dashboard = dashboardUrl(env);
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(env.WORKER_NAME)}</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f8fafc; color: #111827; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    p { margin: 0 0 20px; color: #475569; line-height: 1.5; }
+    ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    a { display: block; padding: 14px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; text-decoration: none; }
+    a:hover { border-color: #94a3b8; background: #f1f5f9; }
+    a strong { display: block; margin-bottom: 4px; }
+    a span { font-size: 13px; color: #64748b; }
+    .primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .primary span { color: #cbd5e1; }
+    .meta { margin-top: 24px; font-size: 13px; color: #64748b; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(env.WORKER_NAME)}</h1>
+    <p>Ingestion and query API for Fantasy402. Protected routes require <code>Authorization: Bearer …</code>.</p>
+    <ul>
+      <li><a class="primary" href="${escapeHtml(dashboard)}"><strong>Monitoring dashboard</strong><span>Live wagers, charts, endpoints, logs</span></a></li>
+      <li><a href="/health"><strong>Health</strong><span>Worker, D1, Durable Object, upstream probe</span></a></li>
+      <li><a href="/auth/health"><strong>Auth health</strong><span>Sanitized ingestion auth readiness (public)</span></a></li>
+      <li><a href="/archive/viewer"><strong>Archive viewer</strong><span>Browse R2 ingestion archives</span></a></li>
+    </ul>
+    <p class="meta">Environment: <code>${escapeHtml(env.ENVIRONMENT)}</code> · API discovery: <code>GET /</code> with <code>Accept: application/json</code></p>
+  </main>
+</body>
+</html>`;
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function archiveViewer(): Response {
@@ -5529,6 +6806,8 @@ interface WorkerEndpointEntry {
 
 const WORKER_API_ZONE: Record<string, string> = {
   '/summary': 'query',
+  '/chart-aggregates': 'query',
+  '/upstream-endpoints': 'upstream',
   '/bet-ticker-wagers': 'query',
   '/performance': 'query',
   '/graded-wagers': 'query',
@@ -5536,6 +6815,11 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/position-data': 'query',
   '/authorizations': 'query',
   '/players': 'query',
+  '/search-customers': 'query',
+  '/customer-profile': 'query',
+  '/weekly-figures': 'query',
+  '/customer-activity': 'query',
+  '/customer-activity-search': 'query',
   '/alert-rules': 'auth',
   '/alert-log': 'auth',
   '/alerts': 'auth',
@@ -5550,6 +6834,12 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/scanner/diagnostics': 'network',
   '/live-wagers': 'do',
   '/ingest/local': 'ingestion',
+  '/ingest/local/plan': 'ingestion',
+  '/ingest/catalog-status': 'ingestion',
+  '/ingest/local/bootstrap': 'ingestion',
+  '/ingestion/advance-cursor': 'ingestion',
+  '/ingest/sync': 'ingestion',
+  '/trigger': 'ingestion',
   '/refresh-auth': 'cookie',
   '/update-cookies': 'cookie',
   '/upstream-cookies-status': 'cookie',
@@ -5557,6 +6847,8 @@ const WORKER_API_ZONE: Record<string, string> = {
 
 const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/summary', method: 'GET', description: 'Aggregated daily KPIs', refreshMs: 15000 },
+  { path: '/chart-aggregates', method: 'GET', description: 'Server-side chart buckets (hourly, types, agents)', refreshMs: 15000 },
+  { path: '/upstream-endpoints', method: 'GET', description: 'Fantasy402 upstream API catalog + configured flags', refreshMs: 60000 },
   { path: '/bet-ticker-wagers', method: 'GET', description: 'Live wager ticker (polling fallback)', refreshMs: 5000 },
   { path: '/performance', method: 'GET', description: 'Agent performance metrics', refreshMs: 15000 },
   { path: '/graded-wagers', method: 'GET', description: 'Graded wager results', refreshMs: 10000 },
@@ -5564,6 +6856,11 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/position-data', method: 'GET', description: 'Sport-level position data', refreshMs: 30000 },
   { path: '/authorizations', method: 'GET', description: 'Agent authorization permissions', refreshMs: 30000 },
   { path: '/players', method: 'GET', description: 'Player list', refreshMs: 30000 },
+  { path: '/search-customers', method: 'GET', description: 'Search player_agents by login, name, or customer id', refreshMs: 30000 },
+  { path: '/customer-profile', method: 'GET', description: 'Customer profile facets from D1 (getInfoPlayer, crypto, mail, teaser)', refreshMs: 30000 },
+  { path: '/weekly-figures', method: 'GET', description: 'Agent weekly figure lite snapshots', refreshMs: 30000 },
+  { path: '/customer-activity', method: 'GET', description: 'Customer web logs + wagers for a login', refreshMs: 30000 },
+  { path: '/customer-activity-search', method: 'POST', description: 'Search players for activity monitor', refreshMs: 30000 },
   { path: '/alert-rules', method: 'GET', description: 'List alert rules', refreshMs: 30000 },
   { path: '/alert-rules', method: 'POST', description: 'Create alert rule', refreshMs: 'manual' },
   { path: '/alert-rules', method: 'PATCH', description: 'Toggle alert rule', refreshMs: 'manual' },
@@ -5572,6 +6869,7 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/alerts', method: 'GET', description: 'Recent alerts', refreshMs: 30000 },
   { path: '/alerts/summary', method: 'GET', description: 'Alert summary counts', refreshMs: 30000 },
   { path: '/health', method: 'GET', description: 'Worker, D1, DO, upstream health', refreshMs: 30000 },
+  { path: '/auth/health', method: 'GET', description: 'Sanitized upstream auth readiness', refreshMs: 30000 },
   { path: '/diagnostics', method: 'GET', description: 'Full system diagnostics', refreshMs: 60000 },
   { path: '/runs', method: 'GET', description: 'Ingestion run history', refreshMs: 30000 },
   { path: '/runs/endpoints', method: 'GET', description: 'Per-run endpoint details', refreshMs: 30000 },
@@ -5581,6 +6879,12 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/scanner/diagnostics', method: 'GET', description: 'Scanner subsystem diagnostics', refreshMs: 60000 },
   { path: '/live-wagers', method: 'GET', description: 'SSE real-time wager stream', refreshMs: 'realtime' },
   { path: '/ingest/local', method: 'POST', description: 'Local browser ingestion', refreshMs: 'manual' },
+  { path: '/ingest/local/plan', method: 'GET', description: 'Next batch fetch specs for local browser ingest', refreshMs: 'manual' },
+  { path: '/ingest/catalog-status', method: 'GET', description: 'Catalog online/pending counts + backfill progress', refreshMs: 'manual' },
+  { path: '/ingest/local/bootstrap', method: 'GET', description: 'Cached browser auth for local/auto-runner ingest', refreshMs: 'manual' },
+  { path: '/ingestion/advance-cursor', method: 'POST', description: 'Advance batched ingestion cursor after local upload', refreshMs: 'manual' },
+  { path: '/ingest/sync', method: 'POST', description: 'Refresh auth and trigger ingestion in one call', refreshMs: 'manual' },
+  { path: '/trigger', method: 'POST', description: 'Run next ingestion batch', refreshMs: 'manual' },
   { path: '/refresh-auth', method: 'POST', description: 'Refresh upstream auth token', refreshMs: 'manual' },
   { path: '/update-cookies', method: 'POST', description: 'Update browser cookies', refreshMs: 'manual' },
   { path: '/upstream-cookies-status', method: 'GET', description: 'Cookie health status', refreshMs: 60000 },
@@ -5592,6 +6896,54 @@ function listWorkerEndpoints(): { count: number; routes: (WorkerEndpointEntry & 
     zone: WORKER_API_ZONE[r.path] || 'worker',
   }));
   return { count: routes.length, routes };
+}
+
+async function getRouteLatencyForRun(
+  env: Env,
+  runId: string | null | undefined,
+): Promise<Array<Record<string, unknown>>> {
+  if (!runId) return [];
+
+  const snapshots = await env.ANALYTICS_DB.prepare(
+    `SELECT endpoint_key, path,
+            CAST(AVG(duration_ms) AS INTEGER) AS avg_duration_ms,
+            MAX(duration_ms) AS max_duration_ms,
+            COUNT(*) AS samples
+     FROM api_snapshots
+     WHERE run_id = ? AND duration_ms IS NOT NULL
+     GROUP BY endpoint_key
+     ORDER BY avg_duration_ms DESC
+     LIMIT 25`,
+  )
+    .bind(runId)
+    .all();
+
+  const failureLatency = await env.ANALYTICS_DB.prepare(
+    `SELECT endpoint_key, path,
+            CAST(AVG(duration_ms) AS INTEGER) AS avg_duration_ms,
+            MAX(duration_ms) AS max_duration_ms,
+            COUNT(*) AS samples
+     FROM endpoint_failures
+     WHERE run_id = ? AND duration_ms IS NOT NULL
+     GROUP BY endpoint_key`,
+  )
+    .bind(runId)
+    .all();
+
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const row of snapshots.results ?? []) {
+    const key = String(row.endpoint_key ?? row.path ?? "");
+    if (key) byKey.set(key, row);
+  }
+  for (const row of failureLatency.results ?? []) {
+    const key = String(row.endpoint_key ?? row.path ?? "");
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, { ...row, source: "failure" });
+  }
+
+  return [...byKey.values()].sort(
+    (a, b) => Number(b.avg_duration_ms ?? 0) - Number(a.avg_duration_ms ?? 0),
+  );
 }
 
 async function getEndpointStatus(env: Env): Promise<Response> {
@@ -5610,11 +6962,35 @@ async function getEndpointStatus(env: Env): Promise<Response> {
      ORDER BY failure_count DESC`,
   ).all();
 
+  const latestRaw = latestRun.results?.[0] as Record<string, unknown> | undefined;
+  const runMeta = parseRunMeta(typeof latestRaw?.error_message === "string" ? latestRaw.error_message : null);
+  const latest = latestRaw
+    ? {
+        ...latestRaw,
+        endpoints_skipped: runMeta.skipped,
+        skip_note: runMeta.note ?? null,
+      }
+    : null;
+  const routeLatency = await getRouteLatencyForRun(env, typeof latestRaw?.id === "string" ? latestRaw.id : undefined);
+
+  let ingestion: Awaited<ReturnType<typeof getIngestionPlan>> | null = null;
+  try {
+    ingestion = await getIngestionPlan(env);
+  } catch {
+    ingestion = null;
+  }
+
+  const failureBreakdown = await readFailureBreakdown(env);
+
   return json(
     {
       worker: 'ok',
-      latestRun: latestRun.results?.[0] ?? null,
+      latestRun: latest,
       recentFailures: failures.results ?? [],
+      recentFailuresNote: "Historical D1 endpoint_failures (last 24h). Routes may still be online via local ingest.",
+      failureBreakdown24h: failureBreakdown,
+      routeLatency,
+      ingestion,
       timestamp: new Date().toISOString(),
     },
     200,

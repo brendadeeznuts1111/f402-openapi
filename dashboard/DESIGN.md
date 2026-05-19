@@ -57,19 +57,31 @@ flowchart TB
 
     subgraph PAGES[Cloudflare Pages]
         PROXY[Pages Function Proxy<br/>inject Bearer token<br/>CORS + Rate Limit]
-        DASHBOARD[Dashboard index.html]
-        subgraph TABS[Tabs]
-            subgraph MONITOR[Monitor Tab]
-                SUM[SummaryCards<br/>Live/Graded/TopAgents/TopSport]
-                TICKER[LiveWagerTicker<br/>filter type/min]
-                AGENT_TABLE[AgentPerformanceTable]
-                GRADED_TABLE[GradedWagersTable]
-                AUTH_GRID[AuthorizationsGrid]
+        DASHBOARD[Dashboard index.html v3]
+        subgraph VIEWS[5 Views — ESM Modules]
+            subgraph OVERVIEW[Overview]
+                STATS[6 Stat Cards<br/>volume/agents/PNL/types]
+                VOL_CHART[VolumeTrendChart<br/>Chart.js line]
+                TICKER[LiveWagerTicker<br/>WagerSocket SSE]
+                AGENT_TABLE[SortableAgentTable<br/>click to sort]
+                TIMELINE[EventTimeline<br/>wagers + alerts]
             end
-            subgraph ALERTS_TAB[Alerts Tab]
-                RULES_FORM[AlertRulesForm]
-                RULES_LIST[AlertRulesList]
-                LOG_VIEWER[AlertLogViewer]
+            subgraph ANALYTICS[Analytics]
+                TRAFFIC[TrafficChart bar]
+                LATENCY[LatencyChart line]
+                TYPE_CHART[TypeDistribution doughnut]
+                AGENT_CHART[AgentVolumeChart bar]
+                JSON_VIEW[JsonViewer raw response]
+            end
+            subgraph LOGS_VIEW[Logs]
+                EVENTS[Filterable Event Log]
+                AGENT_LOG[Sortable Agent Log Table]
+                SYS_LOG[System Log / run history]
+            end
+            subgraph SETTINGS[Settings]
+                GENERAL[General tabs<br/>theme/notifications/sound]
+                API_CFG[API config<br/>base URL/interval/items]
+                DATA_MGMT[Data Management<br/>dropzone import/export]
             end
         end
         TOAST[Toast Container]
@@ -106,19 +118,16 @@ flowchart TB
     PROXY --> REFRESH
 
     %% Dashboard internal wiring
-    DASHBOARD --> TABS
-    TABS --> MONITOR & ALERTS_TAB
-    SUM --> Q1
+    DASHBOARD --> VIEWS
+    STATS --> Q1
     TICKER --> SSE & Q3
-    AGENT_TABLE --> Q2
-    GRADED_TABLE --> Q4
-    AUTH_GRID --> Q7
-    RULES_FORM --> AR_CRUD
-    RULES_LIST --> AR_CRUD
-    LOG_VIEWER --> AL_GET
-    TOAST --> TICKER & RULES_FORM
-    CONN --> SSE & Q3
-    LAST_UPDATE --> TICKER
+    AGENT_TABLE & AGENT_LOG --> Q2
+    TIMELINE & EVENTS --> Q3 & AL_GET
+    TRAFFIC & TYPE_CHART & AGENT_CHART --> Q3
+    JSON_VIEW --> Q1
+    SYS_LOG --> ENDPOINT_STATUS[GET /endpoint-status]
+    DATA_MGMT --> SETTINGS_MANAGER[SettingsManager localStorage]
+    TOAST & CONN & LAST_UPDATE --> TICKER
 ```
 
 ### ANSI Color Zone Legend
@@ -291,21 +300,25 @@ Same structure as `bet_ticker_wagers` for prop bet events.
 ## 6. Dashboard (Frontend)
 
 ### 6.1 Technology
-- **Single HTML file** (`dashboard/index.html`) — zero build step.
+- **Markup-only HTML** (`dashboard/index.html`) — zero build step; logic in ESM modules.
 - **No frameworks** — Vanilla JS, CSS Grid, Custom Properties.
 - **Deployed on Cloudflare Pages** with a **Pages Function** (`_worker.js`) as API proxy.
-- **Design System** — Extracted into `css/design-system.css` + `css/components/*.css` (17 component stylesheets). Loaded via `<link>` tags.
-- **Naming Convention** — BEM (Block__Element--Modifier), e.g. `.ds-modal__content`, `.ds-badge--error`. No `ds-` prefix — all classes are design-system native and scoped by component file.
+- **Design System** — `css/design-system.css` + `css/components/*.css`; loaded via single `css/dashboard.css` bundle.
+- **Naming Convention** — BEM with `ds-` prefix (Block__Element--Modifier), e.g. `.ds-modal__content`, `.ds-badge--error`. One component per file under `css/components/`.
 - **Shared Constants** — `js/constants.js` holds canonical `ZONE_COLORS`, `ENDPOINT_ZONE_MAP`, and `REFRESH_INTERVALS`. Single source of truth for both Worker and Dashboard.
 
 ### 6.1.1 File Structure
 
 ```
 dashboard/
-├── index.html                 # Main entry (zero build step)
+├── index.html                 # Markup only (~350 lines)
+├── js/app.js                  # Application entry
+├── js/views/                  # overview, analytics, logs, settings, endpoints
+├── js/dom.js, format.js, ui.js, charts.js, theme.js, ticker.js
 ├── _worker.js                 # Pages Function proxy (injects Bearer token)
 ├── wrangler.toml              # Pages deployment config
 ├── css/
+│   ├── dashboard.css          # @import bundle (single <link> in index.html)
 │   ├── design-system.css      # Tokens, reset, utilities, animations, theme, sidebar
 │   └── components/
 │       ├── card.css           # Card component
@@ -318,20 +331,29 @@ dashboard/
 │       ├── filters.css        # Filter bar
 │       ├── error-state.css    # Zone-colored inline errors
 │       ├── tabs.css           # Tab navigation
-│       ├── form.css           # Form inputs + rule rows
+│       ├── form.css           # Form inputs + rule rows + validation states
 │       ├── ticker.css         # Ticker item layout
 │       ├── modal.css          # Modal overlay + focus trap
-│       ├── chart.css          # Chart container foundation
+│       ├── chart.css          # Chart.js canvas container
 │       ├── dropdown.css       # Dropdown menus
-│       └── tooltip.css        # Tooltip on hover
+│       ├── tooltip.css        # Tooltip on hover
+│       ├── stat-card.css      # 6-card responsive stat grid
+│       ├── timeline.css       # Vertical timeline with status dots
+│       ├── json-viewer.css    # Syntax-highlighted JSON viewer
+│       ├── empty-state.css    # Empty state placeholder
+│       └── dropzone.css       # Drag-and-drop file upload
 └── js/
-    ├── constants.js           # ZONE_COLORS, ENDPOINT_ZONE_MAP, REFRESH_INTERVALS
-    ├── design-system.js       # ComponentFactory, getZoneColor, getRefreshInterval, getZoneName
+    ├── constants.js           # ZONE_COLORS, CHART_COLORS, ENDPOINT_ZONE_MAP, REFRESH_INTERVALS
+    ├── design-system.js       # Re-exports + ComponentFactory
     ├── api-client.js          # api/Post/Patch/Delete with dedup, cache, bust, global error handler
     ├── websocket-client.js    # WagerSocket (SSE) + PollingFallback
     ├── store.js               # DataStore (TTL cache + EventEmitter)
-    ├── status-poller.js       # StatusPoller (endpoint health polling)
-    └── utils.js               # DateFormatter, NumberFormatter, Exporter, LazyLoader, AutoRefreshManager, ModalFactory
+    ├── status-poller.js       # StatusPoller (endpoint health + routeLatency)
+    ├── chart-wrapper.js       # Chart.js wrapper (CDN loader, theme-aware)
+    ├── sortable-table.js      # Click-to-sort table with formatters
+    ├── json-viewer.js         # Syntax-highlighted JSON viewer
+    ├── settings-manager.js    # localStorage-backed settings with import/export
+    └── utils.js               # DateFormatter, NumberFormatter, AutoRefreshManager, etc.
 ```
 
 ### 6.2 Dashboard Components
@@ -341,25 +363,31 @@ dashboard/
 | **Connection Status** | — | SSE/polling indicator (green dot / red dot) | SSE open/error events |
 | **Last Update Time** | — | Timestamp of most recent ticker update | ticker push |
 | **Sidebar** | — | Left nav with view switching + zone status indicators | `StatusPoller` via `GET /endpoint-status` (30s) |
-| **SummaryCards** | Monitor | 4 KPI cards: live wager count, volume, top agents, top sport | `GET /summary` (15s) |
-| **LiveWagerTicker** | Monitor | Scrollable live wager feed, filterable by type + min amount | `WagerSocket` SSE + `PollingFallback` (5s) |
-| **AgentPerformanceTable** | Monitor | Top agent metrics, sortable | `GET /performance` (15s) |
-| **GradedWagersTable** | Monitor | Graded results, filterable by result/agent | `GET /graded-wagers` (10s) |
-| **AuthorizationsGrid** | Monitor | Card-style agent permission list | `GET /authorizations` (30s) |
-| **AgentDetailTable** | Agents | Full agent list with search/filter | `GET /performance` (15s) |
-| **ScansTable** | Scans | Recent scan history with verdicts | `GET /scans` (manual) |
-| **AlertRulesForm** | Alerts | Create new alert rules | `POST /alert-rules` |
-| **AlertRulesList** | Alerts | Existing rules with toggle/delete | `GET /alert-rules` + CRUD |
-| **AlertLogViewer** | Alerts | Breach history, filterable | `GET /alert-log` |
+| **StatCards (6)** | Overview | Live wagers, graded, volume, agents, PNL, wager types | `GET /summary` (15s) |
+| **VolumeTrendChart** | Overview | Line chart of wager volume over time | `GET /bet-ticker-wagers` (via render) |
+| **LiveWagerTicker** | Overview | Scrollable live wager feed, filterable by type + min amount | `WagerSocket` SSE + `PollingFallback` (5s) |
+| **SortableAgentTable** | Overview | Click-to-sort agent metrics with currency formatter | `GET /performance` (15s) |
+| **EventTimeline** | Overview | Recent events (wagers + alerts) in vertical timeline | `bet-ticker-wagers` + `alert-log` |
+| **TrafficChart** | Analytics | Bar chart of wagers per hour | `GET /bet-ticker-wagers` (via render) |
+| **LatencyChart** | Analytics | Line chart of per-route avg latency (ms) | `GET /endpoint-status` → `routeLatency` |
+| **TypeDistributionChart** | Analytics | Doughnut chart of wager type mix | `GET /bet-ticker-wagers` (via render) |
+| **AgentVolumeChart** | Analytics | Bar chart of top 5 agents by volume | `GET /bet-ticker-wagers` (via render) |
+| **JsonViewer** | Analytics | Syntax-highlighted raw API response viewer | `GET /summary` (via render) |
+| **EventLogTimeline** | Logs | Filterable event timeline (all/ok/error/warn) | `bet-ticker-wagers` + `alert-log` |
+| **AgentLogTable** | Logs | Sortable full agent list | `GET /performance` (via render) |
+| **SystemLog** | Logs | Ingestion run history + endpoint failures | `StatusPoller` + `GET /endpoint-status` |
+| **GeneralSettings** | Settings | Theme, notifications, sound toggles | `SettingsManager` (localStorage) |
+| **ApiSettings** | Settings | API base URL, refresh interval, max ticker items | `SettingsManager` (localStorage) |
+| **AppearanceSettings** | Settings | Chart type, log level | `SettingsManager` (localStorage) |
+| **DataManagement** | Settings | Config import via dropzone, export, clear cache | `SettingsManager` + `DataStore` |
+| **ConfigViewer** | Settings | Live JSON preview of current settings | `SettingsManager.getAll()` |
 | **Toast Container** | — | Threshold alert toasts + browser notifications | Client-side `checkThresholds()` |
-| **Skeleton Loader** | — | Shimmer placeholder for cards/tables/ticker | CSS `skeleton` class |
+| **Skeleton Loader** | — | Shimmer placeholder for cards/tables/ticker/charts | CSS `skeleton` class |
 | **ErrorState** | — | Zone-colored inline error display | `renderErrorState(msg, endpoint)` |
 | **ThemeToggle** | — | Light/dark mode switcher with `localStorage` persistence | `[data-theme="light"]` override |
 | **SidebarStatus** | — | Zone health dots (ok/degraded/error) per subsystem | `StatusPoller` → zone derivation |
-| **Modal** | — | Overlay dialog with focus trapping, Escape, body scroll lock | `ModalFactory` |
-| **ChartContainer** | — | Responsive canvas wrapper for chart libraries | `.ds-chart-container` |
-| **Dropdown** | — | Action menu | `.ds-dropdown` + `.ds-dropdown__menu` |
-| **Tooltip** | — | Hover tooltip via `[data-tooltip]` attribute | CSS `::after` pseudo-element |
+| **Modal** | — | Overlay dialog with MutationObserver focus trap, Escape, body scroll lock | `ModalFactory` |
+| **Dropzone** | Settings | Drag-and-drop JSON config import with validation | `SettingsManager` |
 
 ### 6.3 Real‑time Ticker Flow
 1. On page load, `connectSSE()` creates an `EventSource` to `/api/live-wagers`.
@@ -406,7 +434,7 @@ setGlobalErrorHandler((err, path) => {
 });
 ```
 
-### 6.4.1 Zone Color Deterministic Mapping
+### 6.4.3 Zone Color Deterministic Mapping
 Every component derives its accent color from its endpoint's zone via `getZoneColor(endpoint)` in `constants.js`:
 
 | Endpoint Prefix | Zone | Accent Color |
@@ -471,7 +499,8 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 |---------|--------|-------|
 | **Virtual scrolling** | Planned | Agent table at 50K rows needs virtualized rendering (e.g. `@tanstack/react-virtual` or native `IntersectionObserver` chunking) or server-side cursor pagination. Current `limit=50` is a stopgap. |
 | **Status tooltip detail** | Planned | When a zone dot turns red, show tooltip with failing endpoint name + last error message on hover. |
-| **Chart widgets** | Planned | Use `ComponentFactory.createChart()` with chart library (Chart.js, D3, or lightweight canvas) for volume/PNL trends. |
+| **Push notifications** | Planned | Web push or webhook integration for critical alerts. |
+| **Multi-tenant dashboard** | Possible | Per-agent views with login. |
 
 ### 6.9 Z-Index Hierarchy
 ```
@@ -482,11 +511,15 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 5000  --z-tooltip      Hover tooltips
 ```
 
-### 6.9 State Management (in‑memory)
-- `tickerItems` — array of wager objects, newest first.
-- `tickerSince` — ISO string of latest wager (for polling).
-- `sseSource` / `tickerTimer` — references to SSE connection and polling interval.
-- Filter states read from DOM inputs at render time.
+### 6.10 State Management
+- `tickerItems` — array of wager objects, newest first (capped at `MAX_TICKER_ITEMS`).
+- `tickerSince` — ISO string of latest wager (for SSE since param + polling cursor).
+- `WagerSocket` — manages SSE connection lifecycle, reconnect tracking, `since`-aware reconnection.
+- `PollingFallback` — dedup-aware polling fallback with `tickerItems` reference for duplicate prevention.
+- `DataStore` — TTL-cached fetch-through store for summary, performance, authorizations (cross-view).
+- `SettingsManager` — `localStorage`-backed persistent settings with `onChange` listeners.
+- `StatusPoller` — 30s interval health polling, zone derivation, sidebar status update.
+- Filter states read from DOM inputs at render time (debounced at 300ms for ticker min amount).
 
 ---
 
@@ -543,6 +576,15 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 | Push notifications via webhooks/email | Planned |
 | Multi‑sport dashboards (per‑sport views) | Possible |
 | Admin panel for rule configuration | Possible |
+| Dashboard v3 — 5 views (Overview, Analytics, Logs, Settings, Endpoints) | **Done** |
+| View modules (`js/views/`) + `app.js` entry | **Done** (v3.2) |
+| Route latency on `/endpoint-status` + Analytics chart | **Done** (v3.2) |
+| CSS bundle `dashboard.css` | **Done** (v3.2) |
+| Chart.js integration (volume, traffic, latency, distribution) | **Done** |
+| Sortable tables, JSON viewer, settings manager | **Done** |
+| Config import/export via dropzone | **Done** |
+| 7 pitfall fixes (XSS, charts, validation, focus trap) | **Done** |
+| ESM module architecture (5+ modules) | **Done** |
 | Design system v2.2 (extracted CSS, constants, theme) | **Done** |
 | Skeleton loaders + error states | **Done** |
 | Request deduplication & caching | **Done** |
@@ -558,7 +600,7 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 
 ---
 
-*Document version: 2.3 – adds ESM module architecture, sidebar layout, DataStore, StatusPoller, global error handler, Agents and Scans views. Updated 2026-05-18.*
+*Document version: 3.2 – Modular views (`js/views/`), `routeLatency` on `/endpoint-status`, CSS bundle, utils formatters. Updated 2026-05-18.*
 
 ---
 
@@ -584,6 +626,28 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 ### 2026-05-18 — P4: WebSocket Migration
 - Deferred — Pages `_worker.js` proxy can't transparently forward WebSocket upgrades. SSE works for current ~100 concurrent connections.
 - Will revisit when Pages Functions natively support WebSocket upgrade pass-through or when dashboard DAU exceeds 50.
+
+### 2026-05-19 — P7: Dashboard v3 — 4 Views, Charts, Sortable Tables, Settings
+- **4-view layout**: Overview (6 stat cards + line chart + timeline + sortable agent table), Analytics (multi-tab charts + JSON viewer), Logs (filterable timeline + agent/system logs), Settings (4 tabs with modals, dropzone, config viewer).
+- **Chart.js integration**: `ChartWrapper` loads Chart.js from CDN, auto-detects light/dark theme for colors. Used in Overview (volume trend), Analytics (traffic, latency, distribution).
+- **SortableTable**: Click headers to sort by string/number/date. Formatter functions for display (e.g., currency).
+- **JsonViewer**: Syntax-highlighted JSON with key/string/number/boolean/null color coding.
+- **SettingsManager**: `localStorage`-backed settings with defaults, change listeners, import/export.
+- **Dropzone**: File drag-and-drop + click-to-upload for JSON config import.
+- **Timeline component**: Vertical timeline with colored status dots (success/error/warning/info) for event feeds.
+- **Stat cards**: 6-card responsive grid (6→3→2 columns) with icons, values, labels.
+- **7 Pitfalls fixed**:
+  1. CSS prefix consistency — verified all classes use `ds-` prefix.
+  2. ModalFactory focus trap — replaced DOM re-querying with `MutationObserver` for dynamic content.
+  3. Empty modal fallback — `tabindex="-1"` on modal container when no focusable children (already present, verified cleanup on close).
+  4. CSS validation classes — added `.ds-form-group--valid/invalid`, `.ds-form-input--valid/invalid`, `.ds-form-error`.
+  5. WeakMap audit — LazyLoader's `WeakMap` verified safe (no strong references).
+  6. Tab visibility — `AutoRefreshManager.pause()` on `document.hidden`, re-register on visible (StatusPoller also pauses).
+  7. Date rounding — `DateFormatter` uses explicit `Math.floor` strategy, documented in comments.
+- **storeTTL(refreshMs)** — TTL set to 65% of refresh interval so cache expires before next refresh, preventing stale data.
+- **WagerSocket max reconnect** — capped at 10 attempts, emits `'failed'` status instead of infinite retry.
+- **New CSS components**: `stat-card.css`, `timeline.css`, `json-viewer.css`, `dropzone.css`.
+- **New JS modules**: `chart-wrapper.js`, `sortable-table.js`, `json-viewer.js`, `settings-manager.js`.
 
 ### 2026-05-18 — P6: ESM Module Architecture + Sidebar + Store + StatusPoller
 - **ESM migration**: All JS files converted to ES modules with `export`. `index.html` uses `<script type="module">` with imports from all modules. Backward-compat globals set on `window` for non-module usage.

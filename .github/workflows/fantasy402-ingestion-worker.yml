@@ -43,6 +43,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Auth stack (offline)
+        run: bun scripts/check-auth-stack.mjs --offline
+
       - name: Typecheck Worker
         run: npm run verify
 

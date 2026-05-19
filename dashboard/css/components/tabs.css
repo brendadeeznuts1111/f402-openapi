@@ -1,28 +1,39 @@
-/* dashboard/css/components/tabs.ds-css */
+/* Tab navigation — visibility via .ds-active; keyboard focus ring */
 
 .ds-tabs {
   display: flex;
   gap: 0;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-ds);
 }
 
 .ds-tab {
-  padding: 0.6rem 1.2rem;
+  padding: var(--space-sm) var(--space-md);
   cursor: pointer;
-  color: var(--muted);
+  color: var(--secondary-text);
   border-bottom: 2px solid transparent;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-sans);
   user-select: none;
+  margin-bottom: -1px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.ds-tab:hover { color: var(--text); }
+.ds-tab:hover { color: var(--primary-text); }
 
-.ds-tab.ds-active {
-  color: var(--blue);
-  border-bottom-color: var(--blue);
+.ds-tab:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ds-tab.ds-active,
+.ds-tab--active {
+  color: var(--info);
+  border-bottom-color: var(--info);
 }
 
 .ds-tab-content { display: none; }
-.ds-tab-content.ds-active { display: block; }
+
+.ds-tab-content.ds-active,
+.ds-tab-content--active { display: block; }

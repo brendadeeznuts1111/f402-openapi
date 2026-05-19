@@ -1,0 +1,111 @@
+/* Layout & accessibility utilities (design system primitives) */
+
+.ds-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ds-stack--sm { gap: var(--space-sm); }
+.ds-stack--lg { gap: var(--space-lg); }
+
+.ds-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ds-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-text-muted {
+  color: var(--secondary-text);
+  font-size: var(--text-sm);
+}
+
+.ds-help-text {
+  color: var(--secondary-text);
+  font-size: var(--text-xs);
+  margin: var(--space-sm) 0 0;
+  line-height: 1.45;
+}
+
+.ds-textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-ds);
+  border-radius: var(--radius-md);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.ds-textarea:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.ds-textarea--sm {
+  min-height: 72px;
+}
+
+.ds-text-mono {
+  font-family: var(--font-mono);
+}
+
+.ds-section-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--secondary-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-sm);
+}
+
+/* Chart status announcements (filled by JS) */
+.ds-chart-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .ds-stat-card:hover {
+    transform: none;
+  }
+}

@@ -5,6 +5,7 @@ const token = process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TO
 const results = [];
 
 await check("health", "/health?smoke=1", { status: 200, includes: '"worker":"ok"' });
+await check("auth-health", "/auth/health", { status: [200, 503], includes: '"ingestionReadiness"' });
 await check("viewer", "/archive/viewer", { status: 200, includes: "Fantasy402 Archive Viewer" });
 
 for (const route of [

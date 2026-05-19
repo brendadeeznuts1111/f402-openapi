@@ -6,21 +6,53 @@
 - Primary roles: ROLE_AGENT, ROLE_MASTER, ROLE_SUB_AGENT.
 - Upstream base URL: https://fantasy402.com/cloud/api/
 - Worker docs: ./workers/fantasy402-ingestion/README.md
+- Dashboard docs: ./docs/dashboard.md
+
+## Upstream catalog (86 endpoints)
+- Manifest: `workers/fantasy402-ingestion/upstream-endpoints.json` — all 86 read-only routes.
+- Worker implements every manifest key in `src/index.ts` (`ENDPOINTS`).
+- **`configured`** (on `GET /upstream-endpoints`): included in ingestion rotation when `FANTASY402_INGESTION_ENDPOINTS=all`. All 86 are configured when player `customerID` can be derived from `Manager/getPlayers` (no static `FANTASY402_CUSTOMER_ID` required).
+- **`online`** (on `GET /upstream-endpoints`): at least one row in D1 `api_snapshots` for that `endpoint_key` (historical success, not “live this second”).
+- **Customer-scoped routes (3):** `getPending`, `Pending`, `getCommunicationMessages` — require a **player** `customerID`, not the agent ID. Manifest field `customerIdSource: "Manager/getPlayers"` documents the intended OpenAPI `x-customer-id-source` contract.
+
+## Ingestion modes (critical)
+1. **Worker `/trigger` (cron every 15 min, batch size 12):** runs from Cloudflare edge IP. Upstream often returns **403** (IP-bound `cf_clearance`). Outcomes classified as **skipped**, not failed. **Not sufficient** for full catalog coverage.
+2. **Local / browser ingest (required for R2 + D1 coverage):**
+   - `GET /ingest/local/plan` → fetch from browser on `fantasy402.com` (same IP as cookies) → `POST /ingest/local` with `advanceCursor: true`.
+   - CLI: `npm run ingest:local-batch` or `npm run ingest:local-all` from `workers/fantasy402-ingestion/`.
+   - VPS unattended: split timers — `auth:refresh-if-needed` (15m) + `ingest:unattended-cycle --skip-refresh --auto-loops` (5m). Policy: `scripts/automation-policy.mjs`. Architecture: `docs/ops/automation-architecture.md`.
+   - Dashboard: classifies plane (`worker-kv` vs `dashboard-browser` vs `manager-live`); does not auto-ingest from Pages when VPS holds KV auth. Manager tab: auto-runner on `manager.html`.
+3. **Customer ID prefetch:** when KV has no cached player ID, the plan prepends `getPlayers`. Clients must fetch `getPlayers` first, upload to `/ingest/local` (caches ID), then re-fetch plan before customer-scoped endpoints.
 
 ## Key Workflows
-1. authenticateCustomer -> cached bearer/session auth for ingestion.
-2. getPlayers -> Pending -> getWagerDetailTransaction for player and wager workflows.
-3. getAgentPositionList -> getAgentPositionData for risk-management workflows.
-4. Ingestion cron -> D1 storage -> notifyLiveWager() -> LiveWagerBroadcaster DO broadcasts SSE to dashboard clients.
-5. URL Scanner evidence -> scan verdicts, screenshots, HAR summaries, and alert metadata.
+1. authenticateCustomer / `POST /refresh-auth` → cached bearer + Cloudflare cookies for ingestion.
+2. **getPlayers → Pending → getWagerDetailTransaction** for player and wager workflows (customer ID must come from `getPlayers`, not agent ID).
+3. getAgentPositionList → getAgentPositionData for risk-management workflows.
+4. Local ingest cron → D1 `api_snapshots` + R2 archives → typed tables (`bet_ticker_wagers`, etc.) → `notifyLiveWager()` → LiveWagerBroadcaster DO → dashboard SSE.
+5. URL Scanner evidence → scan verdicts, screenshots, HAR summaries, and alert metadata.
+
+## Key Components
+- **Dashboard:** ESM SPA (`dashboard/js/app.js` + `js/views/*`) on Cloudflare Pages. SSE ticker, 5 views, route latency chart. Endpoints tab shows configured + **online** flags per upstream route.
+- **LiveWagerBroadcaster:** Durable Object (`workers/fantasy402-ingestion/src/live-wager-broadcaster.ts`) managing persistent SSE connections for real-time wager delivery.
+- **notifyLiveWager:** Called after D1 wager insert; POSTs `{ id, login, wager_type, amount_wagered, captured_at }` to the DO for SSE broadcast.
+- **Customer ID module:** `workers/fantasy402-ingestion/src/customer-id.ts` — extract from `getPlayers` LIST, KV cache key `fantasy402:player-customer-id`.
+
+## Operator API (Worker)
+| Route | Purpose |
+|-------|---------|
+| `GET /upstream-endpoints` | Full catalog + `configured`, `online`, `lastSnapshotAt`, `customerIdSource` |
+| `GET /ingest/catalog-status` | Catalog online/pending counts, batches remaining, auth blocker |
+| `GET /ingest/local/plan` | Next batch fetch specs; may prepend `getPlayers` for customer ID |
+| `GET /ingest/local/bootstrap` | Cached browser auth for manager.html auto-runner |
+| `POST /ingest/local` | Upload browser-fetched snapshots; caches player ID on `getPlayers` |
+| `POST /ingestion/advance-cursor` | Rotate batch cursor |
+| `GET /auth/health` | Public sanitized auth readiness (no secrets) |
+| `GET /diagnostics` | Bindings, `ingestionReadiness`, optional secrets |
+| `GET /bet-ticker-wagers` | Live wager query (D1) |
+| `GET /chart-aggregates` | Hourly/type/agent aggregates (D1) |
 
 ## Visual Reference
 - ANSI wiring diagram: `./endpoint_frontend_wiring_ansi_v2.sh` — run in a true‑color terminal for a color‑coded map of all components and API flows.
-
-## Key Components
-- **Dashboard:** Single-file SPA at `dashboard/index.html` with SSE live-wager ticker, performance tables, and alerting. Design docs: `dashboard/DESIGN.md`
-- **LiveWagerBroadcaster:** Durable Object (`workers/fantasy402-ingestion/src/live-wager-broadcaster.ts`) managing persistent SSE connections for real-time wager delivery.
-- **notifyLiveWager:** Called after D1 wager insert; POSTs `{ id, login, wager_type, amount_wagered, captured_at }` to the DO for SSE broadcast.
 
 ## Contract Artifacts
 - Secured examples spec: ./.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json
@@ -34,3 +66,4 @@
 - Account identifiers, login names, emails, names, and IP-like fields carry x-sensitive metadata.
 - Error responses document application/problem+json and rate-limit retry headers.
 - Deprecated endpoints carry Deprecation, Sunset, and Link header contracts.
+- Never commit `.archive-auth-token`, `browser-auth.json`, or `.dev.vars` with real credentials.

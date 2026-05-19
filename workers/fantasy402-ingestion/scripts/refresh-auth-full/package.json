@@ -1,0 +1,13 @@
+{
+  "name": "refresh-auth-full",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Headless Puppeteer login + sessionStorage harvest → POST /refresh-auth",
+  "type": "module",
+  "scripts": {
+    "start": "tsx refresh-auth-full.ts"
+  },
+  "dependencies": {
+    "puppeteer": "^22.0.0"
+  }
+}

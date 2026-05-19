@@ -41,7 +41,7 @@ for (const endpoint of manifest.endpoints) {
   if (operation.operationId !== endpoint.operationId) {
     findings.push(`${endpoint.key} operationId drifted: expected ${endpoint.operationId}, found ${operation.operationId ?? "missing"}`);
   }
-  if (operation.deprecated === true) {
+  if (operation.deprecated === true && endpoint.acceptDeprecated !== true) {
     findings.push(`${endpoint.key} points at a deprecated upstream operation`);
   }
   if (!operation.security || operation.security.length === 0) {
@@ -58,6 +58,16 @@ for (const endpoint of manifest.endpoints) {
   const requiredFields = new Set(Array.isArray(requestSchema?.required) ? requestSchema.required : []);
   if (requiredFields.has("customerID") && endpoint.requiresCustomerId !== true) {
     findings.push(`${endpoint.key} secured spec requires customerID but manifest does not mark requiresCustomerId`);
+  }
+  if (endpoint.requiresCustomerId && !endpoint.customerIdSource) {
+    findings.push(`${endpoint.key} requires customerID but manifest is missing customerIdSource`);
+  }
+  if (endpoint.customerIdSource && endpoint.customerIdSource !== "Manager/getPlayers") {
+    findings.push(`${endpoint.key} has unsupported customerIdSource ${endpoint.customerIdSource}`);
+  }
+  const openapiCustomerIdSource = operation?.["x-customer-id-source"];
+  if (endpoint.customerIdSource && openapiCustomerIdSource && openapiCustomerIdSource !== endpoint.customerIdSource) {
+    findings.push(`${endpoint.key} x-customer-id-source drift: manifest ${endpoint.customerIdSource}, spec ${openapiCustomerIdSource}`);
   }
   if (endpoint.contentType === "application/json" && !source.includes(`contentType: "json"`)) {
     findings.push(`${endpoint.key} uses JSON request bodies but src/index.ts has no JSON endpoint encoder`);
@@ -217,6 +227,11 @@ function isUnreviewedCredentialField(value) {
 function parseConfiguredEndpointKeys(config) {
   const match = config.match(/FANTASY402_INGESTION_ENDPOINTS\s*=\s*"([^"]+)"/);
   if (!match) return [];
+  if (match[1].trim().toLowerCase() === "all") {
+    return manifest.endpoints
+      .filter((endpoint) => !endpoint.requiresCustomerId)
+      .map((endpoint) => endpoint.key);
+  }
   return match[1]
     .split(",")
     .map((part) => part.trim())

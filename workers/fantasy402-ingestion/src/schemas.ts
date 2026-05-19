@@ -21,6 +21,7 @@ export const localIngestItemSchema = z.object({
 
 export const localIngestSchema = z.object({
   results: z.array(localIngestItemSchema).min(1).max(25),
+  advanceCursor: z.boolean().optional(),
 });
 
 const nonEmptyString = z.string().min(1);
@@ -53,6 +54,10 @@ export const authorizationsQuerySchema = paginationSchema.extend({
 export const updateCookiesSchema = z.object({
   cf_clearance: z.string().min(1),
   __cf_bm: z.string().min(1),
+});
+
+export const chartAggregatesSchema = z.object({
+  hours: z.coerce.number().int().min(1).max(168).default(24).catch(24),
 });
 
 export type Pagination = z.infer<typeof paginationSchema>;

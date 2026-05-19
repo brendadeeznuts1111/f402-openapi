@@ -1,6 +1,13 @@
 # Fantasy402 Cloudflare Pages Deployment
 
-Cloudflare Pages is the preferred external hosting target for the static Fantasy402 OpenAPI portal.
+Cloudflare Pages hosts two projects in this repository:
+
+| Project | Source | Purpose |
+|---------|--------|---------|
+| `fantasy402-docs` | `.o11y/.../api-spec-secured/site` | Secured OpenAPI developer portal |
+| `fantasy402-dashboard` | `dashboard/` | Live ingestion monitoring UI |
+
+This document covers the **docs portal**. For the live dashboard, see `docs/dashboard.md`.
 
 ## Source Artifacts
 

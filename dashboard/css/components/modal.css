@@ -80,3 +80,12 @@
 body.ds-modal-open {
   overflow: hidden;
 }
+
+@media (max-width: 640px) {
+  .ds-modal__content {
+    min-width: unset;
+    width: calc(100vw - var(--space-md) * 2);
+    max-width: 100vw;
+    padding: var(--space-md);
+  }
+}

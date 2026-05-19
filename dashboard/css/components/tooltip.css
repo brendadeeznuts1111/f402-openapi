@@ -28,3 +28,23 @@
 [data-tooltip]:hover::after {
   opacity: 1;
 }
+
+[data-tooltip-bottom]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+[data-tooltip-left]::after {
+  bottom: auto;
+  left: auto;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+[data-tooltip-right]::after {
+  bottom: auto;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+}

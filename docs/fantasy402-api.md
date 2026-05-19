@@ -44,3 +44,7 @@ The secured spec version is `2026-05-17-slim-v1.2`, with `x-api-state: observed`
 Publish `openapi.secured.examples.yaml` and `site/**` to the internal developer portal. Use `openapi.secured.slim.yaml` for generated clients.
 
 Cloudflare Pages deployment is documented in `docs/cloudflare-pages.md`. The repository workflow builds the static portal from the examples spec and can deploy it to the `fantasy402-docs` Pages project when the Cloudflare secrets are configured.
+
+## Live Dashboard
+
+The ingestion Worker exposes an operational API (`workers/fantasy402-ingestion/openapi.worker.json`) consumed by the live dashboard on Cloudflare Pages (`fantasy402-dashboard`). See `docs/dashboard.md` for views, deployment, and the `/endpoint-status` + `routeLatency` contract used by the Analytics latency chart.

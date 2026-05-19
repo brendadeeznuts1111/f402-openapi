@@ -84,7 +84,8 @@
       "path": "/cloud/api/Manager/getPending",
       "operationId": "post_cloud_api_Manager_getPending",
       "contentType": "application/json",
-      "requiresCustomerId": true
+      "requiresCustomerId": true,
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "Pending",
@@ -92,7 +93,8 @@
       "path": "/cloud/api/Report/Pending",
       "operationId": "post_cloud_api_Report_Pending",
       "requiresCustomerId": true,
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "getPlayers",
@@ -114,7 +116,8 @@
       "path": "/cloud/api/Customer/getCommunicationMessages",
       "operationId": "post_cloud_api_Customer_getCommunicationMessages",
       "requiresCustomerId": true,
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "getListAgenstByAgent",
@@ -122,6 +125,42 @@
       "path": "/cloud/api/Manager/getListAgenstByAgent",
       "operationId": "post_cloud_api_Manager_getListAgenstByAgent",
       "contentType": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "getInfoPlayer",
+      "method": "post",
+      "path": "/cloud/api/Manager/getInfoPlayer",
+      "operationId": "post_cloud_api_Manager_getInfoPlayer",
+      "requiresCustomerId": true,
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
+    },
+    {
+      "key": "getCryptoInfo",
+      "method": "post",
+      "path": "/cloud/api/Manager/getCryptoInfo",
+      "operationId": "post_cloud_api_Manager_getCryptoInfo",
+      "requiresCustomerId": true,
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
+    },
+    {
+      "key": "getMail",
+      "method": "post",
+      "path": "/cloud/api/Manager/getMail",
+      "operationId": "post_cloud_api_Manager_getMail",
+      "requiresCustomerId": true,
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
+    },
+    {
+      "key": "getTeaserProfile",
+      "method": "post",
+      "path": "/cloud/api/Manager/getTeaserProfile",
+      "operationId": "post_cloud_api_Manager_getTeaserProfile",
+      "requiresCustomerId": true,
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "getLineTypes",
@@ -394,7 +433,9 @@
       "method": "post",
       "path": "/cloud/api/Manager/getWebLog",
       "operationId": "post_cloud_api_Manager_getWebLog",
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "acceptDeprecated": true,
+      "deprecatedNote": "Secured spec marks deprecated until audit-log replacement exists; required for Activity web_logs ingest"
     },
     {
       "key": "getWeeklyFigureByAgent",
@@ -478,14 +519,18 @@
       "method": "post",
       "path": "/cloud/api/Report/getScoresLiveDynamic",
       "operationId": "post_cloud_api_Report_getScoresLiveDynamic",
-      "contentType": "application/json"
+      "contentType": "application/json",
+      "requiresCustomerId": true,
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "reportGetTicketDetailPrint",
       "method": "post",
       "path": "/cloud/api/Report/getTicketDetailPrint",
       "operationId": "post_cloud_api_Report_getTicketDetailPrint",
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "acceptDeprecated": true,
+      "deprecatedNote": "Secured spec marks deprecated pending valid backend method audit"
     },
     {
       "key": "reportGetTransactions",

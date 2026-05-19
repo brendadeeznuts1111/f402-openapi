@@ -638,6 +638,28 @@
         }
       }
     },
+    "/auth/health": {
+      "get": {
+        "operationId": "getAuthHealth",
+        "summary": "Sanitized upstream auth readiness for ingestion",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Auth overlay ready for ingestion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthHealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Auth blocked or expired"
+          }
+        }
+      }
+    },
     "/runs": {
       "get": {
         "operationId": "listIngestionRuns",
@@ -2337,6 +2359,41 @@
           "environment": {
             "type": "string"
           }
+        }
+      },
+      "AuthHealthResponse": {
+        "type": "object",
+        "required": ["status", "ingestionReadiness", "authorizationExpiry", "timestamp"],
+        "additionalProperties": false,
+        "properties": {
+          "status": { "type": "string", "enum": ["ready", "degraded"] },
+          "ingestionReadiness": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "blocker": { "type": ["string", "null"] }
+            }
+          },
+          "authorizationExpiry": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "expiresAt": { "type": ["string", "null"] },
+              "ttlSeconds": { "type": ["integer", "null"] }
+            }
+          },
+          "hasCfClearance": { "type": "boolean" },
+          "hasCfBm": { "type": "boolean" },
+          "hasSessionCookie": { "type": "boolean" },
+          "authCacheOverlay": {
+            "type": "object",
+            "properties": {
+              "active": { "type": "boolean" },
+              "updatedAt": { "type": ["string", "null"] },
+              "expiresAt": { "type": ["string", "null"] }
+            }
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
         }
       },
       "TriggerResponse": {

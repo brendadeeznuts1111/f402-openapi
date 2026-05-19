@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.fantasy402.local-proxy</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>scripts/run-with-ingestion-env.sh</string>
+    <string>__BUN__</string>
+    <string>scripts/local-ingest-proxy.ts</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__WORKDIR__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>WORKER_ORIGIN</key>
+    <string>http://127.0.0.1:8791</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>__LOGDIR__/local-proxy.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOGDIR__/local-proxy.err.log</string>
+</dict>
+</plist>

@@ -1,5 +1,82 @@
 # Changelog
 
+## v3.6.7 — Catalog backfill automation
+
+### Added
+- **`GET /ingest/catalog-status`** — online/pending counts, `batchesRemaining`, auth blocker (Endpoints health panel)
+- **Dynamic backfill loops** — auto-runner and Install auto-runner compute loops from pending count (~6 when 63 pending)
+- **JWT expiry guard** — automation skips ingest when bearer expired and no fresh capture pasted
+
+### Changed
+- **Cursor advances on partial success** — local upload advances when `endpointsSucceeded > 0` (rotation no longer stalls)
+- **`ingest:local-all`** continues after partial CLI batch failures
+- CF cookies refreshed via Puppeteer script (JWT still requires browser capture paste)
+
+## v3.6.6 — Full catalog online status
+
+### Added
+- **`online` + `lastSnapshotAt`** on `GET /upstream-endpoints` — D1-backed ingest history per route; Endpoints tab shows **online/pending** column
+- **Customer ID prefetch** — local ingest plan prepends `getPlayers` when player ID not cached; dashboard, CLI, and manager auto-runner resolve before customer-scoped routes
+- **`dashboard/js/customer-id-resolve.js`** — shared getPlayers → cache → re-plan flow
+
+### Changed
+- Full-catalog button copies self-bootstrapping auto-runner with `ceil(86/12)` loops (was hardcoded 7)
+- `ingest-local-batch.mjs` default catalog size 86 (was 83)
+- Worker derives player `customerID` from `Manager/getPlayers` when `FANTASY402_CUSTOMER_ID` unset (all 86 configured)
+
+## v3.6.5 — Full ingestion automation
+
+### Added
+- **Self-bootstrapping auto-runner** — manager.html script fetches fresh JWT from `/ingest/local/bootstrap` each batch (no re-paste when token expires)
+- **`GET /ingest/local/bootstrap`** — worker returns cached browser auth for dashboard + auto-runner
+- **Automation status panel** — shows pending/installed state on Endpoints tab
+- **Install auto-runner** — copies script + opens manager tab; **Auto-runner pasted** confirms setup
+- **Background scheduler** — auto-ingest every 5 min when enabled (default on)
+- **`npm run ingest:install-cron`** — launchd job for hands-free CLI ingest from your machine
+
+### Changed
+- Settings v2 migration enables automation for existing browsers
+- Stale-ingest detection runs batches even when worker auth shows "ready"
+- CORS from Pages auto-delegates to manager auto-runner (silent copy + toast once)
+
+## v3.6.4 — Manager console ingest
+
+### Added
+- **Console script generator** — copy a DevTools snippet for `fantasy402.com/manager.html` (same-origin fetch, bypasses CORS from Pages)
+- **Full catalog ingest** — dashboard button + `npm run ingest:local-all` rotate all batches via worker plan
+- **Auth status panel** — JWT TTL countdown, batch cursor progress on Endpoints tab
+- **CORS preflight** on Pages `/api` proxy for cross-origin console script calls
+
+### Changed
+- Local batch CLI accepts `--loops N` and `--all`; passes worker plan JSON to `local-browser-ingest.mjs`
+- Local batch button falls back to copying console script when CORS blocks fetch
+
+## v3.6.3 — Local browser ingest
+
+### Added
+- **`GET /ingest/local/plan`** — fetch specs for the current batch (path, body, content-type)
+- **`POST /ingestion/advance-cursor`** — rotate batch cursor after local uploads
+- **`advanceCursor` on `/ingest/local`** — auto-advance when local upload succeeds
+- **Dashboard local ingest** — browser fetches from your IP, uploads snapshots, advances cursor
+- **Cookie-only capture merge** — HTML/component fetches refresh CF cookies against stored JWT
+- **`npm run ingest:local-batch`** — CLI uses worker plan + advances cursor
+
+### Changed
+- Sync button → **Sync & local ingest** (Worker /trigger kept as fallback)
+- Auth payload persisted in `localStorage` for cookie-only refreshes
+
+## v3.6.2 — Ingestion automation
+
+### Added
+- **`POST /ingest/sync`** — refresh auth + trigger ingestion in one Worker call
+- **403/404 as skipped** — permission-denied endpoints no longer count as failures or write failure archives
+- **Partial run status** — API returns `partial` when some endpoints succeed and others fail
+- **`/endpoint-status` ingestion plan** — next batch cursor, keys preview, catalog size
+- **Dashboard automation** — persist browser capture, auto-sync when auth degraded, richer health (skipped/partial/batch)
+
+### Changed
+- Sync auth & ingest uses `/ingest/sync` instead of separate refresh + trigger calls
+
 ## v3.6.1 — Chart layout sizing fix
 
 ### Fixed

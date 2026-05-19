@@ -21,6 +21,7 @@ export const localIngestItemSchema = z.object({
 
 export const localIngestSchema = z.object({
   results: z.array(localIngestItemSchema).min(1).max(25),
+  advanceCursor: z.boolean().optional(),
 });
 
 const nonEmptyString = z.string().min(1);

@@ -354,11 +354,29 @@
           <label class="ds-label" for="browserCaptureInput">Browser capture</label>
           <textarea id="browserCaptureInput" class="ds-textarea ds-textarea--sm" rows="4" placeholder="Paste DevTools → Network → Copy as fetch (any successful /cloud/api/* request)"></textarea>
           <div class="ds-form-row ds-mt-sm">
-            <button class="ds-btn ds-btn--primary" id="syncBrowserIngestBtn">⚡ Sync auth &amp; ingest</button>
-            <button class="ds-btn" id="triggerIngestBtn">▶ Trigger ingestion</button>
-            <button class="ds-btn ds-btn--amber" id="refreshAuthBtn">🔄 Refresh auth</button>
+            <button class="ds-btn ds-btn--primary" id="syncBrowserIngestBtn">⚡ Sync &amp; local ingest</button>
+            <button class="ds-btn" id="localIngestBtn">📥 Local batch</button>
+            <button class="ds-btn" id="localIngestAllBtn">📚 Full catalog</button>
+            <button class="ds-btn" id="copyConsoleScriptBtn">📋 Console script</button>
+            <button class="ds-btn" id="installAutoRunnerBtn">🤖 Install auto-runner</button>
+            <button class="ds-btn" id="triggerIngestBtn">▶ Worker trigger</button>
+            <button class="ds-btn ds-btn--amber" id="refreshAuthBtn">🔄 Auth only</button>
           </div>
-          <p class="ds-help-text">Sync parses your fetch snippet, updates Worker auth, checks diagnostics, then runs the next ingestion batch.</p>
+          <p class="ds-help-text">Automation: dashboard schedules ingest every 5 min. From Pages, one-time paste of <strong>Install auto-runner</strong> on <code>manager.html</code> — script pulls fresh JWT from worker each batch.</p>
+          <div class="ds-subtitle" id="automationStatus" style="margin-top: var(--space-xs)"></div>
+          <div class="ds-subtitle" id="authStatus" style="margin-top: var(--space-xs)"></div>
+          <p class="ds-help-text" id="ingestionProgress" aria-live="polite"></p>
+          <div class="ds-form-row ds-mt-sm">
+            <button class="ds-btn ds-btn--sm" id="confirmAutoRunnerBtn" type="button">✓ Auto-runner pasted</button>
+            <button class="ds-btn ds-btn--sm" id="probeWorkerAuthBtn" type="button">🔍 Probe worker auth</button>
+            <button class="ds-btn ds-btn--sm" id="copyVpsSetupBtn" type="button">📋 Copy VPS setup</button>
+          </div>
+          <div class="ds-form-row ds-mt-sm ds-form-row--wrap">
+            <label class="ds-checkbox"><input type="checkbox" id="persistCaptureCheckbox" checked> Save capture locally</label>
+            <label class="ds-checkbox"><input type="checkbox" id="autoSyncOnEndpointsCheckbox" checked> Auto-sync when auth degraded</label>
+            <label class="ds-checkbox"><input type="checkbox" id="autoIngestOnEndpointsCheckbox" checked> Auto-ingest on schedule</label>
+            <label class="ds-checkbox"><input type="checkbox" id="preferLocalIngestCheckbox" checked> Prefer local browser ingest</label>
+          </div>
           <div class="ds-subtitle" id="cookieHealth" style="margin-top: var(--space-sm)"></div>
         </div>
       </div>
@@ -395,6 +413,6 @@
 <div class="ds-drawer__backdrop" id="drawerBackdrop" aria-hidden="true"></div>
 
 <script src="vendor/chart.umd.min.js"></script>
-<script type="module" src="js/app.js?v=3.6.1"></script>
+<script type="module" src="js/app.js?v=3.6.5"></script>
 </body>
 </html>

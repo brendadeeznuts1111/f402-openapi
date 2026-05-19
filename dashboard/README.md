@@ -22,7 +22,7 @@ If the dashboard shows **500 / missing token** on `/api/*`, run `set-pages-secre
 | **Analytics** | Traffic bar chart, latency line chart, type distribution doughnut, agent volume bar chart, raw API JSON viewer |
 | **Logs** | Filterable event timeline (all/ok/error/warn), sortable agent log table, system health log (run history + failures) |
 | **Settings** | General (theme, notifications, sound), API (base URL, refresh interval), Appearance (chart type, log level), Data (dropzone import, export, clear cache) |
-| **Endpoints** | Route manifest table with zone/method filters, zone badges, quick actions (ingest, refresh auth), cookie health |
+| **Endpoints** | Route manifest, ingestion health, browser capture sync, local/console ingest, JWT status, batch progress |
 
 ## Files
 
@@ -50,7 +50,9 @@ If the dashboard shows **500 / missing token** on `/api/*`, run `set-pages-secre
 | `charts.js` | Named chart registry, `ResizeObserver` on plots |
 | `sortable-table.js` | Click-to-sort tables |
 | `json-viewer.js` | Syntax-highlighted JSON |
-| `settings-manager.js` | `localStorage` settings + import/export |
+| `manager-console-runner.js` | DevTools console script for same-origin ingest on manager.html |
+| `local-ingest.js` | Browser-side fetch + upload via worker plan |
+| `ingestion-automation.js` | Capture persistence, auth status, auto-sync |
 | `utils.js` | `DateFormatter`, `NumberFormatter`, `AutoRefreshManager`, etc. |
 
 Operator guide: `../docs/dashboard.md`. Design reference: `DESIGN.md`.

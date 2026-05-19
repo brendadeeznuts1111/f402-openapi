@@ -60,9 +60,18 @@ import {
   triggerIngestion,
   refreshAuth,
   syncFromBrowserAndIngest,
+  runLocalIngestOnly,
+  runLocalIngestAllBatches,
+  copyConsoleIngestScript,
+  installAutoRunner,
+  confirmAutoRunnerInstalled,
+  probeWorkerAuthHealthAction,
+  copyVpsAuthStackCommands,
+  runAutomatedIngest,
   updateCookieHealth,
   onEndpointTabChange,
 } from './views/endpoints.js';
+import { maybeAutoIngest } from './ingestion-automation.js';
 
 const store = new DataStore();
 const settings = new SettingsManager();
@@ -307,6 +316,29 @@ document.querySelectorAll('[data-endpoint-tab]').forEach((t) => {
 $('triggerIngestBtn').addEventListener('click', () => triggerIngestion(ctx));
 $('refreshAuthBtn').addEventListener('click', () => refreshAuth(ctx));
 $('syncBrowserIngestBtn').addEventListener('click', () => syncFromBrowserAndIngest(ctx));
+$('localIngestBtn').addEventListener('click', () => runLocalIngestOnly(ctx));
+$('localIngestAllBtn')?.addEventListener('click', () => runLocalIngestAllBatches(ctx));
+$('copyConsoleScriptBtn')?.addEventListener('click', () => copyConsoleIngestScript(ctx));
+$('installAutoRunnerBtn')?.addEventListener('click', () => installAutoRunner(ctx));
+$('confirmAutoRunnerBtn')?.addEventListener('click', () => confirmAutoRunnerInstalled(ctx));
+$('probeWorkerAuthBtn')?.addEventListener('click', () => probeWorkerAuthHealthAction(ctx));
+$('copyVpsSetupBtn')?.addEventListener('click', () => copyVpsAuthStackCommands(ctx));
+
+let ingestSchedulerId = null;
+function resetIngestionScheduler() {
+  if (ingestSchedulerId) clearInterval(ingestSchedulerId);
+  ingestSchedulerId = null;
+  if (settings.get('autoIngestOnEndpoints') === false) return;
+  const ms = Math.max(60_000, settings.get('ingestIntervalMs') || 300_000);
+  ingestSchedulerId = setInterval(() => {
+    maybeAutoIngest(ctx);
+  }, ms);
+}
+settings.onChange((key) => {
+  if (key === 'autoIngestOnEndpoints' || key === 'ingestIntervalMs' || key === '*') {
+    resetIngestionScheduler();
+  }
+});
 
 initDropzone(ctx, $('importDropzone'));
 
@@ -347,6 +379,8 @@ async function init() {
     statusPoller.silent = false;
     statusPoller.start();
     await loadOverview(ctx);
+    resetIngestionScheduler();
+    maybeAutoIngest(ctx);
   } else {
     statusPoller.silent = true;
     statusPoller.stop();

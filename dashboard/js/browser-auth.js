@@ -90,9 +90,10 @@ function isCloudflareChallengePath(pathname) {
 
 /**
  * @param {string} text DevTools fetch() snippet or curl with headers
+ * @param {{ mergeStored?: Record<string, unknown> }} [options]
  * @returns {Record<string, unknown>}
  */
-export function parseBrowserCapture(text) {
+export function parseBrowserCapture(text, options = {}) {
   const raw = (text || '').trim();
   if (!raw) {
     throw new Error('Paste a fetch() snippet from DevTools (Network → Copy → Copy as fetch)');
@@ -130,27 +131,51 @@ export function parseBrowserCapture(text) {
     payload.cookieHeader = cookie;
   }
 
-  validateBrowserCapture(payload);
+  if (options.mergeStored) {
+    mergeStoredAuth(payload, options.mergeStored);
+  }
+
+  validateBrowserCapture(payload, { allowCookieOnly: Boolean(options.mergeStored?.authorization) });
   return toRefreshAuthPayload(payload);
 }
 
-function validateBrowserCapture(payload) {
+function mergeStoredAuth(payload, stored) {
+  if (!stored || typeof stored !== 'object') return;
+  if (!payload.authorization && stored.authorization) payload.authorization = stored.authorization;
+  if (!payload.sessionCookie && stored.sessionCookie) payload.sessionCookie = stored.sessionCookie;
+  if (!payload.cfClearance && stored.cfClearance) payload.cfClearance = stored.cfClearance;
+  if (!payload.cfBm && stored.cfBm) payload.cfBm = stored.cfBm;
+  if (stored.browserHeaders && typeof stored.browserHeaders === 'object') {
+    payload.browserHeaders = { ...stored.browserHeaders, ...payload.browserHeaders };
+  }
+  if (!payload.referer && stored.referer) payload.referer = stored.referer;
+  if (!payload.userAgent && stored.userAgent) payload.userAgent = stored.userAgent;
+}
+
+function validateBrowserCapture(payload, options = {}) {
   const findings = [];
+  const isApiCapture = payload.sourcePath?.includes('/cloud/api/');
+  const isCookieCapture = payload.cfClearance && payload.cfBm && !isApiCapture;
+
   if (isCloudflareChallengePath(payload.sourcePath)) {
     findings.push('capture looks like a Cloudflare challenge, not an API call');
   }
-  if (!payload.sourcePath?.includes('/cloud/api/')) {
-    findings.push('copy a successful Fantasy402 /cloud/api/* request');
+  if (!isApiCapture && !options.allowCookieOnly) {
+    findings.push('copy a successful Fantasy402 /cloud/api/* request (or enable stored auth merge for cookie-only captures)');
   }
-  if (!payload.authorization) {
+  if (isCookieCapture && options.allowCookieOnly) {
+    /* cookie refresh against stored JWT */
+  } else if (!payload.authorization) {
     findings.push('missing Authorization header');
   }
   if (!payload.cfClearance || !payload.cfBm) {
     findings.push('missing cf_clearance or __cf_bm cookies');
   }
-  const expiry = jwtExpiryStatus(payload.authorization);
-  if (expiry === 'expired') {
-    findings.push('authorization JWT is expired');
+  if (payload.authorization) {
+    const expiry = jwtExpiryStatus(payload.authorization);
+    if (expiry === 'expired') {
+      findings.push('authorization JWT is expired');
+    }
   }
   if (findings.length) {
     throw new Error(findings.join('; '));

@@ -1,0 +1,16 @@
+[Unit]
+Description=Fantasy402 local browser ingest batch
+After=network-online.target fantasy402-local-proxy.service
+Requires=fantasy402-local-proxy.service
+
+[Service]
+Type=oneshot
+User=%i
+WorkingDirectory=%WORKDIR%
+EnvironmentFile=-/etc/fantasy402/ingestion.env
+ExecStart=/bin/bash scripts/run-with-ingestion-env.sh %BUN% scripts/run-unattended-cycle.mjs --skip-refresh --auto-loops
+StandardOutput=append:/var/log/fantasy402/ingest-batch.log
+StandardError=append:/var/log/fantasy402/ingest-batch.err.log
+
+[Install]
+WantedBy=multi-user.target

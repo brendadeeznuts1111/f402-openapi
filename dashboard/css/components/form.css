@@ -89,4 +89,20 @@
   flex-wrap: wrap;
 }
 
-.ds-rule-row:last-child { border-bottom: none; }
+.ds-form-row--wrap {
+  align-items: center;
+}
+
+.ds-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-checkbox input {
+  accent-color: var(--blue);
+}

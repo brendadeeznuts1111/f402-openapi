@@ -3,6 +3,7 @@ const WORKER_ORIGIN = "https://fantasy402-ingestion.utahj4754.workers.dev";
 /** Routes the Worker exposes without bearer auth (must match worker/src/index.ts). */
 function isPublicWorkerPath(pathname) {
   if (pathname === "/health") return true;
+  if (pathname === "/auth/health") return true;
   if (pathname === "/live-wagers" || pathname.startsWith("/live-wagers/")) return true;
   return false;
 }
@@ -49,6 +50,18 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/api")) {
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Accept, Authorization",
+            "Access-Control-Max-Age": "86400",
+          },
+        });
+      }
+
       const pathname = workerPathFromApiUrl(url.pathname);
       const token = env.INGESTION_TRIGGER_TOKEN;
       const isPublic = isPublicWorkerPath(pathname);

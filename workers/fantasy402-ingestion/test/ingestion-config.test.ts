@@ -23,13 +23,14 @@ test("resolveIngestionEndpointKeys expands all from manifest", () => {
   assert.ok(!keys.some((key) => customerKeys.has(key)));
 });
 
-test("resolveIngestionEndpointKeys includes customer endpoints when configured", () => {
+test("resolveIngestionEndpointKeys includes customer endpoints when derivable", () => {
   const keys = resolveIngestionEndpointKeys(INGESTION_ALL, {
     hasCustomerId: true,
     isKnownKey: (key) => knownKeys.has(key),
     requiresCustomerId: (key) => customerKeys.has(key),
   });
   assert.equal(keys.length, UPSTREAM_MANIFEST.endpoints.length);
+  for (const key of customerKeys) assert.ok(keys.includes(key));
 });
 
 test("planIngestionBatch rotates through catalog", () => {

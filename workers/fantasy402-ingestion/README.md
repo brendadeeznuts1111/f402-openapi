@@ -211,7 +211,9 @@ npm run validate:deploy-config
 
 This intentionally fails while `wrangler.toml` still contains placeholder KV or D1 IDs.
 
-The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS`. Set it to `all` to ingest the full read-only upstream catalog from `upstream-endpoints.json` (83 endpoints without `FANTASY402_CUSTOMER_ID`, 86 with it). Batched rotation uses `FANTASY402_INGESTION_BATCH_SIZE` (default 12) so each 15-minute cron processes a slice of the catalog; every snapshot lands in `api_snapshots` and R2, with typed tables filled for wager/performance endpoints.
+The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS`. Set it to `all` to ingest the full read-only upstream catalog from `upstream-endpoints.json` (**86 endpoints**). Player `customerID` for three customer-scoped routes is derived from `Manager/getPlayers` when `FANTASY402_CUSTOMER_ID` is unset (`customerIdSource` in manifest). Batched rotation uses `FANTASY402_INGESTION_BATCH_SIZE` (default 12) so each 15-minute cron processes a slice of the catalog; every snapshot lands in `api_snapshots` and R2, with typed tables filled for wager/performance endpoints.
+
+**Worker `/trigger` vs local ingest:** cron runs from Cloudflare edge and typically **skips** upstream routes (403, IP-bound cookies). For full catalog coverage use `npm run ingest:local-batch` / `ingest:local-all` or the dashboard manager.html auto-runner. `GET /upstream-endpoints` reports `online` when D1 has at least one snapshot for a route.
 
 Some discovered browser-to-api operations use different body encodings. The Worker sends form-encoded bodies for the common Manager/Report endpoints and JSON for `Manager/getPending`, matching `openapi.secured.examples.json`.
 
@@ -297,6 +299,58 @@ Logs: `/tmp/com.fantasy402.refresh-cookies.out` and `.err`
 */15 * * * * cd /path/to/refresh-cookies && INGESTION_TRIGGER_TOKEN=... REFRESH_COOKIES_WORKER_URL=... node refresh-cookies.js >> /var/log/refresh-cookies.log 2>&1
 ```
 
+Prefer the **unattended auth stack** below when you need JWT + CF cookies (not CF-only).
+
+## Unattended auth + local ingest proxy (VPS)
+
+Headless login, local Bearer proxy, and systemd timers for production VPS hosts.
+
+| Component | Command / path | Role |
+|-----------|----------------|------|
+| Full auth refresh | `npm run auth:refresh-full` | Puppeteer login → `sessionStorage` → `POST /refresh-auth` + `fantasy402/browser-auth.json` |
+| Local proxy | `npm run ingest:proxy` | `Bun.serve` on `127.0.0.1:8791` — injects token for ingest routes |
+| systemd | `deploy/systemd/install.sh` | Auto-start proxy + 15m auth refresh + 5m ingest batch |
+| Auth health | `GET /auth/health` (Worker + proxy) | Sanitized `ingestionReadiness` without secrets |
+
+### Quickstart
+
+1. Install Puppeteer deps: `cd scripts/refresh-auth-full && npm install`
+2. Copy `deploy/systemd/ingestion.env.example` → `/etc/fantasy402/ingestion.env` (set `INGESTION_TRIGGER_TOKEN`, `FANTASY402_USERNAME`, `FANTASY402_PASSWORD`)
+3. Set `FANTASY402_WORKER_UPSTREAM` to the deployed Worker URL and `WORKER_ORIGIN=http://127.0.0.1:8791` for CLI/scripts
+4. `sudo bash deploy/systemd/install.sh` from this package root
+5. Probe: `curl -s http://127.0.0.1:8791/auth/health | jq .`
+
+CLI without exporting the token to child processes:
+
+```bash
+npm run ingest:proxy   # terminal 1
+export WORKER_ORIGIN=http://127.0.0.1:8791
+npm run ingest:local-batch   # terminal 2 — no INGESTION_TRIGGER_TOKEN needed
+curl -s http://127.0.0.1:8791/auth/health | jq .reasons
+```
+
+`auth:refresh-full` can post through the proxy when `WORKER_ORIGIN=http://127.0.0.1:8791` (token only required by the proxy process).
+
+### Operator commands
+
+| Command | Purpose |
+|---------|---------|
+| `npm run ingest:proxy` | Start local Bearer-injecting proxy |
+| `npm run auth:refresh-full` | Headless login → `/refresh-auth` + `browser-auth.json` |
+| `npm run auth:preflight` | Check proxy + `/auth/health`; `--refresh` runs refresh on failure |
+| `npm run auth:stack-status` | Full status dump (files, proxy, health JSON) |
+| `npm run ingest:local-batch -- --refresh-auth` | Preflight + optional refresh before batch |
+| `npm run ingest:install-mac-stack` | launchd: proxy + auth refresh + ingest (macOS) |
+| `npm run auth:check-stack` | Full stack validation (files, proxy, health, preflight); `--offline` for CI |
+| `npm run ingest:unattended-cycle` | refresh → preflight → `ingest:local-batch` (VPS timer target) |
+| `npm run dev:ingest-stack` | Foreground proxy for local dev (Ctrl+C to stop) |
+
+Set `F402_AUTO_REFRESH_AUTH=1` in `deploy/systemd/ingestion.env` (or `.env.auth-stack` locally) so `ingest:local-batch` auto-runs `auth:refresh-full` when preflight fails.
+
+The dashboard **Endpoints** tab shows worker auth in the ingestion timeline and badges; use **Probe worker auth** / **Copy VPS setup** for operator workflows.
+
+macOS: keep `npm run ingest:install-cron` (launchd) for ingest; use `auth:refresh-full` instead of CF-only `refresh-cookies` when JWT rotation is required.
+
 ### Diagnostics
 
 Check cookie freshness anytime:
@@ -323,6 +377,7 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 
 - `GET /` serves a browser landing page (links to dashboard, `/health`, `/archive/viewer`) or JSON service discovery when `Accept: application/json`.
 - `GET /health` is unauthenticated and returns runtime health.
+- `GET /auth/health` is unauthenticated and returns sanitized upstream auth readiness (`ingestionReadiness`, JWT expiry, CF cookie presence).
 - `POST /refresh-auth` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>` and writes short-lived browser-derived upstream auth to `AUTH_CACHE` without echoing secret values.
 - `POST /ingest/local` requires the same bearer token and stores locally fetched Fantasy402 responses into R2/D1 without upstream Worker fetches.
 - `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.

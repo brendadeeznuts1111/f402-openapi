@@ -1,0 +1,18 @@
+[Unit]
+Description=Fantasy402 local ingest proxy (Bearer injection)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=%WORKDIR%
+EnvironmentFile=-/etc/fantasy402/ingestion.env
+ExecStart=/bin/bash scripts/run-with-ingestion-env.sh %BUN% scripts/local-ingest-proxy.ts
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

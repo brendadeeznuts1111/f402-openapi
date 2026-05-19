@@ -84,7 +84,8 @@
       "path": "/cloud/api/Manager/getPending",
       "operationId": "post_cloud_api_Manager_getPending",
       "contentType": "application/json",
-      "requiresCustomerId": true
+      "requiresCustomerId": true,
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "Pending",
@@ -92,7 +93,8 @@
       "path": "/cloud/api/Report/Pending",
       "operationId": "post_cloud_api_Report_Pending",
       "requiresCustomerId": true,
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "getPlayers",
@@ -114,7 +116,8 @@
       "path": "/cloud/api/Customer/getCommunicationMessages",
       "operationId": "post_cloud_api_Customer_getCommunicationMessages",
       "requiresCustomerId": true,
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "getListAgenstByAgent",

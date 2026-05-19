@@ -7,6 +7,21 @@ import {
   planIngestionBatch,
   resolveIngestionEndpointKeys,
 } from "./ingestion-config";
+import {
+  classifyIngestionOutcome,
+  deriveRunStatus,
+  formatRunMeta,
+  parseRunMeta,
+  skipNoteForRun,
+} from "./ingestion-outcome";
+import {
+  GET_PLAYERS_CUSTOMER_ID_SOURCE,
+  cachePlayerCustomerId,
+  canDeriveCustomerId,
+  customerIdSourceForKey,
+  extractPlayerCustomerId,
+  readCachedPlayerCustomerId,
+} from "./customer-id";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
 import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
@@ -110,7 +125,20 @@ interface EndpointConfig {
   path: string;
   contentType?: "form" | "json";
   requiresCustomerId?: boolean;
-  buildBody: (env: Env, now: Date) => Record<string, string | number>;
+  buildBody: (env: IngestionEnv, now: Date) => Record<string, string | number>;
+}
+
+type IngestionEnv = Env & { __ingestionCustomerId?: string };
+
+function ingestionHasCustomerId(env: Env): boolean {
+  return hasEnvValue(env.FANTASY402_CUSTOMER_ID) || canDeriveCustomerId();
+}
+
+function customerIdForEndpoint(env: IngestionEnv): string {
+  return required(
+    env.FANTASY402_CUSTOMER_ID ?? env.__ingestionCustomerId,
+    "customerID (FANTASY402_CUSTOMER_ID or Manager/getPlayers)",
+  );
 }
 
 interface UpstreamRequestDiagnostics {
@@ -153,9 +181,10 @@ interface ApiResult {
 
 interface RunResult {
   runId: string;
-  status: "success" | "failed";
+  status: "success" | "partial" | "failed";
   endpointsSucceeded: number;
   endpointsFailed: number;
+  endpointsSkipped: number;
 }
 
 interface LocalIngestItem {
@@ -411,7 +440,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
       RRO: 1,
       agentID: env.FANTASY402_AGENT_ID,
       agentOwner: env.FANTASY402_AGENT_ID,
-      customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
+      customerID: customerIdForEndpoint(env),
       date: now.toISOString(),
       path: "",
       wagerType: "",
@@ -427,7 +456,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     buildBody: (env, now) =>
       withDateRange(env, now, {
         agentID: env.FANTASY402_AGENT_ID,
-        customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
+        customerID: customerIdForEndpoint(env),
         operation: "Pending",
       }),
   },
@@ -448,7 +477,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     buildBody: (env, now) =>
       withDateRange(env, now, {
         agentID: env.FANTASY402_AGENT_ID,
-        customerID: required(env.FANTASY402_CUSTOMER_ID, "FANTASY402_CUSTOMER_ID"),
+        customerID: customerIdForEndpoint(env),
         operation: "getCommunicationMessages",
       }),
   },
@@ -916,6 +945,10 @@ const worker = {
       return workerRoot(env, request);
     }
 
+    if (url.pathname === "/auth/health" && request.method === "GET") {
+      return await authHealth(env);
+    }
+
     if (url.pathname === "/health") {
       const checks: Record<string, string> = {};
 
@@ -974,11 +1007,46 @@ const worker = {
       return upstreamCookiesStatus(env);
     }
 
+    if (url.pathname === "/ingest/local/plan" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getLocalIngestPlan(await materializeSecretBindings(env));
+    }
+
+    if (url.pathname === "/ingest/catalog-status" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getIngestCatalogStatus(await materializeSecretBindings(env));
+    }
+
+    if (url.pathname === "/ingest/local/bootstrap" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getLocalIngestBootstrap(env);
+    }
+
+    if (url.pathname === "/ingestion/advance-cursor" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return advanceIngestionCursor(env);
+    }
+
     if (url.pathname === "/ingest/local" && request.method === "POST") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return ingestLocalResponses(request, env);
+    }
+
+    if (url.pathname === "/ingest/sync" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return ingestSync(request, env);
     }
 
     if (url.pathname === "/trigger" && request.method === "POST") {
@@ -988,7 +1056,7 @@ const worker = {
 
       try {
         const result = await runIngestion(await materializeSecretBindings(env));
-        return json(result, result.status === "success" ? 202 : 500);
+        return json(result, result.status === "failed" ? 500 : 202);
       } catch (error) {
         return json(
           {
@@ -1046,7 +1114,7 @@ const worker = {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
-      return listUpstreamEndpoints(env);
+      return await listUpstreamEndpoints(env);
     }
 
     if (url.pathname === "/bet-ticker-wagers" && request.method === "GET") {
@@ -1307,22 +1375,31 @@ async function runIngestion(env: Env): Promise<RunResult> {
 
   let endpointsSucceeded = 0;
   let endpointsFailed = 0;
+  let endpointsSkipped = 0;
 
   try {
     const sessionCookie = await getOrRefreshSession(env);
+    const ingestionRuntime: IngestionEnv = { ...env };
 
     for (const endpoint of endpointConfigs) {
       const traceId = crypto.randomUUID();
       const startedMs = Date.now();
       try {
         if (await shouldCircuitBreak(endpoint, env)) {
-          endpointsFailed += 1;
-          console.error("endpoint ingestion skipped", safeError(new Error("circuit breaker open"), { endpoint: endpoint.key, runId, traceId }));
+          endpointsSkipped += 1;
+          console.warn("endpoint ingestion skipped", safeError(new Error("circuit breaker open"), { endpoint: endpoint.key, runId, traceId }));
           continue;
         }
-        const result = await fetchAndArchiveEndpoint(env, runId, traceId, startedMs, endpoint, sessionCookie, new Date());
+        const result = await fetchAndArchiveEndpoint(env, runId, traceId, startedMs, endpoint, sessionCookie, new Date(), ingestionRuntime);
         await storeSnapshot(env, runId, result);
 
+        if (endpoint.key === "getPlayers") {
+          const playerCustomerId = extractPlayerCustomerId(result.data);
+          if (playerCustomerId) {
+            ingestionRuntime.__ingestionCustomerId = playerCustomerId;
+            await cachePlayerCustomerId(env, playerCustomerId);
+          }
+        }
         if (endpoint.key === "getAgentPerformance") {
           const metric = mapAgentPerformance(result.data, env.FANTASY402_AGENT_ID, result.snapshotId, runId);
           await storeAgentPerformance(env, metric);
@@ -1365,6 +1442,18 @@ async function runIngestion(env: Env): Promise<RunResult> {
         endpointsSucceeded += 1;
         recordCircuitStatus(endpoint, true, env);
       } catch (error) {
+        const upstream = unwrapUpstreamHttpError(error);
+        const outcome = classifyIngestionOutcome(upstream?.status);
+        if (outcome === "skipped") {
+          endpointsSkipped += 1;
+          recordCircuitStatus(endpoint, true, env);
+          console.warn(
+            "endpoint ingestion skipped",
+            safeError(error, { endpoint: endpoint.key, runId, traceId, upstreamStatus: upstream?.status }),
+          );
+          continue;
+        }
+
         endpointsFailed += 1;
         const durationMs = Math.max(0, Date.now() - startedMs);
         await storeEndpointFailure(env, runId, traceId, durationMs, endpoint, error);
@@ -1373,29 +1462,363 @@ async function runIngestion(env: Env): Promise<RunResult> {
       }
     }
 
-    const status = endpointsFailed === 0 ? "success" : "failed";
-    await finishRun(env, runId, status, endpointsSucceeded, endpointsFailed, endpointsFailed ? "One or more endpoints failed" : undefined);
+    const status = deriveRunStatus(endpointsSucceeded, endpointsFailed);
+    const dbStatus = endpointsFailed === 0 ? "success" : "failed";
+    const runMeta = formatRunMeta(
+      endpointsSkipped,
+      skipNoteForRun(endpointsSucceeded, endpointsFailed, endpointsSkipped),
+    );
+    await finishRun(env, runId, dbStatus, endpointsSucceeded, endpointsFailed, runMeta);
 
-    if (status === "failed") {
+    if (endpointsFailed > 0) {
       await sendFailureAlert(env, {
-        severity: "warning",
+        severity: status === "partial" ? "warning" : "warning",
         type: "ingestion-endpoint-failures",
-        message: `Fantasy402 ingestion run ${runId} had ${endpointsFailed} endpoint failure(s).`,
-        context: { runId, endpointsSucceeded, endpointsFailed },
+        message: `Fantasy402 ingestion run ${runId}: ${endpointsSucceeded} OK, ${endpointsFailed} failed, ${endpointsSkipped} skipped.`,
+        context: { runId, endpointsSucceeded, endpointsFailed, endpointsSkipped },
       });
     }
 
-    return { runId, status, endpointsSucceeded, endpointsFailed };
+    return { runId, status, endpointsSucceeded, endpointsFailed, endpointsSkipped };
   } catch (error) {
-    await finishRun(env, runId, "failed", endpointsSucceeded, endpointsFailed, errorMessage(error));
+    await finishRun(
+      env,
+      runId,
+      "failed",
+      endpointsSucceeded,
+      endpointsFailed,
+      formatRunMeta(endpointsSkipped, errorMessage(error)),
+    );
     await sendFailureAlert(env, {
       severity: "critical",
       type: "ingestion-run-failed",
       message: `Fantasy402 ingestion run ${runId} failed: ${errorMessage(error)}`,
-      context: { runId, endpointsSucceeded, endpointsFailed },
+      context: { runId, endpointsSucceeded, endpointsFailed, endpointsSkipped },
     });
     throw error;
   }
+}
+
+async function ingestSync(request: Request, env: Env): Promise<Response> {
+  const runtimeEnv = await materializeSecretBindings(env);
+  let payload: Record<string, unknown> = {};
+  const rawBody = await request.text();
+  if (rawBody.trim()) {
+    try {
+      payload = JSON.parse(rawBody) as Record<string, unknown>;
+    } catch {
+      return json({ status: "failed", message: "Expected JSON body" }, 400);
+    }
+  }
+
+  const trigger = payload.trigger !== false;
+  const refresh = payload.refresh !== false;
+  const authPayload = { ...payload };
+  delete authPayload.trigger;
+  delete authPayload.refresh;
+
+  let auth: Record<string, unknown> | null = null;
+  if (refresh) {
+    const authRequest = new Request(request.url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(authPayload),
+    });
+    const authResponse = await refreshAuth(authRequest, env);
+    auth = (await authResponse.json()) as Record<string, unknown>;
+    if (!authResponse.ok) {
+      return json({ status: "failed", stage: "auth", auth }, authResponse.status);
+    }
+  }
+
+  let ingestion: RunResult | null = null;
+  if (trigger) {
+    try {
+      ingestion = await runIngestion(runtimeEnv);
+    } catch (error) {
+      return json(
+        { status: "failed", stage: "ingestion", auth, message: errorMessage(error) },
+        500,
+      );
+    }
+  }
+
+  let plan: Awaited<ReturnType<typeof getIngestionPlan>> | null = null;
+  try {
+    plan = await getIngestionPlan(runtimeEnv);
+  } catch {
+    plan = null;
+  }
+
+  const httpStatus = ingestion
+    ? ingestion.status === "failed"
+      ? 500
+      : 202
+    : 200;
+
+  return json({ status: "ok", auth, ingestion, plan }, httpStatus);
+}
+
+async function getLocalIngestPlan(env: Env): Promise<Response> {
+  const plan = await getIngestionPlan(env);
+  const now = new Date();
+  const cachedPlayerCustomerId = await readCachedPlayerCustomerId(env);
+  const ingestionRuntime: IngestionEnv = {
+    ...env,
+    __ingestionCustomerId: cachedPlayerCustomerId ?? undefined,
+  };
+  const endpoints: Array<Record<string, unknown>> = [];
+  const unsupported: string[] = [];
+
+  const needsCustomerPrefetch =
+    !hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+    && !cachedPlayerCustomerId
+    && plan.keys.some((key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId));
+  const keysToProcess =
+    needsCustomerPrefetch && !plan.keys.includes("getPlayers")
+      ? ["getPlayers", ...plan.keys]
+      : plan.keys;
+
+  for (const key of keysToProcess) {
+    if (!isEndpointKey(key)) {
+      unsupported.push(key);
+      continue;
+    }
+    try {
+      const endpoint = resolveEndpointConfig(key, env, ingestionRuntime);
+      if (
+        endpoint.requiresCustomerId
+        && !hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+        && !ingestionRuntime.__ingestionCustomerId
+      ) {
+        endpoints.push({
+          key,
+          path: endpoint.path,
+          method: "POST",
+          customerIdSource: customerIdSourceForKey(key) ?? GET_PLAYERS_CUSTOMER_ID_SOURCE,
+          requiresCustomerIdResolution: true,
+        });
+        continue;
+      }
+      const body = endpoint.buildBody(ingestionRuntime, now);
+      const encoded = encodeRequestBody(endpoint, body);
+      endpoints.push({
+        key,
+        path: endpoint.path,
+        method: "POST",
+        contentType: encoded.contentType,
+        body: serializeRequestBody(encoded),
+      });
+    } catch (error) {
+      unsupported.push(key);
+      console.warn("local ingest plan skipped endpoint", safeError(error, { key }));
+    }
+  }
+
+  return json(
+    {
+      status: "ok",
+      baseUrl: baseUrl(env),
+      agentId: env.FANTASY402_AGENT_ID,
+      batch: {
+        keys: plan.keys,
+        cursor: plan.cursor,
+        nextCursor: plan.nextCursor,
+        batchSize: plan.batchSize,
+        catalogSize: plan.catalogSize,
+        batching: plan.batching,
+        customerIdPrefetch: needsCustomerPrefetch,
+      },
+      endpoints,
+      unsupported,
+      localFetchNote: "Fetch from the browser session on fantasy402.com; Worker /trigger cannot reuse IP-bound cf_clearance.",
+    },
+    200,
+  );
+}
+
+async function readFailureBreakdown(env: Env): Promise<Array<{ code: string; count: number; example: string | null }>> {
+  try {
+    const rows = await env.ANALYTICS_DB.prepare(
+      `SELECT error_message, COUNT(*) AS count
+       FROM endpoint_failures
+       WHERE failed_at > datetime('now', '-1 day')
+       GROUP BY error_message
+       ORDER BY count DESC
+       LIMIT 10`,
+    ).all<{ error_message: string; count: number }>();
+
+    return (rows.results ?? []).map((row) => ({
+      code: classifyFailureMessage(row.error_message),
+      count: Number(row.count ?? 0),
+      example: String(row.error_message ?? "").slice(0, 120) || null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function classifyFailureMessage(message: string): string {
+  const text = String(message ?? "");
+  if (/HTTP 403/.test(text)) return "UPSTREAM_403_IP_OR_PERMISSION";
+  if (/HTTP 404/.test(text)) return "UPSTREAM_404_NOT_FOUND";
+  if (/HTTP 401/.test(text)) return "UPSTREAM_401_UNAUTHORIZED";
+  if (/HTTP 429/.test(text)) return "UPSTREAM_429_RATE_LIMIT";
+  if (/JWT expired/i.test(text)) return "AUTH_JWT_EXPIRED";
+  if (/circuit breaker/i.test(text)) return "CIRCUIT_BREAKER_OPEN";
+  if (/customerID/i.test(text)) return "CUSTOMER_ID_MISSING";
+  return "OTHER";
+}
+
+function buildIngestionBlockers(
+  auth: Record<string, unknown>,
+  pendingCount: number,
+  failureBreakdown: Array<{ code: string; count: number }>,
+): Array<{ code: string; severity: "error" | "warn" | "info"; message: string; action: string }> {
+  const blockers: Array<{ code: string; severity: "error" | "warn" | "info"; message: string; action: string }> = [];
+  const readiness = auth.ingestionReadiness as { status?: string; blocker?: string | null } | undefined;
+  const expiry = auth.authorizationExpiry as { status?: string; expiresAt?: string | null } | undefined;
+
+  if (expiry?.status === "expired") {
+    blockers.push({
+      code: "AUTH_JWT_EXPIRED",
+      severity: "error",
+      message: `Bearer JWT expired at ${expiry.expiresAt ?? "unknown"}`,
+      action: "Paste a fresh DevTools capture from fantasy402.com into Endpoints → Sync auth",
+    });
+  } else if (readiness?.status !== "ready") {
+    blockers.push({
+      code: "AUTH_NOT_READY",
+      severity: "error",
+      message: readiness?.blocker ?? "Upstream auth not ingestion-ready",
+      action: "Refresh auth via browser capture or POST /refresh-auth with valid bearer + CF cookies",
+    });
+  }
+
+  if (pendingCount > 0) {
+    blockers.push({
+      code: "CATALOG_INCOMPLETE",
+      severity: "warn",
+      message: `${pendingCount} upstream route(s) have no successful D1 snapshot yet`,
+      action: "Run local/browser ingest (npm run ingest:local-all or manager.html auto-runner)",
+    });
+  }
+
+  const worker403 = failureBreakdown.find((row) => row.code === "UPSTREAM_403_IP_OR_PERMISSION");
+  if (worker403 && worker403.count > 0) {
+    blockers.push({
+      code: "WORKER_TRIGGER_403",
+      severity: "info",
+      message: `${worker403.count} worker /trigger failure(s) in 24h with HTTP 403 (Cloudflare error 1106 — IP-bound cookies)`,
+      action: "Do not rely on Worker /trigger for catalog backfill; use local ingest from browser IP",
+    });
+  }
+
+  return blockers;
+}
+
+async function getIngestCatalogStatus(env: Env): Promise<Response> {
+  const configured = configuredIngestionKeys(env);
+  const snapshotTimes = await readLatestSnapshotTimes(env);
+  const manifestKeys = UPSTREAM_MANIFEST.endpoints.map((entry) => entry.key);
+  const onlineKeys = manifestKeys.filter((key) => snapshotTimes.has(key));
+  const pendingKeys = manifestKeys.filter((key) => configured.has(key) && !snapshotTimes.has(key));
+  const plan = await getIngestionPlan(env);
+  const auth = upstreamAuthDiagnostics(env);
+  const batchSize = plan.batchSize || ingestionBatchSize(env.FANTASY402_INGESTION_BATCH_SIZE);
+  const batchesRemaining = plan.batching
+    ? Math.ceil(pendingKeys.length / Math.max(1, batchSize))
+    : pendingKeys.length > 0 ? 1 : 0;
+
+  const failureBreakdown = await readFailureBreakdown(env);
+
+  return json(
+    {
+      status: "ok",
+      catalogSize: manifestKeys.length,
+      configuredCount: configured.size,
+      onlineCount: onlineKeys.length,
+      pendingCount: pendingKeys.length,
+      onlineKeys,
+      pendingKeys,
+      cursor: plan.cursor,
+      nextCursor: plan.nextCursor,
+      batchSize,
+      batching: plan.batching,
+      batchesRemaining,
+      auth: {
+        ingestionReadiness: auth.ingestionReadiness,
+        authorizationExpiry: auth.authorizationExpiry,
+      },
+      blockers: buildIngestionBlockers(auth, pendingKeys.length, failureBreakdown),
+      failureBreakdown24h: failureBreakdown,
+      backfillNote: pendingKeys.length > 0
+        ? "Use local/browser ingest (manager.html auto-runner or npm run ingest:local-all). Worker /trigger alone will not backfill pending routes."
+        : "Full catalog has at least one successful snapshot per route.",
+    },
+    200,
+  );
+}
+
+async function getLocalIngestBootstrap(env: Env): Promise<Response> {
+  const cached = await env.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  if (!cached?.authorization) {
+    return json({ status: "failed", message: "No cached browser auth on worker" }, 404);
+  }
+  let browserHeaders: Record<string, string> | undefined;
+  if (cached.browserHeadersJson) {
+    try {
+      browserHeaders = JSON.parse(cached.browserHeadersJson) as Record<string, string>;
+    } catch {
+      browserHeaders = undefined;
+    }
+  }
+  return json(
+    {
+      status: "ok",
+      authorization: cached.authorization,
+      sessionCookie: cached.sessionCookie,
+      cfClearance: cached.cfClearance,
+      cfBm: cached.cfBm,
+      browserHeaders,
+      referer: cached.referer,
+      userAgent: cached.userAgent,
+      customerId: cached.customerId,
+      updatedAt: cached.updatedAt,
+      expiresAt: cached.expiresAt,
+    },
+    200,
+  );
+}
+
+async function advanceIngestionCursor(env: Env): Promise<Response> {
+  const advanced = await advanceIngestionCursorRecord(env);
+  if (!advanced) {
+    return json({ status: "failed", message: "Ingestion batching is not enabled" }, 400);
+  }
+  return json({ status: "ok", ...advanced }, 200);
+}
+
+async function advanceIngestionCursorRecord(env: Env): Promise<Record<string, unknown> | null> {
+  const plan = await getIngestionPlan(env);
+  if (!plan.batching) return null;
+  await writeIngestionCursor(env, plan.nextCursor);
+  return {
+    previousCursor: plan.cursor,
+    nextCursor: plan.nextCursor,
+    batchSize: plan.batchSize,
+    catalogSize: plan.catalogSize,
+  };
+}
+
+function serializeRequestBody(encoded: ReturnType<typeof encodeRequestBody>): Record<string, string> | unknown {
+  if (encoded.contentType.includes("json")) {
+    return JSON.parse(String(encoded.body));
+  }
+  const form = encoded.body instanceof URLSearchParams
+    ? encoded.body
+    : new URLSearchParams(String(encoded.body));
+  return Object.fromEntries(form.entries());
 }
 
 async function ingestLocalResponses(request: Request, env: Env): Promise<Response> {
@@ -1469,6 +1892,10 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
         if (endpoint.key === "getListAgenstByAgent") {
           await storePlayerAgents(env, mapPlayerAgents(result.data, result.snapshotId));
         }
+        if (endpoint.key === "getPlayers") {
+          const playerCustomerId = extractPlayerCustomerId(result.data);
+          if (playerCustomerId) await cachePlayerCustomerId(env, playerCustomerId);
+        }
         if (endpoint.key === "getWeeklyFigureByAgent") {
           const records = mapWeeklyFigures(result.data, result.snapshotId, runId);
           await storeWeeklyFigures(env, records);
@@ -1492,7 +1919,16 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
       .bind(endpointKeys.join(","), runId)
       .run();
     await finishRun(env, runId, status, endpointsSucceeded, endpointsFailed);
-    return json({ runId, status, endpointsSucceeded, endpointsFailed, stored }, status === "success" ? 202 : 500);
+
+    let cursorAdvanced: Record<string, unknown> | null = null;
+    if (parsed.data.advanceCursor && endpointsSucceeded > 0) {
+      cursorAdvanced = await advanceIngestionCursorRecord(env);
+    }
+
+    return json(
+      { runId, status, endpointsSucceeded, endpointsFailed, stored, cursorAdvanced },
+      status === "success" ? 202 : 500,
+    );
   } catch (error) {
     await finishRun(env, runId, "failed", endpointsSucceeded, endpointsFailed, errorMessage(error));
     return json({ status: "failed", message: errorMessage(error), runId }, 500);
@@ -1783,6 +2219,11 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
 
   const ttl = Math.max(60, Math.ceil((record.expiresAt - Date.now()) / 1000));
   await runtimeEnv.AUTH_CACHE.put(AUTH_CACHE_KEY, JSON.stringify(record), { expirationTtl: ttl });
+  if (accepted.some((field) => field === "cfClearance" || field === "cfBm")) {
+    await persistCloudflareCookies(runtimeEnv, record.cfClearance, record.cfBm);
+  } else {
+    d1CookiesCache = null;
+  }
 
   return json(
     {
@@ -1859,23 +2300,45 @@ async function updateCookies(request: Request, env: Env): Promise<Response> {
   }
 
   const { cf_clearance, __cf_bm } = parsed.data;
-  const stmt = env.ANALYTICS_DB.prepare(
-    `INSERT INTO cookies (name, value, updated_at) VALUES (?1, ?2, datetime('now'))
-     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
-  );
 
   try {
-    await stmt.bind("cf_clearance", cf_clearance).run();
-    await stmt.bind("__cf_bm", __cf_bm).run();
+    await persistCloudflareCookies(env, cf_clearance, __cf_bm);
   } catch (error) {
     console.error("[Cookies] D1 upsert failed:", errorMessage(error));
     return json({ status: "failed", message: "D1 upsert failed", detail: errorMessage(error) }, 500);
   }
 
-  // Clear in-memory cache so the next request picks up fresh cookies immediately
-  d1CookiesCache = null;
-
   return json({ status: "ok", updated: ["cf_clearance", "__cf_bm"] }, 200);
+}
+
+async function persistCloudflareCookies(
+  env: Env,
+  cfClearance: string | undefined,
+  cfBm: string | undefined,
+): Promise<void> {
+  const clearanceValue = cookieValueOnly(cfClearance);
+  const bmValue = cookieValueOnly(cfBm);
+  if (!clearanceValue && !bmValue) {
+    d1CookiesCache = null;
+    return;
+  }
+
+  const stmt = env.ANALYTICS_DB.prepare(
+    `INSERT INTO cookies (name, value, updated_at) VALUES (?1, ?2, datetime('now'))
+     ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+  );
+
+  if (clearanceValue) await stmt.bind("cf_clearance", clearanceValue).run();
+  if (bmValue) await stmt.bind("__cf_bm", bmValue).run();
+  d1CookiesCache = null;
+}
+
+function cookieValueOnly(cookie: string | undefined): string | null {
+  if (typeof cookie !== "string") return null;
+  const trimmed = cookie.trim();
+  if (!trimmed) return null;
+  const index = trimmed.indexOf("=");
+  return index > 0 ? trimmed.slice(index + 1).trim() : trimmed;
 }
 
 async function upstreamCookiesStatus(env: Env): Promise<Response> {
@@ -2171,9 +2634,13 @@ async function fetchAndArchiveEndpoint(
   endpoint: EndpointConfig,
   sessionCookie: string,
   now: Date,
+  ingestionRuntime: IngestionEnv,
 ): Promise<ApiResult> {
   const startedAt = new Date(startedMs);
-  const attempted = await withRetries(() => postFantasy402(env, endpoint, sessionCookie, now), MAX_ENDPOINT_ATTEMPTS);
+  const attempted = await withRetries(
+    () => postFantasy402(env, endpoint, sessionCookie, now, ingestionRuntime),
+    MAX_ENDPOINT_ATTEMPTS,
+  );
   const data = await attempted.response.json<unknown>();
   const serialized = JSON.stringify(redactResponse(data));
   const responseHash = await sha256Hex(serialized);
@@ -2228,8 +2695,47 @@ interface AttemptedResponse {
   attempts: number;
 }
 
-async function postFantasy402(env: Env, endpoint: EndpointConfig, sessionCookie: string, now: Date): Promise<Response> {
-  const body = endpoint.buildBody(env, now);
+async function ensureIngestionCustomerId(
+  env: Env,
+  runtime: IngestionEnv,
+  endpoint: EndpointConfig,
+  sessionCookie: string,
+  now: Date,
+): Promise<void> {
+  if (!endpoint.requiresCustomerId || hasEnvValue(env.FANTASY402_CUSTOMER_ID) || runtime.__ingestionCustomerId) {
+    return;
+  }
+
+  const cached = await readCachedPlayerCustomerId(env);
+  if (cached) {
+    runtime.__ingestionCustomerId = cached;
+    return;
+  }
+
+  const playersEndpoint = ENDPOINTS.getPlayers;
+  const response = await withRetries(
+    () => postFantasy402(env, playersEndpoint, sessionCookie, now, runtime),
+    MAX_ENDPOINT_ATTEMPTS,
+  );
+  const data = await response.json<unknown>();
+  const customerId = extractPlayerCustomerId(data);
+  if (!customerId) {
+    throw new Error("Unable to derive player customerID from Manager/getPlayers");
+  }
+  runtime.__ingestionCustomerId = customerId;
+  await cachePlayerCustomerId(env, customerId);
+}
+
+async function postFantasy402(
+  env: Env,
+  endpoint: EndpointConfig,
+  sessionCookie: string,
+  now: Date,
+  ingestionRuntime?: IngestionEnv,
+): Promise<Response> {
+  const runtime: IngestionEnv = ingestionRuntime ?? { ...env };
+  await ensureIngestionCustomerId(env, runtime, endpoint, sessionCookie, now);
+  const body = endpoint.buildBody(runtime, now);
   const encodedBody = encodeRequestBody(endpoint, body);
   const headers = await fantasy402ApiHeaders(env, sessionCookie, encodedBody.contentType);
 
@@ -2335,9 +2841,10 @@ function fantasy402CookieHeader(env: Env, sessionCookie: string, upstreamCookies
   const cookies: string[] = [];
   appendCookieHeaderIfMissing(cookies, env.FANTASY402_SESSION_COOKIE);
   appendCookieHeaderIfMissing(cookies, sessionCookie);
-  appendCookieHeaderIfMissing(cookies, upstreamCookies);
+  // Auth overlay / secrets must win over stale D1 cookie cache entries.
   appendCookieIfMissing(cookies, "cf_clearance", env.FANTASY402_CF_CLEARANCE);
   appendCookieIfMissing(cookies, "__cf_bm", env.FANTASY402_CF_BM);
+  appendCookieHeaderIfMissing(cookies, upstreamCookies);
   return cookies.join("; ");
 }
 
@@ -3234,11 +3741,36 @@ async function queryChartAggregates(url: URL, env: Env): Promise<Response> {
   );
 }
 
-function listUpstreamEndpoints(env: Env): Response {
+async function readLatestSnapshotTimes(env: Env): Promise<Map<string, { lastSnapshotAt: string; snapshotCount: number }>> {
+  const map = new Map<string, { lastSnapshotAt: string; snapshotCount: number }>();
+  try {
+    const rows = await env.ANALYTICS_DB.prepare(
+      `SELECT endpoint_key, MAX(captured_at) AS last_snapshot_at, COUNT(*) AS snapshot_count
+       FROM api_snapshots
+       GROUP BY endpoint_key`,
+    ).all<{ endpoint_key: string; last_snapshot_at: string; snapshot_count: number }>();
+    for (const row of rows.results ?? []) {
+      const key = String(row.endpoint_key ?? "").trim();
+      if (!key) continue;
+      map.set(key, {
+        lastSnapshotAt: String(row.last_snapshot_at ?? ""),
+        snapshotCount: Number(row.snapshot_count ?? 0),
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
+  return map;
+}
+
+async function listUpstreamEndpoints(env: Env): Promise<Response> {
   const configured = configuredIngestionKeys(env);
+  const snapshotTimes = await readLatestSnapshotTimes(env);
   const routes = UPSTREAM_MANIFEST.endpoints.map((entry) => {
     const isConfigured = configured.has(entry.key);
     const implemented = Object.prototype.hasOwnProperty.call(ENDPOINTS, entry.key);
+    const snapshot = snapshotTimes.get(entry.key);
+    const online = Boolean(snapshot?.lastSnapshotAt);
     return {
       key: entry.key,
       path: entry.path,
@@ -3246,9 +3778,13 @@ function listUpstreamEndpoints(env: Env): Response {
       zone: "upstream",
       configured: isConfigured,
       implemented,
+      online,
+      lastSnapshotAt: snapshot?.lastSnapshotAt ?? null,
+      snapshotCount: snapshot?.snapshotCount ?? 0,
       contentType: entry.contentType,
       operationId: entry.operationId,
       requiresCustomerId: entry.requiresCustomerId === true,
+      customerIdSource: entry.customerIdSource,
       description: entry.operationId,
       refreshMs: isConfigured ? "ingestion" : "—",
     };
@@ -3258,6 +3794,7 @@ function listUpstreamEndpoints(env: Env): Response {
       count: routes.length,
       configuredCount: routes.filter((r) => r.configured).length,
       implementedCount: routes.filter((r) => r.implemented).length,
+      onlineCount: routes.filter((r) => r.online).length,
       spec: UPSTREAM_MANIFEST.spec,
       routes,
     },
@@ -4063,7 +4600,7 @@ async function liveWagersStream(url: URL, env: Env, ctx?: ExecutionContext): Pro
 function configuredIngestionKeys(env: Env): Set<string> {
   return new Set(
     resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
-      hasCustomerId: hasEnvValue(env.FANTASY402_CUSTOMER_ID),
+      hasCustomerId: ingestionHasCustomerId(env),
       isKnownKey: (key) => isEndpointKey(key),
       requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
     }),
@@ -4097,12 +4634,45 @@ async function writeIngestionCursor(env: Env, cursor: number): Promise<void> {
   }
 }
 
+async function getIngestionPlan(env: Env): Promise<
+  ReturnType<typeof planIngestionBatch> & { configured: string; batching: boolean }
+> {
+  const configured = env.FANTASY402_INGESTION_ENDPOINTS.trim();
+  const catalogKeys = resolveIngestionEndpointKeys(configured, {
+    hasCustomerId: ingestionHasCustomerId(env),
+    isKnownKey: (key) => isEndpointKey(key),
+    requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+  });
+
+  const batchSize = ingestionBatchSize(env.FANTASY402_INGESTION_BATCH_SIZE);
+  const batching = configured.toLowerCase() === INGESTION_ALL;
+
+  if (!batching) {
+    return {
+      keys: catalogKeys,
+      cursor: 0,
+      nextCursor: 0,
+      batchSize: catalogKeys.length,
+      catalogSize: catalogKeys.length,
+      configured,
+      batching: false,
+    };
+  }
+
+  const cursor = await readIngestionCursor(env);
+  return {
+    ...planIngestionBatch(catalogKeys, cursor, batchSize),
+    configured,
+    batching: true,
+  };
+}
+
 async function selectEndpointsForRun(env: Env): Promise<{
   endpoints: EndpointConfig[];
   batch: ReturnType<typeof planIngestionBatch>;
 }> {
   const catalogKeys = resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
-    hasCustomerId: hasEnvValue(env.FANTASY402_CUSTOMER_ID),
+    hasCustomerId: ingestionHasCustomerId(env),
     isKnownKey: (key) => isEndpointKey(key),
     requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
   });
@@ -4135,12 +4705,17 @@ async function selectEndpointsForRun(env: Env): Promise<{
   return { endpoints, batch };
 }
 
-function resolveEndpointConfig(key: string, env: Env): EndpointConfig {
+function resolveEndpointConfig(key: string, env: Env, runtime?: IngestionEnv): EndpointConfig {
   if (!isEndpointKey(key)) {
     throw new Error(`Unknown endpoint configured: ${key}`);
   }
   const endpoint = ENDPOINTS[key];
-  if (endpoint.requiresCustomerId && !env.FANTASY402_CUSTOMER_ID) {
+  if (
+    endpoint.requiresCustomerId
+    && !hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+    && !runtime?.__ingestionCustomerId
+    && !canDeriveCustomerId()
+  ) {
     throw new Error(`${key} requires FANTASY402_CUSTOMER_ID`);
   }
   return endpoint;
@@ -4148,7 +4723,7 @@ function resolveEndpointConfig(key: string, env: Env): EndpointConfig {
 
 function selectEndpoints(env: Env): EndpointConfig[] {
   const catalogKeys = resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
-    hasCustomerId: hasEnvValue(env.FANTASY402_CUSTOMER_ID),
+    hasCustomerId: ingestionHasCustomerId(env),
     isKnownKey: (key) => isEndpointKey(key),
     requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
   });
@@ -4860,6 +5435,48 @@ function diagnostics(env: Env): Response {
   );
 }
 
+async function authHealth(env: Env): Promise<Response> {
+  const runtimeEnv = await materializeSecretBindings(env);
+  const shape = upstreamAuthDiagnostics(runtimeEnv);
+  const readiness = shape.ingestionReadiness as { status?: string; blocker?: string | null };
+  const authorizationExpiry = shape.authorizationExpiry as {
+    status?: string;
+    expiresAt?: string | null;
+    secondsRemaining?: number | null;
+  };
+  const overlay = await runtimeEnv.AUTH_CACHE.get<AuthCacheRecord>(AUTH_CACHE_KEY, "json");
+  const overlayActive = Boolean(
+    overlay?.authorization &&
+      typeof overlay.expiresAt === "number" &&
+      overlay.expiresAt > Date.now(),
+  );
+  const ready = readiness?.status === "ready";
+  return json(
+    {
+      status: ready ? "ready" : "degraded",
+      ingestionReadiness: readiness,
+      authorizationExpiry: {
+        status: authorizationExpiry?.status ?? "unknown",
+        expiresAt: authorizationExpiry?.expiresAt ?? null,
+        ttlSeconds:
+          typeof authorizationExpiry?.secondsRemaining === "number"
+            ? authorizationExpiry.secondsRemaining
+            : null,
+      },
+      hasCfClearance: shape.hasCfClearance,
+      hasCfBm: shape.hasCfBm,
+      hasSessionCookie: shape.hasSessionCookie,
+      authCacheOverlay: {
+        active: overlayActive,
+        updatedAt: overlay?.updatedAt ?? null,
+        expiresAt: overlay?.expiresAt ? new Date(overlay.expiresAt).toISOString() : null,
+      },
+      timestamp: new Date().toISOString(),
+    },
+    ready ? 200 : 503,
+  );
+}
+
 function upstreamAuthDiagnostics(env: Env): Record<string, unknown> {
   const cookieNames = splitCookieHeader(fantasy402CookieHeader(env, ""))
     .map((cookie) => cookieName(cookie))
@@ -5118,6 +5735,7 @@ function workerRootJson(env: Env): Response {
       links: {
         dashboard,
         health: "/health",
+        authHealth: "/auth/health",
         archiveViewer: "/archive/viewer",
         endpoints: "/endpoints",
         upstreamEndpoints: "/upstream-endpoints",
@@ -5159,6 +5777,7 @@ function workerRootHtml(env: Env): Response {
     <ul>
       <li><a class="primary" href="${escapeHtml(dashboard)}"><strong>Monitoring dashboard</strong><span>Live wagers, charts, endpoints, logs</span></a></li>
       <li><a href="/health"><strong>Health</strong><span>Worker, D1, Durable Object, upstream probe</span></a></li>
+      <li><a href="/auth/health"><strong>Auth health</strong><span>Sanitized ingestion auth readiness (public)</span></a></li>
       <li><a href="/archive/viewer"><strong>Archive viewer</strong><span>Browse R2 ingestion archives</span></a></li>
     </ul>
     <p class="meta">Environment: <code>${escapeHtml(env.ENVIRONMENT)}</code> · API discovery: <code>GET /</code> with <code>Accept: application/json</code></p>
@@ -5920,6 +6539,12 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/scanner/diagnostics': 'network',
   '/live-wagers': 'do',
   '/ingest/local': 'ingestion',
+  '/ingest/local/plan': 'ingestion',
+  '/ingest/catalog-status': 'ingestion',
+  '/ingest/local/bootstrap': 'ingestion',
+  '/ingestion/advance-cursor': 'ingestion',
+  '/ingest/sync': 'ingestion',
+  '/trigger': 'ingestion',
   '/refresh-auth': 'cookie',
   '/update-cookies': 'cookie',
   '/upstream-cookies-status': 'cookie',
@@ -5944,6 +6569,7 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/alerts', method: 'GET', description: 'Recent alerts', refreshMs: 30000 },
   { path: '/alerts/summary', method: 'GET', description: 'Alert summary counts', refreshMs: 30000 },
   { path: '/health', method: 'GET', description: 'Worker, D1, DO, upstream health', refreshMs: 30000 },
+  { path: '/auth/health', method: 'GET', description: 'Sanitized upstream auth readiness', refreshMs: 30000 },
   { path: '/diagnostics', method: 'GET', description: 'Full system diagnostics', refreshMs: 60000 },
   { path: '/runs', method: 'GET', description: 'Ingestion run history', refreshMs: 30000 },
   { path: '/runs/endpoints', method: 'GET', description: 'Per-run endpoint details', refreshMs: 30000 },
@@ -5953,6 +6579,12 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/scanner/diagnostics', method: 'GET', description: 'Scanner subsystem diagnostics', refreshMs: 60000 },
   { path: '/live-wagers', method: 'GET', description: 'SSE real-time wager stream', refreshMs: 'realtime' },
   { path: '/ingest/local', method: 'POST', description: 'Local browser ingestion', refreshMs: 'manual' },
+  { path: '/ingest/local/plan', method: 'GET', description: 'Next batch fetch specs for local browser ingest', refreshMs: 'manual' },
+  { path: '/ingest/catalog-status', method: 'GET', description: 'Catalog online/pending counts + backfill progress', refreshMs: 'manual' },
+  { path: '/ingest/local/bootstrap', method: 'GET', description: 'Cached browser auth for local/auto-runner ingest', refreshMs: 'manual' },
+  { path: '/ingestion/advance-cursor', method: 'POST', description: 'Advance batched ingestion cursor after local upload', refreshMs: 'manual' },
+  { path: '/ingest/sync', method: 'POST', description: 'Refresh auth and trigger ingestion in one call', refreshMs: 'manual' },
+  { path: '/trigger', method: 'POST', description: 'Run next ingestion batch', refreshMs: 'manual' },
   { path: '/refresh-auth', method: 'POST', description: 'Refresh upstream auth token', refreshMs: 'manual' },
   { path: '/update-cookies', method: 'POST', description: 'Update browser cookies', refreshMs: 'manual' },
   { path: '/upstream-cookies-status', method: 'GET', description: 'Cookie health status', refreshMs: 60000 },
@@ -6030,15 +6662,35 @@ async function getEndpointStatus(env: Env): Promise<Response> {
      ORDER BY failure_count DESC`,
   ).all();
 
-  const latest = latestRun.results?.[0] as { id?: string } | undefined;
-  const routeLatency = await getRouteLatencyForRun(env, latest?.id);
+  const latestRaw = latestRun.results?.[0] as Record<string, unknown> | undefined;
+  const runMeta = parseRunMeta(typeof latestRaw?.error_message === "string" ? latestRaw.error_message : null);
+  const latest = latestRaw
+    ? {
+        ...latestRaw,
+        endpoints_skipped: runMeta.skipped,
+        skip_note: runMeta.note ?? null,
+      }
+    : null;
+  const routeLatency = await getRouteLatencyForRun(env, typeof latestRaw?.id === "string" ? latestRaw.id : undefined);
+
+  let ingestion: Awaited<ReturnType<typeof getIngestionPlan>> | null = null;
+  try {
+    ingestion = await getIngestionPlan(env);
+  } catch {
+    ingestion = null;
+  }
+
+  const failureBreakdown = await readFailureBreakdown(env);
 
   return json(
     {
       worker: 'ok',
-      latestRun: latest ?? null,
+      latestRun: latest,
       recentFailures: failures.results ?? [],
+      recentFailuresNote: "Historical D1 endpoint_failures (last 24h). Routes may still be online via local ingest.",
+      failureBreakdown24h: failureBreakdown,
       routeLatency,
+      ingestion,
       timestamp: new Date().toISOString(),
     },
     200,

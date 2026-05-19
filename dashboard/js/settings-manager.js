@@ -2,6 +2,7 @@
 // Settings persistence with localStorage and validation.
 
 const SETTINGS_KEY = 'f402-dashboard-settings';
+const SETTINGS_VERSION = 2;
 
 export class SettingsManager {
   constructor() {
@@ -47,13 +48,33 @@ export class SettingsManager {
       soundAlerts: false,
       chartType: 'line',
       logLevel: 'info',
+      persistBrowserCapture: true,
+      autoSyncOnEndpoints: true,
+      autoIngestAfterSync: true,
+      autoIngestOnEndpoints: true,
+      preferLocalIngest: true,
+      ingestIntervalMs: 300000,
+      settingsVersion: SETTINGS_VERSION,
     };
   }
 
   _load() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) return { ...this._defaults(), ...JSON.parse(raw) };
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const merged = { ...this._defaults(), ...parsed };
+        if ((parsed.settingsVersion ?? 0) < SETTINGS_VERSION) {
+          merged.autoSyncOnEndpoints = true;
+          merged.autoIngestOnEndpoints = true;
+          merged.preferLocalIngest = true;
+          merged.settingsVersion = SETTINGS_VERSION;
+          this._settings = merged;
+          this._save();
+          return merged;
+        }
+        return merged;
+      }
     } catch {}
     return this._defaults();
   }

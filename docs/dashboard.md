@@ -19,7 +19,7 @@ The dashboard calls `/api/*` on the Pages origin; `dashboard/_worker.js` forward
 | **Analytics** | Traffic, **route latency** (from latest ingestion run), type distribution, agent volume, JSON viewer |
 | **Logs** | Filterable event timeline, agent log table, system health log |
 | **Settings** | Theme (dark/light/auto), chart type (volume), API refresh interval, notifications, config import/export |
-| **Endpoints** | Worker route manifest, zone filters, ingestion health, trigger ingest / refresh auth |
+| **Endpoints** | Worker route manifest, zone filters, ingestion health, browser capture sync, local/console ingest, auth status |
 
 Charts aggregate the latest **100** wagers client-side (`GET /bet-ticker-wagers?limit=100`) unless noted. See `dashboard/AUDIT.md` for audit details and verification steps.
 
@@ -46,13 +46,16 @@ Detailed design notes: `dashboard/DESIGN.md`. Changelog: `dashboard/CHANGELOG.md
 |-------|---------|
 | `GET /summary` | Overview stat cards |
 | `GET /chart-aggregates` | Overview volume chart, Analytics traffic/type/agent charts |
-| `GET /upstream-endpoints` | Endpoints view (Upstream Fantasy402 tab; full `upstream-endpoints.json` catalog + configured flags) |
+| `GET /upstream-endpoints` | Endpoints view (Upstream Fantasy402 tab; full catalog + `configured`, `online`, `lastSnapshotAt`, `customerIdSource`) |
 | `GET /bet-ticker-wagers` | Ticker, logs, event timelines |
 | `GET /performance` | Agent tables |
 | `GET /live-wagers` | SSE wager stream (Durable Object) |
 | `GET /endpoint-status` | Sidebar health, latency chart, system log (`routeLatency` from latest run) |
 | `GET /endpoints` | Endpoints view manifest |
-| `POST /ingest/local` | Endpoints quick action |
+| `GET /ingest/catalog-status` | Catalog online/pending counts, batches remaining, auth blocker |
+| `GET /ingest/local/plan` | Local ingest batch specs (path, body, content-type) |
+| `POST /ingest/local` | Upload browser-fetched snapshots; optional `advanceCursor` |
+| `POST /ingestion/advance-cursor` | Rotate batch cursor after local uploads |
 | `POST /refresh-auth` | Endpoints quick action |
 
 `GET /endpoint-status` returns:
@@ -61,7 +64,15 @@ Detailed design notes: `dashboard/DESIGN.md`. Changelog: `dashboard/CHANGELOG.md
 - `recentFailures` — failures in the last 24 hours
 - `routeLatency` — per-route `avg_duration_ms` / `max_duration_ms` from `api_snapshots` for the latest run (Analytics latency tab)
 
-Trigger an ingestion run (`POST /trigger` or dashboard **Trigger Ingestion**) before expecting latency data.
+Trigger an ingestion run before expecting latency data. Worker `/trigger` skips IP-bound upstream routes (403); use **local ingest** instead:
+
+1. **From your machine:** `cd workers/fantasy402-ingestion && npm run ingest:local-batch` (or `ingest:local-all` for full catalog — ~8 batches of 12)
+2. **From Pages dashboard:** Endpoints → **Install auto-runner** → paste in DevTools on `fantasy402.com/manager.html` (same-origin fetch; required because CORS blocks Pages → fantasy402.com)
+3. **Customer-scoped routes** (`getPending`, `Pending`, `getCommunicationMessages`): plan auto-prepends `getPlayers`; clients fetch it first to cache player `customerID` before other customer endpoints
+
+The auto-runner fetches fantasy402.com same-origin, uploads via `/api/ingest/local`, and advances the batch cursor. Full catalog needs **ceil(86/12) = 8** successful batches (or leave auto-runner on 5‑min interval).
+
+**Online vs configured:** `configured` means the route is in the ingestion rotation. **`online`** means at least one successful snapshot exists in D1 (`api_snapshots`). Worker cron alone rarely marks routes online (403 skips); local ingest does.
 
 ## Local development
 
@@ -98,8 +109,13 @@ Without this secret, protected `/api/*` routes return **500** with `code: MISSIN
 
 Redeploy the Worker when adding new API fields (e.g. `routeLatency` on `/endpoint-status`).
 
+## Worker auth health (Endpoints tab)
+
+The Endpoints view loads public `GET /api/auth/health` (Worker `GET /auth/health`). **Ingestion Health** includes a worker-auth timeline row; **auth status** badges show stored capture vs worker readiness. **Probe worker auth** re-fetches health; **Copy VPS setup** copies the local proxy + refresh CLI block. When auth is blocked, the UI suggests `npm run auth:refresh-full` and `npm run auth:preflight -- --refresh` in `workers/fantasy402-ingestion/`.
+
 ## Related docs
 
 - Worker operator guide: `workers/fantasy402-ingestion/README.md` (Live Dashboard section)
+- **Ingestion error taxonomy:** `docs/ingestion-errors.md`
 - Secured upstream API contract: `docs/fantasy402-api.md`
 - OpenAPI Pages portal: `docs/cloudflare-pages.md`

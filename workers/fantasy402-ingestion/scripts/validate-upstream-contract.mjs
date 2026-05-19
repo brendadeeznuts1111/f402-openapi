@@ -59,6 +59,16 @@ for (const endpoint of manifest.endpoints) {
   if (requiredFields.has("customerID") && endpoint.requiresCustomerId !== true) {
     findings.push(`${endpoint.key} secured spec requires customerID but manifest does not mark requiresCustomerId`);
   }
+  if (endpoint.requiresCustomerId && !endpoint.customerIdSource) {
+    findings.push(`${endpoint.key} requires customerID but manifest is missing customerIdSource`);
+  }
+  if (endpoint.customerIdSource && endpoint.customerIdSource !== "Manager/getPlayers") {
+    findings.push(`${endpoint.key} has unsupported customerIdSource ${endpoint.customerIdSource}`);
+  }
+  const openapiCustomerIdSource = operation?.["x-customer-id-source"];
+  if (endpoint.customerIdSource && openapiCustomerIdSource && openapiCustomerIdSource !== endpoint.customerIdSource) {
+    findings.push(`${endpoint.key} x-customer-id-source drift: manifest ${endpoint.customerIdSource}, spec ${openapiCustomerIdSource}`);
+  }
   if (endpoint.contentType === "application/json" && !source.includes(`contentType: "json"`)) {
     findings.push(`${endpoint.key} uses JSON request bodies but src/index.ts has no JSON endpoint encoder`);
   }

@@ -53,6 +53,9 @@ requireText(contents.source, "if (cached.sessionCookie) overlaid.FANTASY402_SESS
 requireText(contents.source, '"FANTASY402_SESSION_COOKIE"', "Secrets Store materialization must include FANTASY402_SESSION_COOKIE");
 requireText(contents.source, "hasNonCloudflareCookieHeader", "source must distinguish app session cookies from Cloudflare-only cookies");
 requireText(contents.source, "omit it for bearer plus cf_clearance and __cf_bm browser auth", "refresh-auth must allow observed bearer plus Cloudflare-cookie browser auth");
+requireText(contents.source, 'url.pathname === "/auth/health"', "source must expose public GET /auth/health");
+requireText(contents.source, "authCacheOverlay", "auth health must report AUTH_CACHE overlay status");
+requireText(contents.tests, "auth-health is public and returns sanitized readiness", "tests must cover GET /auth/health");
 
 requireText(contents.tests, "ingestion keeps configured session cookie when appending Cloudflare cookies", "tests must cover configured session cookie plus Cloudflare cookies");
 requireText(contents.tests, "ingestion uses browser bearer plus Cloudflare cookies when app session cookie is absent", "tests must cover observed bearer plus Cloudflare-cookie auth");

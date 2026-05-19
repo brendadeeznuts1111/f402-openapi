@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.fantasy402.auth-refresh</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>scripts/run-with-ingestion-env.sh</string>
+    <string>__BUN__</string>
+    <string>scripts/auth-refresh-if-needed.mjs</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__WORKDIR__</string>
+  <key>StartInterval</key>
+  <integer>900</integer>
+  <key>StandardOutPath</key>
+  <string>__LOGDIR__/auth-refresh.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOGDIR__/auth-refresh.err.log</string>
+</dict>
+</plist>

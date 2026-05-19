@@ -351,10 +351,14 @@
         </div>
         <div class="ds-card">
           <h2>Quick Actions</h2>
-          <div class="ds-form-row">
-            <button class="ds-btn" id="triggerIngestBtn">▶ Trigger Ingestion</button>
-            <button class="ds-btn ds-btn--amber" id="refreshAuthBtn">🔄 Refresh Auth</button>
+          <label class="ds-label" for="browserCaptureInput">Browser capture</label>
+          <textarea id="browserCaptureInput" class="ds-textarea ds-textarea--sm" rows="4" placeholder="Paste DevTools → Network → Copy as fetch (any successful /cloud/api/* request)"></textarea>
+          <div class="ds-form-row ds-mt-sm">
+            <button class="ds-btn ds-btn--primary" id="syncBrowserIngestBtn">⚡ Sync auth &amp; ingest</button>
+            <button class="ds-btn" id="triggerIngestBtn">▶ Trigger ingestion</button>
+            <button class="ds-btn ds-btn--amber" id="refreshAuthBtn">🔄 Refresh auth</button>
           </div>
+          <p class="ds-help-text">Sync parses your fetch snippet, updates Worker auth, checks diagnostics, then runs the next ingestion batch.</p>
           <div class="ds-subtitle" id="cookieHealth" style="margin-top: var(--space-sm)"></div>
         </div>
       </div>

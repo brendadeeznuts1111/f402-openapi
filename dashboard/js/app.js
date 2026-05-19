@@ -59,6 +59,7 @@ import {
   loadEndpoints,
   triggerIngestion,
   refreshAuth,
+  syncFromBrowserAndIngest,
   updateCookieHealth,
   onEndpointTabChange,
 } from './views/endpoints.js';
@@ -305,6 +306,7 @@ document.querySelectorAll('[data-endpoint-tab]').forEach((t) => {
 });
 $('triggerIngestBtn').addEventListener('click', () => triggerIngestion(ctx));
 $('refreshAuthBtn').addEventListener('click', () => refreshAuth(ctx));
+$('syncBrowserIngestBtn').addEventListener('click', () => syncFromBrowserAndIngest(ctx));
 
 initDropzone(ctx, $('importDropzone'));
 

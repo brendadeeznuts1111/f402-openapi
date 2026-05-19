@@ -68,7 +68,8 @@ async function parseErrorResponse(res, meta) {
 
 async function doFetch(url, options, meta = {}) {
   const res = await fetch(url, options);
-  if (!res.ok) {
+  const acceptStatuses = meta.acceptStatuses;
+  if (!res.ok && !(Array.isArray(acceptStatuses) && acceptStatuses.includes(res.status))) {
     throw await parseErrorResponse(res, meta);
   }
   const ct = res.headers.get('Content-Type') || '';
@@ -97,7 +98,7 @@ function notifyError(err, path, method, silent) {
 }
 
 export async function api(path, options = {}) {
-  const { silent = false, ...fetchOptions } = options;
+  const { silent = false, acceptStatuses, ...fetchOptions } = options;
   const url = `${BASE}${path}`;
   const method = fetchOptions.method || 'GET';
   const cacheKey = `${method}:${path}`;
@@ -116,7 +117,7 @@ export async function api(path, options = {}) {
     }
   }
 
-  const promise = doFetch(url, fetchOptions, { path, method })
+  const promise = doFetch(url, fetchOptions, { path, method, acceptStatuses })
     .then((data) => {
       if (isRead) {
         responseCache.set(cacheKey, { data, ts: now, ttl: ttlFor(path) });

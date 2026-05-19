@@ -60,3 +60,12 @@
   background: var(--hover-bg);
   opacity: 1;
 }
+
+.ds-btn--primary {
+  background: var(--success);
+  color: var(--primary-bg);
+}
+
+[data-theme="light"] .ds-btn--primary {
+  color: #fff;
+}

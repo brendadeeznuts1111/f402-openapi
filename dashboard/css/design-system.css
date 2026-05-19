@@ -189,6 +189,7 @@ h3 {
   color: var(--muted);
 }
 .ds-mt-0 { margin-top: 0 !important; }
+.ds-mt-sm { margin-top: var(--space-sm); }
 .ds-mb-1 { margin-bottom: 1rem !important; }
 .ds-text-md { font-size: 1rem !important; }
 

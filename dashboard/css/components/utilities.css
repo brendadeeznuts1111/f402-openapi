@@ -39,6 +39,36 @@
   font-size: var(--text-sm);
 }
 
+.ds-help-text {
+  color: var(--secondary-text);
+  font-size: var(--text-xs);
+  margin: var(--space-sm) 0 0;
+  line-height: 1.45;
+}
+
+.ds-textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-ds);
+  border-radius: var(--radius-md);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.ds-textarea:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.ds-textarea--sm {
+  min-height: 72px;
+}
+
 .ds-text-mono {
   font-family: var(--font-mono);
 }

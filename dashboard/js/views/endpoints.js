@@ -5,6 +5,7 @@ import { escapeHtml } from '../dom.js';
 import { ago } from '../format.js';
 import { renderErrorState } from '../ui.js';
 import { renderEmptyState, getZoneBadgeClass } from '../design-system.js';
+import { parseBrowserCapture } from '../browser-auth.js';
 
 let endpointManifestTab = 'worker';
 let workerRoutes = [];
@@ -119,15 +120,27 @@ export function onEndpointTabChange(name) {
 
 export async function triggerIngestion(ctx) {
   try {
-    await ctx.apiPost('/ingest/local', { source: 'dashboard' });
-    ctx.showAlert('Ingestion triggered', 'info');
+    const result = await ctx.apiPost('/trigger', {}, { acceptStatuses: [200, 202, 500] });
+    const ok = result?.endpoints_succeeded ?? result?.endpointsSucceeded ?? 0;
+    const fail = result?.endpoints_failed ?? result?.endpointsFailed ?? 0;
+    const status = result?.status || 'unknown';
+    ctx.showAlert(
+      `Ingestion ${status}: ${ok} OK · ${fail} failed${result?.runId ? ` (${result.runId.slice(0, 8)}…)` : ''}`,
+      ok > 0 ? 'info' : 'warn',
+    );
     loadEndpoints(ctx);
+    return result;
   } catch (e) {
     ctx.showAlert(`Ingestion failed: ${e.message}`, 'error');
+    throw e;
   }
 }
 
 export async function refreshAuth(ctx) {
+  const capture = $('browserCaptureInput')?.value?.trim();
+  if (capture) {
+    return syncFromBrowserAndIngest(ctx, { triggerAfterRefresh: false });
+  }
   try {
     const result = await ctx.apiPost('/refresh-auth', {});
     const mode = result?.mode === 'renew'
@@ -135,9 +148,50 @@ export async function refreshAuth(ctx) {
       : result?.mode === 'session'
         ? 'Session refreshed'
         : 'Auth overlay updated';
-    ctx.showAlert(`${mode}`, 'info');
+    ctx.showAlert(mode, 'info');
+    updateCookieHealth(ctx);
   } catch (e) {
     ctx.showAlert(`Auth refresh failed: ${e.message}`, 'error');
+  }
+}
+
+/** Parse DevTools fetch → refresh-auth → optional trigger → reload health. */
+export async function syncFromBrowserAndIngest(ctx, { triggerAfterRefresh = true } = {}) {
+  const capture = $('browserCaptureInput')?.value?.trim();
+  if (!capture) {
+    ctx.showAlert('Paste a fetch() snippet from DevTools first', 'warn');
+    return;
+  }
+
+  const syncBtn = $('syncBrowserIngestBtn');
+  const ingestBtn = $('triggerIngestBtn');
+  if (syncBtn) syncBtn.disabled = true;
+  if (ingestBtn) ingestBtn.disabled = true;
+
+  try {
+    const payload = parseBrowserCapture(capture);
+    const refresh = await ctx.apiPost('/refresh-auth', payload);
+    const accepted = (refresh?.accepted || []).join(', ') || refresh?.mode || 'ok';
+    ctx.showAlert(`Auth synced (${accepted})`, 'info');
+    updateCookieHealth(ctx);
+
+    const diagnostics = await ctx.api('/diagnostics', { silent: true }).catch(() => null);
+    const readiness = diagnostics?.upstreamAuthShape?.ingestionReadiness?.status;
+    if (readiness && readiness !== 'ready') {
+      ctx.showAlert(`Auth synced but diagnostics reports: ${readiness}`, 'warn');
+    }
+
+    if (triggerAfterRefresh) {
+      await triggerIngestion(ctx);
+    } else {
+      loadEndpoints(ctx);
+    }
+  } catch (e) {
+    ctx.showAlert(`Sync failed: ${e.message}`, 'error');
+    throw e;
+  } finally {
+    if (syncBtn) syncBtn.disabled = false;
+    if (ingestBtn) ingestBtn.disabled = false;
   }
 }
 

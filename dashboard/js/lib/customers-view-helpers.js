@@ -7,6 +7,8 @@ export function defaultAnalysisDates(now = new Date()) {
   return { start: iso(start), end: iso(end) };
 }
 
+export { buildCustomerProfilePath } from './query-builders.js';
+
 export function buildAnalysisQueryParams(filters) {
   const parts = [];
   if (filters.start) parts.push(`start_date=${encodeURIComponent(filters.start)}`);
@@ -14,13 +16,6 @@ export function buildAnalysisQueryParams(filters) {
   parts.push(`report_type=${encodeURIComponent(String(filters.reportType ?? '2'))}`);
   parts.push(`line_type=${encodeURIComponent(String(filters.lineType ?? '2'))}`);
   return parts.length ? `&${parts.join('&')}` : '';
-}
-
-export function buildCustomerProfilePath(customerId, options = {}) {
-  const loginParam = options.login ? `&login=${encodeURIComponent(options.login)}` : '';
-  const period = encodeURIComponent(String(options.period ?? '0'));
-  const analysis = buildAnalysisQueryParams(options.analysis ?? {});
-  return `/customer-profile?customer_id=${encodeURIComponent(customerId)}&live=1&period=${period}${loginParam}${analysis}`;
 }
 
 export function sourceBadgeKind(activeSource, cached = false) {

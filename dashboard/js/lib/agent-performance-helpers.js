@@ -7,20 +7,7 @@ export const AGENT_PERF_TYPES = [
   { value: 'G', label: 'Graded Wagers' },
 ];
 
-export function buildAgentPerfQueryString(filters) {
-  const type = filters.type ?? 'CP';
-  const freePlay = filters.freePlay ?? 'Y';
-  const start = filters.start ?? '';
-  const end = filters.end ?? '';
-  const parts = [`type=${encodeURIComponent(type)}`, `free_play=${encodeURIComponent(freePlay)}`];
-  if (start) {
-    parts.push(`start_date=${encodeURIComponent(start)}`, `start=${encodeURIComponent(start)}`);
-  }
-  if (end) {
-    parts.push(`end_date=${encodeURIComponent(end)}`, `end=${encodeURIComponent(end)}`);
-  }
-  return parts.join('&');
-}
+export { buildAgentPerfQueryString } from './query-builders.js';
 
 export function columnsForAgentPerfType(type, sampleRow) {
   if (type === 'CPS' || type === 'G' || sampleRow?.sport_type) return 'sport';

@@ -1,6 +1,7 @@
 // Generate DevTools console scripts for https://fantasy402.com/manager.html (same-origin fetch).
 
 import { LIVE_SESSION_AUTH_EMBEDDED } from './live-session-auth.js';
+import { validateIngestSpec, validateLocalIngestPayload } from './lib/ingest-spec-validate.js';
 
 const FANTASY402_ORIGIN = 'https://fantasy402.com';
 const MANAGER_URL = `${FANTASY402_ORIGIN}/manager.html`;
@@ -232,6 +233,10 @@ export function buildSelfBootstrappingAutoRunner(dashboardOrigin, options = {}) 
 export function buildManagerConsoleScript(dashboardOrigin, authPayload, options = {}) {
   if (options.autoRun && !options.embedAuth) {
     return buildSelfBootstrappingAutoRunner(dashboardOrigin, options);
+  }
+
+  if (Array.isArray(options.endpointSpecs)) {
+    options.endpointSpecs.forEach((spec, i) => validateIngestSpec(spec, i));
   }
 
   const apiBase = `${dashboardOrigin.replace(/\/$/, '')}/api`;

@@ -82,7 +82,9 @@ import {
   loadPendingWagersView,
   registerPendingAutoRefresh,
   unregisterPendingAutoRefresh,
+  applyPendingFilters,
 } from './views/pending-wagers.js';
+import { installNavigationBridge } from './lib/navigation.js';
 import { maybeAutoIngest } from './ingestion-automation.js';
 
 const store = new DataStore();
@@ -166,6 +168,32 @@ const ctx = {
   onChartsThemeChange,
   registerOverviewRefresh,
 };
+
+installNavigationBridge({
+  showError: (msg) => ctx.showAlert(msg, 'error'),
+  onCustomer: (customerId, login) => {
+    switchView('customers');
+    loadCustomersView(ctx).then(() => {
+      ctx.loadCustomerProfile?.(customerId, login);
+    });
+  },
+  onAgent: (agentId) => {
+    switchView('customers');
+    const input = $('customerSearchInput');
+    if (input) {
+      input.value = agentId;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  },
+  onWager: ({ login, customerId }) => {
+    switchView('pending');
+    applyPendingFilters({
+      login: login ?? '',
+      customer_id: customerId ?? '0',
+    });
+    loadPendingWagersView(ctx);
+  },
+});
 
 function showProxyConfigBanner(kind) {
   if (kind === 'missing_token') {

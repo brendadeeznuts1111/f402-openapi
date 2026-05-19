@@ -42,7 +42,8 @@ export class SortableTable {
       const cells = this.columns.map((col) => {
         const value = row[col.key];
         const display = col.formatter ? col.formatter(value, row) : (value == null ? '-' : value);
-        return `<td>${escapeHtml(display)}</td>`;
+        if (col.html) return `<td>${display ?? ''}</td>`;
+        return `<td>${escapeHtml(display ?? '')}</td>`;
       }).join('');
       const rowIndex = this.options.onSelect ? ` data-row-index="${index}"` : '';
       const rowClass = this.options.onSelect ? ' class="ds-table-row--clickable"' : '';

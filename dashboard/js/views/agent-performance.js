@@ -12,14 +12,21 @@ import {
   parseCustomerFromPerfRow,
   formatAgentPerfMeta,
 } from '../lib/agent-performance-helpers.js';
+import { formatAgentCell, formatCustomerCell } from '../lib/link-components.js';
 
 let agentPerfTable = null;
 let wired = false;
 
 const CP_COLS = [
-  { key: 'login', label: 'Login', type: 'string' },
-  { key: 'customer_id', label: 'Customer ID', type: 'string' },
-  { key: 'agent_id', label: 'Agent', type: 'string' },
+  { key: 'login', label: 'Login', type: 'string', html: true, formatter: (v, row) => formatCustomerCell(v, row) },
+  {
+    key: 'customer_id',
+    label: 'Customer ID',
+    type: 'string',
+    html: true,
+    formatter: (v, row) => formatCustomerCell(row.login, { ...row, customer_id: v }),
+  },
+  { key: 'agent_id', label: 'Agent', type: 'string', html: true, formatter: (v) => formatAgentCell(v) },
   { key: 'wager_count', label: 'Bets', type: 'number', formatter: (v) => fmt(v) },
   { key: 'volume', label: 'Volume', type: 'number', formatter: moneyOrDash },
   { key: 'risk', label: 'Risk', type: 'number', formatter: moneyOrDash },

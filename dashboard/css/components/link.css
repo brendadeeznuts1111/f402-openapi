@@ -1,0 +1,29 @@
+/* Inline navigation links (button styled as text links) */
+.ds-link {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-accent, #00ff88);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ds-link:hover,
+.ds-link:focus-visible {
+  color: var(--color-accent-hover, #5dffb0);
+  outline: 2px solid var(--color-accent, #00ff88);
+  outline-offset: 2px;
+}
+
+.ds-link:active {
+  opacity: 0.85;
+}
+
+.ds-table-sm .ds-link {
+  font-size: inherit;
+}

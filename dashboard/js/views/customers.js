@@ -14,6 +14,8 @@ import {
   getInfoFromProfileData,
   pickPerformanceColumns,
 } from '../lib/customers-view-helpers.js';
+import { buildSearchCustomersQuery } from '../lib/query-builders.js';
+import { agentLink, customerLink } from '../lib/link-components.js';
 
 let searchTable = null;
 let performanceTable = null;
@@ -245,9 +247,10 @@ async function runSearch(ctx, q) {
     );
   }
   try {
+    const qs = buildSearchCustomersQuery(q, 50);
     const d = await ctx.store.fetch(
-      `/search-customers?q=${encodeURIComponent(q)}`,
-      () => ctx.api(`/search-customers?q=${encodeURIComponent(q)}&limit=50`),
+      `/search-customers?${qs}`,
+      () => ctx.api(`/search-customers?${qs}`),
       0,
     );
     const total = d.total ?? d.records?.length ?? 0;

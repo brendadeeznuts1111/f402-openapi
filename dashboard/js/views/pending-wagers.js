@@ -6,6 +6,8 @@ import { renderErrorState, storeTTL } from '../ui.js';
 import { getRefreshInterval, renderEmptyState } from '../design-system.js';
 import { SortableTable } from '../sortable-table.js';
 import { AutoRefreshManager } from '../utils.js';
+import { buildPendingWagersQuery } from '../lib/query-builders.js';
+import { formatCustomerCell, formatWagerCell } from '../lib/link-components.js';
 
 const STORAGE_KEY = 'f402-pending-filters';
 
@@ -135,8 +137,20 @@ function wireFiltersOnce(ctx) {
 function ensureTable() {
   if (pendingTable) return;
   pendingTable = new SortableTable('pendingWagersTable', [
-    { key: 'ticket_number', label: 'Ticket #', type: 'number' },
-    { key: 'login', label: 'Player', type: 'string' },
+    {
+      key: 'ticket_number',
+      label: 'Ticket #',
+      type: 'number',
+      html: true,
+      formatter: (v, row) => formatWagerCell(v, row),
+    },
+    {
+      key: 'login',
+      label: 'Player',
+      type: 'string',
+      html: true,
+      formatter: (v, row) => formatCustomerCell(v, row),
+    },
     { key: 'wager_type', label: 'Type', type: 'string', formatter: (v) => tag(v) },
     { key: 'amount_wagered', label: 'Wagered', type: 'number', formatter: (v) => centsUsd(v) },
     { key: 'to_win_amount', label: 'To Win', type: 'number', formatter: (v) => centsUsd(v) },

@@ -2,6 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { toYaml } from './yaml.mjs';
+import { pendingWagersQuerySchema, customerProfileQuerySchema } from './lib/f402-schemas.mjs';
+import { validateQuery } from './lib/validate-generator.mjs';
 
 const root = process.cwd();
 const input = path.join(root, '.o11y/fantasy402-redacted-deep/api-spec/openapi.json');
@@ -1110,6 +1112,9 @@ function main() {
       annotateSensitiveFields(operation);
     }
   }
+
+  validateQuery(pendingWagersQuerySchema, { date: '2026-05-17', customer_id: '0', limit: 200 }, 'generator/pending');
+  validateQuery(customerProfileQuerySchema, { customer_id: 'GX195', live: '1' }, 'generator/profile');
 
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(outputJson, `${JSON.stringify(spec, null, 2)}\n`);

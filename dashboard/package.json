@@ -16,5 +16,8 @@
     "secrets:list": "wrangler pages secret list --project-name=fantasy402-dashboard",
     "verify": "npm run sync:dev-vars:check",
     "test": "bun test test/"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }

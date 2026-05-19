@@ -1,0 +1,84 @@
+{
+  "type": "object",
+  "unknownKeys": "strict",
+  "properties": {
+    "agentReadiness": {
+      "type": "boolean"
+    },
+    "archiveListLimit": {
+      "type": "number",
+      "checks": [
+        {
+          "kind": "int"
+        },
+        {
+          "kind": "max",
+          "value": 1000,
+          "inclusive": true
+        },
+        {
+          "kind": "min",
+          "value": 1,
+          "inclusive": true
+        }
+      ]
+    },
+    "archivePrefix": {
+      "type": "string",
+      "checks": [
+        {
+          "kind": "startsWith",
+          "value": "fantasy402/"
+        }
+      ]
+    },
+    "defaultScanUrl": {
+      "type": "effects",
+      "effect": "refinement",
+      "inner": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "url"
+          }
+        ]
+      }
+    },
+    "scanListLimit": {
+      "type": "number",
+      "checks": [
+        {
+          "kind": "int"
+        },
+        {
+          "kind": "max",
+          "value": 100,
+          "inclusive": true
+        },
+        {
+          "kind": "min",
+          "value": 1,
+          "inclusive": true
+        }
+      ]
+    },
+    "screenshots": {
+      "type": "array",
+      "item": {
+        "type": "enum",
+        "values": [
+          "desktop",
+          "mobile"
+        ]
+      }
+    }
+  },
+  "required": [
+    "agentReadiness",
+    "archiveListLimit",
+    "archivePrefix",
+    "defaultScanUrl",
+    "scanListLimit",
+    "screenshots"
+  ]
+}

@@ -1,0 +1,515 @@
+{
+  "names": [
+    "AgentHealthResponse",
+    "AgentInput",
+    "AgentOutput",
+    "AgentRegistryResponse",
+    "ArchiveListResponse",
+    "ArchiveObjectSummary",
+    "ErrorResponse",
+    "HealthResponse",
+    "ScanListResponse",
+    "ScanTriggerRequest",
+    "ScanTriggerResponse",
+    "ScanVerdict",
+    "SettingsSchema",
+    "SettingsSchemaDescription",
+    "TriggerResponse"
+  ],
+  "schemas": {
+    "HealthResponse": {
+      "type": "object",
+      "required": [
+        "status",
+        "environment"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "ok"
+        },
+        "environment": {
+          "type": "string"
+        }
+      }
+    },
+    "TriggerResponse": {
+      "type": "object",
+      "required": [
+        "runId",
+        "status",
+        "endpointsSucceeded",
+        "endpointsFailed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "runId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed"
+          ]
+        },
+        "endpointsSucceeded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "endpointsFailed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "required": [
+        "success",
+        "error"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": false
+        },
+        "error": {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "AUTH_001",
+                "VALIDATION_001",
+                "NOT_FOUND_001",
+                "RATE_LIMIT_002",
+                "UPSTREAM_001",
+                "LLM_TIMEOUT",
+                "LLM_INVALID_RESPONSE"
+              ]
+            },
+            "message": {
+              "type": "string"
+            },
+            "details": {}
+          }
+        }
+      }
+    },
+    "ArchiveObjectSummary": {
+      "type": "object",
+      "required": [
+        "key",
+        "etag",
+        "size",
+        "uploaded",
+        "storageClass",
+        "httpMetadata",
+        "customMetadata"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "etag": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uploaded": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "httpMetadata": {
+          "type": "object"
+        },
+        "customMetadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ArchiveListResponse": {
+      "type": "object",
+      "required": [
+        "objects",
+        "truncated",
+        "cursor"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ArchiveObjectSummary"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ScanVerdict": {
+      "type": "object",
+      "required": [
+        "scan_id",
+        "timestamp",
+        "url",
+        "malicious",
+        "tls_valid_days",
+        "agent_readiness_level",
+        "scan_r2_key",
+        "screenshot_r2_key",
+        "har_r2_key"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scan_id": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "malicious": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "tls_valid_days": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "agent_readiness_level": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scan_r2_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "screenshot_r2_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "har_r2_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ScanListResponse": {
+      "type": "object",
+      "required": [
+        "results"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ScanVerdict"
+          }
+        }
+      }
+    },
+    "ScanTriggerRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "default": "https://fantasy402.com"
+        }
+      }
+    },
+    "ScanTriggerResponse": {
+      "type": "object",
+      "required": [
+        "scanId",
+        "url",
+        "malicious",
+        "tlsValidDays"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scanId": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "malicious": {
+          "type": "boolean"
+        },
+        "tlsValidDays": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "SettingsSchema": {
+      "type": "object",
+      "required": [
+        "archivePrefix",
+        "archiveListLimit",
+        "scanListLimit",
+        "defaultScanUrl",
+        "screenshots",
+        "agentReadiness"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "archivePrefix": {
+          "type": "string",
+          "pattern": "^fantasy402/"
+        },
+        "archiveListLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "scanListLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "defaultScanUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "screenshots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "enum": [
+              "desktop",
+              "mobile"
+            ]
+          }
+        },
+        "agentReadiness": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SettingsSchemaDescription": {
+      "type": "object",
+      "required": [
+        "name",
+        "fields"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "SettingsSchema"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "AgentRegistryResponse": {
+      "type": "object",
+      "required": [
+        "agents"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "capability",
+              "invocation",
+              "route"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": [
+                  "Summarizer",
+                  "Router",
+                  "CodeGen"
+                ]
+              },
+              "capability": {
+                "type": "string"
+              },
+              "invocation": {
+                "type": "string"
+              },
+              "route": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "AgentInput": {
+      "type": "object",
+      "required": [
+        "agentId",
+        "requestId",
+        "prompt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "agentId": {
+          "type": "string",
+          "enum": [
+            "Summarizer",
+            "Router",
+            "CodeGen"
+          ]
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "context": {
+          "type": "object"
+        }
+      }
+    },
+    "AgentOutput": {
+      "type": "object",
+      "required": [
+        "agentId",
+        "requestId",
+        "success",
+        "content"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "agentId": {
+          "type": "string",
+          "enum": [
+            "Summarizer",
+            "Router",
+            "CodeGen"
+          ]
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "content": {
+          "type": "string"
+        },
+        "usage": {
+          "type": "object"
+        },
+        "error": {
+          "type": "object"
+        }
+      }
+    },
+    "AgentHealthResponse": {
+      "type": "object",
+      "required": [
+        "agents"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status",
+              "capability",
+              "invocation"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": [
+                  "Summarizer",
+                  "Router",
+                  "CodeGen"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "degraded"
+                ]
+              },
+              "capability": {
+                "type": "string"
+              },
+              "invocation": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

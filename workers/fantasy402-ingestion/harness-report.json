@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-05-19T20:57:51.815Z",
+  "status": "passed",
+  "snapshots": {
+    "status": "passed",
+    "driftCount": 0,
+    "files": {
+      "test/__snapshots__/openapi-schemas.snap.json": {
+        "status": "passed",
+        "changedKeys": []
+      },
+      "test/__snapshots__/zod-schemas.snap.json": {
+        "status": "passed",
+        "changedKeys": []
+      },
+      "test/harness/snapshots/settings-schema.snap.json": {
+        "status": "passed",
+        "changedKeys": []
+      }
+    }
+  },
+  "metadata": {
+    "status": "passed",
+    "files": {
+      "public/llm.txt": {
+        "status": "passed",
+        "missing": [],
+        "brokenLinks": []
+      },
+      "public/llms.txt": {
+        "status": "passed",
+        "missing": [],
+        "brokenLinks": []
+      },
+      "agents.md": {
+        "status": "passed",
+        "missing": [],
+        "brokenLinks": []
+      },
+      "manifest:src/index.ts": {
+        "status": "passed",
+        "missing": []
+      },
+      "manifest:src/url-scanner.ts": {
+        "status": "passed",
+        "missing": []
+      },
+      "manifest:src/schema.ts": {
+        "status": "passed",
+        "missing": []
+      }
+    }
+  },
+  "fixtures": {
+    "status": "passed",
+    "coveredSchemas": 13,
+    "totalSchemas": 13,
+    "failures": []
+  },
+  "circularDependencies": {
+    "status": "passed",
+    "cycles": []
+  },
+  "performance": {
+    "status": "passed",
+    "allowedRegression": 1.15,
+    "iterations": 1000,
+    "regressions": [],
+    "current": {
+      "AgentHealthResponse": {
+        "parseMs": 0.001984,
+        "safeParseMs": 0.000737
+      },
+      "AgentInput": {
+        "parseMs": 0.000695,
+        "safeParseMs": 0.000578
+      },
+      "AgentOutput": {
+        "parseMs": 0.001273,
+        "safeParseMs": 0.001116
+      },
+      "ArchiveListResponse": {
+        "parseMs": 0.002147,
+        "safeParseMs": 0.00182
+      },
+      "ArchiveObjectSummary": {
+        "parseMs": 0.001489,
+        "safeParseMs": 0.001327
+      },
+      "ErrorResponse": {
+        "parseMs": 0.000464,
+        "safeParseMs": 0.000434
+      },
+      "HealthResponse": {
+        "parseMs": 0.00018,
+        "safeParseMs": 0.000209
+      },
+      "ScanListResponse": {
+        "parseMs": 0.003013,
+        "safeParseMs": 0.003001
+      },
+      "ScanTriggerRequest": {
+        "parseMs": 0.001346,
+        "safeParseMs": 0.000703
+      },
+      "ScanTriggerResponse": {
+        "parseMs": 0.001819,
+        "safeParseMs": 0.001976
+      },
+      "ScanVerdict": {
+        "parseMs": 0.001833,
+        "safeParseMs": 0.002237
+      },
+      "SettingsSchema": {
+        "parseMs": 0.002368,
+        "safeParseMs": 0.001461
+      },
+      "TriggerResponse": {
+        "parseMs": 0.000586,
+        "safeParseMs": 0.000806
+      }
+    }
+  }
+}

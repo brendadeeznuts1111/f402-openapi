@@ -1,0 +1,58 @@
+{
+  "allowedRegression": 1.15,
+  "iterations": 1000,
+  "schemas": {
+    "AgentHealthResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "AgentInput": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "AgentOutput": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ArchiveListResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ArchiveObjectSummary": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ErrorResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "HealthResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ScanListResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ScanTriggerRequest": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ScanTriggerResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "ScanVerdict": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "SettingsSchema": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    },
+    "TriggerResponse": {
+      "parseMs": 1,
+      "safeParseMs": 1
+    }
+  }
+}

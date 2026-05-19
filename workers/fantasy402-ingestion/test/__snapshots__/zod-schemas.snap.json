@@ -1,0 +1,923 @@
+{
+  "AgentHealthResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "agents": {
+        "type": "array",
+        "item": {
+          "type": "object",
+          "unknownKeys": "strict",
+          "properties": {
+            "capability": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1
+                }
+              ]
+            },
+            "id": {
+              "type": "enum",
+              "values": [
+                "CodeGen",
+                "Router",
+                "Summarizer"
+              ]
+            },
+            "invocation": {
+              "type": "enum",
+              "values": [
+                "internal",
+                "public-route",
+                "webhook"
+              ]
+            },
+            "status": {
+              "type": "enum",
+              "values": [
+                "degraded",
+                "ok"
+              ]
+            }
+          },
+          "required": [
+            "capability",
+            "id",
+            "invocation",
+            "status"
+          ]
+        }
+      }
+    },
+    "required": [
+      "agents"
+    ]
+  },
+  "AgentInput": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "agentId": {
+        "type": "enum",
+        "values": [
+          "CodeGen",
+          "Router",
+          "Summarizer"
+        ]
+      },
+      "context": {
+        "type": "default",
+        "inner": {
+          "type": "record",
+          "value": {
+            "type": "ZodUnknown"
+          }
+        }
+      },
+      "prompt": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "requestId": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      }
+    },
+    "required": [
+      "agentId",
+      "context",
+      "prompt",
+      "requestId"
+    ]
+  },
+  "AgentOutput": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "agentId": {
+        "type": "enum",
+        "values": [
+          "CodeGen",
+          "Router",
+          "Summarizer"
+        ]
+      },
+      "content": {
+        "type": "string",
+        "checks": []
+      },
+      "error": {
+        "type": "optional",
+        "inner": {
+          "type": "object",
+          "unknownKeys": "strict",
+          "properties": {
+            "code": {
+              "type": "enum",
+              "values": [
+                "LLM_INVALID_RESPONSE",
+                "LLM_TIMEOUT"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ]
+        }
+      },
+      "requestId": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "success": {
+        "type": "boolean"
+      },
+      "usage": {
+        "type": "optional",
+        "inner": {
+          "type": "object",
+          "unknownKeys": "strict",
+          "properties": {
+            "inputTokens": {
+              "type": "number",
+              "checks": [
+                {
+                  "kind": "int"
+                },
+                {
+                  "kind": "min",
+                  "value": 0,
+                  "inclusive": true
+                }
+              ]
+            },
+            "outputTokens": {
+              "type": "number",
+              "checks": [
+                {
+                  "kind": "int"
+                },
+                {
+                  "kind": "min",
+                  "value": 0,
+                  "inclusive": true
+                }
+              ]
+            }
+          },
+          "required": [
+            "inputTokens",
+            "outputTokens"
+          ]
+        }
+      }
+    },
+    "required": [
+      "agentId",
+      "content",
+      "requestId",
+      "success"
+    ]
+  },
+  "ArchiveListResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "cursor": {
+        "type": "nullable",
+        "inner": {
+          "type": "string",
+          "checks": []
+        }
+      },
+      "objects": {
+        "type": "array",
+        "item": {
+          "type": "object",
+          "unknownKeys": "strict",
+          "properties": {
+            "customMetadata": {
+              "type": "record",
+              "value": {
+                "type": "string",
+                "checks": []
+              }
+            },
+            "etag": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1
+                }
+              ]
+            },
+            "httpMetadata": {
+              "type": "record",
+              "value": {
+                "type": "ZodUnknown"
+              }
+            },
+            "key": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "startsWith",
+                  "value": "fantasy402/"
+                }
+              ]
+            },
+            "size": {
+              "type": "number",
+              "checks": [
+                {
+                  "kind": "int"
+                },
+                {
+                  "kind": "min",
+                  "value": 0,
+                  "inclusive": true
+                }
+              ]
+            },
+            "storageClass": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1
+                }
+              ]
+            },
+            "uploaded": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "datetime",
+                  "precision": null,
+                  "offset": false,
+                  "local": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "customMetadata",
+            "etag",
+            "httpMetadata",
+            "key",
+            "size",
+            "storageClass",
+            "uploaded"
+          ]
+        }
+      },
+      "truncated": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "cursor",
+      "objects",
+      "truncated"
+    ]
+  },
+  "ArchiveObjectSummary": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "customMetadata": {
+        "type": "record",
+        "value": {
+          "type": "string",
+          "checks": []
+        }
+      },
+      "etag": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "httpMetadata": {
+        "type": "record",
+        "value": {
+          "type": "ZodUnknown"
+        }
+      },
+      "key": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "startsWith",
+            "value": "fantasy402/"
+          }
+        ]
+      },
+      "size": {
+        "type": "number",
+        "checks": [
+          {
+            "kind": "int"
+          },
+          {
+            "kind": "min",
+            "value": 0,
+            "inclusive": true
+          }
+        ]
+      },
+      "storageClass": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "uploaded": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "datetime",
+            "precision": null,
+            "offset": false,
+            "local": false
+          }
+        ]
+      }
+    },
+    "required": [
+      "customMetadata",
+      "etag",
+      "httpMetadata",
+      "key",
+      "size",
+      "storageClass",
+      "uploaded"
+    ]
+  },
+  "ErrorResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "error": {
+        "type": "object",
+        "unknownKeys": "strict",
+        "properties": {
+          "code": {
+            "type": "enum",
+            "values": [
+              "AUTH_001",
+              "LLM_INVALID_RESPONSE",
+              "LLM_TIMEOUT",
+              "NOT_FOUND_001",
+              "RATE_LIMIT_002",
+              "UPSTREAM_001",
+              "VALIDATION_001"
+            ]
+          },
+          "details": {
+            "type": "optional",
+            "inner": {
+              "type": "ZodUnknown"
+            }
+          },
+          "message": {
+            "type": "string",
+            "checks": [
+              {
+                "kind": "min",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "success": {
+        "type": "literal",
+        "value": false
+      }
+    },
+    "required": [
+      "error",
+      "success"
+    ]
+  },
+  "HealthResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "environment": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "status": {
+        "type": "literal",
+        "value": "ok"
+      }
+    },
+    "required": [
+      "environment",
+      "status"
+    ]
+  },
+  "ScanListResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "results": {
+        "type": "array",
+        "item": {
+          "type": "object",
+          "unknownKeys": "strict",
+          "properties": {
+            "agent_readiness_level": {
+              "type": "nullable",
+              "inner": {
+                "type": "number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  }
+                ]
+              }
+            },
+            "har_r2_key": {
+              "type": "nullable",
+              "inner": {
+                "type": "string",
+                "checks": [
+                  {
+                    "kind": "startsWith",
+                    "value": "fantasy402/"
+                  }
+                ]
+              }
+            },
+            "malicious": {
+              "type": "union",
+              "options": [
+                {
+                  "type": "literal",
+                  "value": 0
+                },
+                {
+                  "type": "literal",
+                  "value": 1
+                }
+              ]
+            },
+            "scan_id": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "min",
+                  "value": 1
+                }
+              ]
+            },
+            "scan_r2_key": {
+              "type": "nullable",
+              "inner": {
+                "type": "string",
+                "checks": [
+                  {
+                    "kind": "startsWith",
+                    "value": "fantasy402/"
+                  }
+                ]
+              }
+            },
+            "screenshot_r2_key": {
+              "type": "nullable",
+              "inner": {
+                "type": "string",
+                "checks": [
+                  {
+                    "kind": "startsWith",
+                    "value": "fantasy402/"
+                  }
+                ]
+              }
+            },
+            "timestamp": {
+              "type": "string",
+              "checks": [
+                {
+                  "kind": "datetime",
+                  "precision": null,
+                  "offset": false,
+                  "local": false
+                }
+              ]
+            },
+            "tls_valid_days": {
+              "type": "nullable",
+              "inner": {
+                "type": "number",
+                "checks": [
+                  {
+                    "kind": "int"
+                  }
+                ]
+              }
+            },
+            "url": {
+              "type": "effects",
+              "effect": "refinement",
+              "inner": {
+                "type": "string",
+                "checks": [
+                  {
+                    "kind": "url"
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "agent_readiness_level",
+            "har_r2_key",
+            "malicious",
+            "scan_id",
+            "scan_r2_key",
+            "screenshot_r2_key",
+            "timestamp",
+            "tls_valid_days",
+            "url"
+          ]
+        }
+      }
+    },
+    "required": [
+      "results"
+    ]
+  },
+  "ScanTriggerRequest": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "url": {
+        "type": "optional",
+        "inner": {
+          "type": "effects",
+          "effect": "refinement",
+          "inner": {
+            "type": "string",
+            "checks": [
+              {
+                "kind": "url"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "required": []
+  },
+  "ScanTriggerResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "malicious": {
+        "type": "boolean"
+      },
+      "scanId": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "tlsValidDays": {
+        "type": "nullable",
+        "inner": {
+          "type": "number",
+          "checks": [
+            {
+              "kind": "int"
+            }
+          ]
+        }
+      },
+      "url": {
+        "type": "effects",
+        "effect": "refinement",
+        "inner": {
+          "type": "string",
+          "checks": [
+            {
+              "kind": "url"
+            }
+          ]
+        }
+      }
+    },
+    "required": [
+      "malicious",
+      "scanId",
+      "tlsValidDays",
+      "url"
+    ]
+  },
+  "ScanVerdict": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "agent_readiness_level": {
+        "type": "nullable",
+        "inner": {
+          "type": "number",
+          "checks": [
+            {
+              "kind": "int"
+            }
+          ]
+        }
+      },
+      "har_r2_key": {
+        "type": "nullable",
+        "inner": {
+          "type": "string",
+          "checks": [
+            {
+              "kind": "startsWith",
+              "value": "fantasy402/"
+            }
+          ]
+        }
+      },
+      "malicious": {
+        "type": "union",
+        "options": [
+          {
+            "type": "literal",
+            "value": 0
+          },
+          {
+            "type": "literal",
+            "value": 1
+          }
+        ]
+      },
+      "scan_id": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "min",
+            "value": 1
+          }
+        ]
+      },
+      "scan_r2_key": {
+        "type": "nullable",
+        "inner": {
+          "type": "string",
+          "checks": [
+            {
+              "kind": "startsWith",
+              "value": "fantasy402/"
+            }
+          ]
+        }
+      },
+      "screenshot_r2_key": {
+        "type": "nullable",
+        "inner": {
+          "type": "string",
+          "checks": [
+            {
+              "kind": "startsWith",
+              "value": "fantasy402/"
+            }
+          ]
+        }
+      },
+      "timestamp": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "datetime",
+            "precision": null,
+            "offset": false,
+            "local": false
+          }
+        ]
+      },
+      "tls_valid_days": {
+        "type": "nullable",
+        "inner": {
+          "type": "number",
+          "checks": [
+            {
+              "kind": "int"
+            }
+          ]
+        }
+      },
+      "url": {
+        "type": "effects",
+        "effect": "refinement",
+        "inner": {
+          "type": "string",
+          "checks": [
+            {
+              "kind": "url"
+            }
+          ]
+        }
+      }
+    },
+    "required": [
+      "agent_readiness_level",
+      "har_r2_key",
+      "malicious",
+      "scan_id",
+      "scan_r2_key",
+      "screenshot_r2_key",
+      "timestamp",
+      "tls_valid_days",
+      "url"
+    ]
+  },
+  "SettingsSchema": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "agentReadiness": {
+        "type": "boolean"
+      },
+      "archiveListLimit": {
+        "type": "number",
+        "checks": [
+          {
+            "kind": "int"
+          },
+          {
+            "kind": "max",
+            "value": 1000,
+            "inclusive": true
+          },
+          {
+            "kind": "min",
+            "value": 1,
+            "inclusive": true
+          }
+        ]
+      },
+      "archivePrefix": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "startsWith",
+            "value": "fantasy402/"
+          }
+        ]
+      },
+      "defaultScanUrl": {
+        "type": "effects",
+        "effect": "refinement",
+        "inner": {
+          "type": "string",
+          "checks": [
+            {
+              "kind": "url"
+            }
+          ]
+        }
+      },
+      "scanListLimit": {
+        "type": "number",
+        "checks": [
+          {
+            "kind": "int"
+          },
+          {
+            "kind": "max",
+            "value": 100,
+            "inclusive": true
+          },
+          {
+            "kind": "min",
+            "value": 1,
+            "inclusive": true
+          }
+        ]
+      },
+      "screenshots": {
+        "type": "array",
+        "item": {
+          "type": "enum",
+          "values": [
+            "desktop",
+            "mobile"
+          ]
+        }
+      }
+    },
+    "required": [
+      "agentReadiness",
+      "archiveListLimit",
+      "archivePrefix",
+      "defaultScanUrl",
+      "scanListLimit",
+      "screenshots"
+    ]
+  },
+  "TriggerResponse": {
+    "type": "object",
+    "unknownKeys": "strict",
+    "properties": {
+      "endpointsFailed": {
+        "type": "number",
+        "checks": [
+          {
+            "kind": "int"
+          },
+          {
+            "kind": "min",
+            "value": 0,
+            "inclusive": true
+          }
+        ]
+      },
+      "endpointsSucceeded": {
+        "type": "number",
+        "checks": [
+          {
+            "kind": "int"
+          },
+          {
+            "kind": "min",
+            "value": 0,
+            "inclusive": true
+          }
+        ]
+      },
+      "runId": {
+        "type": "string",
+        "checks": [
+          {
+            "kind": "uuid"
+          }
+        ]
+      },
+      "status": {
+        "type": "enum",
+        "values": [
+          "failed",
+          "success"
+        ]
+      }
+    },
+    "required": [
+      "endpointsFailed",
+      "endpointsSucceeded",
+      "runId",
+      "status"
+    ]
+  }
+}

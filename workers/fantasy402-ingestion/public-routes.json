@@ -1,0 +1,18 @@
+{
+  "version": "v1",
+  "deprecationPolicy": "Root routes remain supported for this Worker version. New integrations should use /api/v1/* aliases. Deprecated routes receive at least one minor release notice before removal.",
+  "routes": [
+    { "method": "GET", "path": "/health", "versionedPath": "/api/v1/health", "auth": false, "responseSchema": "HealthResponse" },
+    { "method": "POST", "path": "/trigger", "versionedPath": "/api/v1/trigger", "auth": true, "responseSchema": "TriggerResponse" },
+    { "method": "GET", "path": "/archive", "versionedPath": "/api/v1/archive", "auth": true, "responseSchema": "ArchiveListResponse" },
+    { "method": "GET", "path": "/archive/object", "versionedPath": "/api/v1/archive/object", "auth": true, "responseSchema": "ArchiveObjectSummary" },
+    { "method": "GET", "path": "/archive/viewer", "versionedPath": "/api/v1/archive/viewer", "auth": false, "responseSchema": "text/html" },
+    { "method": "GET", "path": "/scans", "versionedPath": "/api/v1/scans", "auth": true, "responseSchema": "ScanListResponse" },
+    { "method": "POST", "path": "/scans/trigger", "versionedPath": "/api/v1/scans/trigger", "auth": true, "requestSchema": "ScanTriggerRequest", "responseSchema": "ScanTriggerResponse" },
+    { "method": "GET", "path": "/settings", "versionedPath": "/api/v1/settings", "auth": true, "responseSchema": "SettingsSchema" },
+    { "method": "GET", "path": "/settings/schema", "versionedPath": "/api/v1/settings/schema", "auth": true, "responseSchema": "SettingsSchemaDescription" },
+    { "method": "POST", "path": "/settings/validate", "versionedPath": "/api/v1/settings/validate", "auth": true, "requestSchema": "SettingsSchema", "responseSchema": "SettingsSchema" },
+    { "method": "GET", "path": "/agents", "versionedPath": "/api/v1/agents", "auth": true, "responseSchema": "AgentRegistryResponse" },
+    { "method": "GET", "path": "/agents/health", "versionedPath": "/api/v1/agents/health", "auth": true, "responseSchema": "AgentHealthResponse" }
+  ]
+}

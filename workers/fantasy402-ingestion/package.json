@@ -3,11 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "src/index.ts",
+  "manifest": "manifest.json",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include=src/schema.ts --test-coverage-lines=85 --test-coverage-functions=85 --test-coverage-branches=85 --import tsx --test test/*.test.ts",
+    "test:harness:ci": "node --import tsx scripts/harness-report.ts --check && node --import tsx --test test/snapshot.test.ts test/metadata-sync.test.ts test/harness-self.test.ts test/openapi-validator.test.ts test/performance.test.ts",
+    "test:update-snapshots": "UPDATE_SNAPSHOTS=1 node --import tsx --test test/*.test.ts",
+    "harness:watch": "node --watch-path=src --watch-path=test --watch-path=public --watch-path=scripts scripts/harness-watch.mjs",
+    "harness:report": "node --import tsx scripts/harness-report.ts",
     "audit": "npm audit --audit-level=moderate",
     "validate:deploy-config": "node scripts/validate-deploy-config.mjs",
+    "manifest:validate": "node scripts/validate-manifest.mjs",
+    "build:artifacts": "node scripts/build-artifacts.mjs",
     "validate:openapi": "node scripts/validate-worker-openapi.mjs",
     "validate:upstream-contract": "node scripts/validate-upstream-contract.mjs",
     "bootstrap:cloudflare": "node scripts/bootstrap-cloudflare-resources.mjs",
@@ -26,5 +35,10 @@
     "@types/node": "^25.1.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "zod": "^3.25.76"
   }
 }

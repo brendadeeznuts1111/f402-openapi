@@ -1,0 +1,44 @@
+{
+  "AUTH_001": {
+    "httpStatus": 401,
+    "message": "Unauthorized",
+    "description": "Bearer token is missing or invalid.",
+    "frontendHandling": "Prompt for a valid operator token and retry the request."
+  },
+  "VALIDATION_001": {
+    "httpStatus": 400,
+    "message": "Invalid request",
+    "description": "Request body or query parameters failed schema validation.",
+    "frontendHandling": "Show field-level validation details when available."
+  },
+  "NOT_FOUND_001": {
+    "httpStatus": 404,
+    "message": "Not Found",
+    "description": "The requested public route or archive object does not exist.",
+    "frontendHandling": "Show a not-found state and offer navigation back to a valid tab."
+  },
+  "RATE_LIMIT_002": {
+    "httpStatus": 429,
+    "message": "Too Many Requests",
+    "description": "Request rate exceeded the Worker guardrail.",
+    "frontendHandling": "Back off and retry after the displayed cooldown."
+  },
+  "UPSTREAM_001": {
+    "httpStatus": 502,
+    "message": "Upstream service failed",
+    "description": "Fantasy402 or Cloudflare URL Scanner returned an upstream error.",
+    "frontendHandling": "Show retry affordance and preserve operator context."
+  },
+  "LLM_TIMEOUT": {
+    "httpStatus": 504,
+    "message": "LLM agent timed out",
+    "description": "An LLM agent did not complete within the configured timeout.",
+    "frontendHandling": "Allow retry and note that no downstream state was committed."
+  },
+  "LLM_INVALID_RESPONSE": {
+    "httpStatus": 502,
+    "message": "LLM agent returned an invalid response",
+    "description": "Agent output failed the declared response schema.",
+    "frontendHandling": "Show agent failure state and log the request id for debugging."
+  }
+}

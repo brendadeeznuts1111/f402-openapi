@@ -1,4 +1,22 @@
 import { submitAndWait } from "./url-scanner";
+import {
+  JSON_CONTENT_TYPE,
+  AGENT_CONFIGS,
+  DEFAULT_SETTINGS,
+  NO_STORE_CACHE_CONTROL,
+  R2_ARCHIVE_PREFIX,
+  R2_ARCHIVE_STORAGE_CLASS,
+  WORKER_NO_STORE_CACHE_CONTROL,
+  archiveKey,
+  clampInteger,
+  isEndpointKey,
+  normalizeArchivePrefix,
+  parseScanTriggerRequest,
+  settingsSchema,
+  type ErrorCode,
+  type EndpointKey,
+  type ScanTriggerResponse,
+} from "./schema";
 
 export interface Env {
   SESSION_KV: KVNamespace;
@@ -16,18 +34,6 @@ export interface Env {
   INGESTION_TRIGGER_TOKEN: string;
   ALERT_WEBHOOK_URL?: string;
 }
-
-type EndpointKey =
-  | "getAgentPerformance"
-  | "getAgentBilling"
-  | "getEnterTransactions"
-  | "getPending"
-  | "Pending"
-  | "getPlayers"
-  | "getAddedInfo"
-  | "getCommunicationMessages"
-  | "getLineTypes"
-  | "getHeriarchy";
 
 interface SessionRecord {
   cookie: string;
@@ -65,9 +71,24 @@ const SESSION_KEY = "fantasy402:session";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 4;
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ENDPOINT_ATTEMPTS = 3;
-const R2_ARCHIVE_PREFIX = "fantasy402";
-const R2_ARCHIVE_STORAGE_CLASS = "InfrequentAccess";
-
+const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
+  AUTH_001: 401,
+  VALIDATION_001: 400,
+  NOT_FOUND_001: 404,
+  RATE_LIMIT_002: 429,
+  UPSTREAM_001: 502,
+  LLM_TIMEOUT: 504,
+  LLM_INVALID_RESPONSE: 502,
+};
+const ERROR_DEFAULT_MESSAGE: Record<ErrorCode, string> = {
+  AUTH_001: "Unauthorized",
+  VALIDATION_001: "Invalid request",
+  NOT_FOUND_001: "Not Found",
+  RATE_LIMIT_002: "Too Many Requests",
+  UPSTREAM_001: "Upstream service failed",
+  LLM_TIMEOUT: "LLM agent timed out",
+  LLM_INVALID_RESPONSE: "LLM agent returned an invalid response",
+};
 class UpstreamHttpError extends Error {
   readonly retryable: boolean;
 
@@ -163,67 +184,125 @@ const worker = {
 
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const path = url.pathname.startsWith("/api/v1/") ? url.pathname.slice("/api/v1".length) : url.pathname;
 
-    if (url.pathname === "/health") {
+    if (path === "/health") {
       return json({ status: "ok", environment: env.ENVIRONMENT }, 200);
     }
 
-    if (url.pathname === "/archive/viewer" && request.method === "GET") {
+    if (path === "/archive/viewer" && request.method === "GET") {
       return archiveViewer();
     }
 
-    if (url.pathname === "/trigger" && request.method === "POST") {
+    if (path === "/agents" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
-        return json({ status: "failed", message: "Unauthorized" }, 401);
+        return errorJson("AUTH_001");
+      }
+      return json({ agents: AGENT_CONFIGS }, 200);
+    }
+
+    if (path === "/agents/health" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return errorJson("AUTH_001");
+      }
+      return json(
+        {
+          agents: AGENT_CONFIGS.map((agent) => ({
+            id: agent.id,
+            status: "ok",
+            capability: agent.capability,
+            invocation: agent.invocation,
+          })),
+        },
+        200,
+      );
+    }
+
+    if (path === "/settings" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return errorJson("AUTH_001");
+      }
+      return json(DEFAULT_SETTINGS, 200);
+    }
+
+    if (path === "/settings/schema" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return errorJson("AUTH_001");
+      }
+      return json(
+        {
+          name: "SettingsSchema",
+          fields: Object.keys(DEFAULT_SETTINGS),
+        },
+        200,
+      );
+    }
+
+    if (path === "/settings/validate" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return errorJson("AUTH_001");
+      }
+      const parsed = settingsSchema.safeParse(await safeJson(request));
+      if (!parsed.success) {
+        return errorJson("VALIDATION_001", "Invalid settings", parsed.error.issues);
+      }
+      return json(parsed.data, 200);
+    }
+
+    if (path === "/trigger" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return errorJson("AUTH_001");
       }
 
       const result = await runIngestion(env);
       return json(result, result.status === "success" ? 202 : 500);
     }
 
-    if (url.pathname === "/archive" && request.method === "GET") {
+    if (path === "/archive" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
-        return json({ status: "failed", message: "Unauthorized" }, 401);
+        return errorJson("AUTH_001");
       }
       return listArchiveObjects(url, env);
     }
 
-    if (url.pathname === "/archive/object" && request.method === "GET") {
+    if (path === "/archive/object" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
-        return json({ status: "failed", message: "Unauthorized" }, 401);
+        return errorJson("AUTH_001");
       }
       return getArchiveObject(url, env);
     }
 
-    if (url.pathname === "/scans" && request.method === "GET") {
+    if (path === "/scans" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
-        return json({ status: "failed", message: "Unauthorized" }, 401);
+        return errorJson("AUTH_001");
       }
       return listScanVerdicts(url, env);
     }
 
-    if (url.pathname === "/scans/trigger" && request.method === "POST") {
+    if (path === "/scans/trigger" && request.method === "POST") {
       if (!isAuthorized(request, env)) {
-        return json({ status: "failed", message: "Unauthorized" }, 401);
+        return errorJson("AUTH_001");
       }
       const body = await safeJson(request);
-      const targetUrl = typeof body?.url === "string" && body.url.length > 0 ? body.url : "https://fantasy402.com";
-      if (!isHttpUrl(targetUrl)) {
-        return json({ status: "failed", message: "Invalid URL" }, 400);
+      const parsed = parseScanTriggerRequest(body);
+      if ("success" in parsed && parsed.success === false) {
+        return json(parsed, 400);
       }
+      if ("success" in parsed) {
+        return errorJson("VALIDATION_001", "Invalid URL");
+      }
+      const targetUrl = parsed.url ?? "https://fantasy402.com";
       const result = await runScheduledScan(env, targetUrl);
-      return json(
-        {
-          scanId: result.task.uuid,
-          url: result.task.url,
-          malicious: Boolean(result.verdicts?.overall?.malicious),
-          tlsValidDays: result.page?.tlsValidDays ?? null,
-        },
-        202,
-      );
+      const response: ScanTriggerResponse = {
+        scanId: result.task.uuid || result.uuid || "",
+        url: result.task.url,
+        malicious: Boolean(result.verdicts?.overall?.malicious),
+        tlsValidDays: result.page?.tlsValidDays ?? null,
+      };
+      return json(response, 202);
     }
 
-    return json({ status: "failed", message: "Not Found" }, 404);
+    return errorJson("NOT_FOUND_001");
   },
 };
 
@@ -725,7 +804,7 @@ async function putArchiveObject(
   return env.RAW_ARCHIVE.put(key, body, {
     httpMetadata: {
       contentType: "application/json; charset=utf-8",
-      cacheControl: "no-store, max-age=0",
+      cacheControl: NO_STORE_CACHE_CONTROL,
     },
     customMetadata: {
       ...customMetadata,
@@ -761,16 +840,16 @@ async function listArchiveObjects(url: URL, env: Env): Promise<Response> {
 
 async function getArchiveObject(url: URL, env: Env): Promise<Response> {
   const key = url.searchParams.get("key");
-  if (!key) return json({ status: "failed", message: "Missing key" }, 400);
-  if (!key.startsWith(`${R2_ARCHIVE_PREFIX}/`)) return json({ status: "failed", message: "Invalid key prefix" }, 400);
+  if (!key) return errorJson("VALIDATION_001", "Missing key");
+  if (!key.startsWith(`${R2_ARCHIVE_PREFIX}/`)) return errorJson("VALIDATION_001", "Invalid key prefix");
 
   const object = await env.RAW_ARCHIVE.get(key);
-  if (!object) return json({ status: "failed", message: "Archive object not found" }, 404);
+  if (!object) return errorJson("NOT_FOUND_001", "Archive object not found");
 
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set("Content-Type", headers.get("Content-Type") ?? "application/json; charset=utf-8");
-  headers.set("Cache-Control", "no-store");
+  headers.set("Content-Type", headers.get("Content-Type") ?? JSON_CONTENT_TYPE);
+  headers.set("Cache-Control", WORKER_NO_STORE_CACHE_CONTROL);
   headers.set("ETag", object.etag);
   headers.set("X-Archive-Key", object.key);
   headers.set("X-Archive-Storage-Class", object.storageClass);
@@ -794,32 +873,8 @@ async function listScanVerdicts(url: URL, env: Env): Promise<Response> {
   return json({ results: result.results ?? [] }, 200);
 }
 
-function archiveKey(endpointSegment: string, date: string, id: string): string {
-  return `${R2_ARCHIVE_PREFIX}/${endpointSegment}/${date}/${id}.json`;
-}
-
-function normalizeArchivePrefix(prefix: string): string {
-  const trimmed = prefix.replace(/^\/+/, "");
-  if (trimmed === R2_ARCHIVE_PREFIX || trimmed.startsWith(`${R2_ARCHIVE_PREFIX}/`)) return trimmed;
-  return R2_ARCHIVE_PREFIX;
-}
-
-function clampInteger(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.min(max, Math.trunc(value)));
-}
-
 function isAuthorized(request: Request, env: Env): boolean {
   return request.headers.get("Authorization") === `Bearer ${env.INGESTION_TRIGGER_TOKEN}`;
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
 }
 
 async function safeJson(request: Request): Promise<Record<string, unknown> | null> {
@@ -844,6 +899,10 @@ function archiveViewer(): Response {
     header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
     h1 { font-size: 24px; margin: 0; }
     .controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 320px) 92px 104px; gap: 8px; margin-bottom: 16px; }
+    .tabs { display: flex; gap: 8px; margin: 0 0 16px; border-bottom: 1px solid #e2e8f0; }
+    .tab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #334155; padding: 10px 12px; }
+    .tab[aria-selected="true"] { border-bottom-color: #0f172a; color: #0f172a; font-weight: 650; }
+    .tab-panel[hidden] { display: none; }
     input, button, textarea { font: inherit; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 10px; background: #fff; color: #111827; }
     button { cursor: pointer; background: #0f172a; color: white; border-color: #0f172a; }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -866,6 +925,8 @@ function archiveViewer(): Response {
       tr:hover td { background: #172033; }
       td, th { border-color: #334155; }
       button { background: #e5e7eb; color: #111827; border-color: #e5e7eb; }
+      .tab { background: transparent; color: #cbd5e1; }
+      .tab[aria-selected="true"] { border-bottom-color: #e5e7eb; color: #e5e7eb; }
       .status { color: #cbd5e1; }
     }
   </style>
@@ -876,26 +937,33 @@ function archiveViewer(): Response {
       <h1>Fantasy402 Archive Viewer</h1>
       <div class="status" id="status">Enter a bearer token to list archived R2 objects.</div>
     </header>
-    <section class="controls">
-      <input id="prefix" value="fantasy402/" aria-label="Archive prefix">
-      <input id="token" type="password" autocomplete="off" placeholder="Bearer token" aria-label="Bearer token">
-      <input id="limit" type="number" min="1" max="1000" value="50" aria-label="Limit">
-      <button id="list">List</button>
+    <nav class="tabs" aria-label="Archive viewer tabs">
+      <button class="tab" id="tab-archive" data-tab="archive" aria-controls="panel-archive" aria-selected="true">Archive</button>
+      <button class="tab" id="tab-scans" data-tab="scans" aria-controls="panel-scans" aria-selected="false">Scans</button>
+      <button class="tab" id="tab-settings" data-tab="settings" aria-controls="panel-settings" aria-selected="false">Settings</button>
+    </nav>
+    <section id="panel-archive" class="tab-panel" data-panel="archive">
+      <section class="controls">
+        <input id="prefix" value="fantasy402/" aria-label="Archive prefix">
+        <input id="token" type="password" autocomplete="off" placeholder="Bearer token" aria-label="Bearer token">
+        <input id="limit" type="number" min="1" max="1000" value="50" aria-label="Limit">
+        <button id="list">List</button>
+      </section>
+      <section class="layout">
+        <div class="panel">
+          <h2>Objects</h2>
+          <table>
+            <thead><tr><th>Key</th><th>Size</th><th>Uploaded</th><th>Class</th></tr></thead>
+            <tbody id="objects"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>Preview</h2>
+          <pre id="preview"></pre>
+        </div>
+      </section>
     </section>
-    <section class="layout">
-      <div class="panel">
-        <h2>Objects</h2>
-        <table>
-          <thead><tr><th>Key</th><th>Size</th><th>Uploaded</th><th>Class</th></tr></thead>
-          <tbody id="objects"></tbody>
-        </table>
-      </div>
-      <div class="panel">
-        <h2>Preview</h2>
-        <pre id="preview"></pre>
-      </div>
-    </section>
-    <section class="panel" style="margin-top: 16px;">
+    <section id="panel-scans" class="panel tab-panel" data-panel="scans" hidden>
       <h2>Scan Verdicts</h2>
       <div class="controls" style="grid-template-columns: minmax(180px, 220px) 140px 1fr; margin: 12px;">
         <input id="scanLimit" type="number" min="1" max="100" value="20" aria-label="Scan limit">
@@ -903,6 +971,10 @@ function archiveViewer(): Response {
         <div class="status" id="scanStatus"></div>
       </div>
       <pre id="scans"></pre>
+    </section>
+    <section id="panel-settings" class="panel tab-panel" data-panel="settings" hidden>
+      <h2>Settings</h2>
+      <pre id="settings">{"archivePrefix":"fantasy402/","archiveListLimit":50,"scanListLimit":20,"defaultScanUrl":"https://fantasy402.com","screenshots":["desktop","mobile"],"agentReadiness":true}</pre>
     </section>
   </main>
   <script>
@@ -912,8 +984,20 @@ function archiveViewer(): Response {
     const scanStatusEl = document.querySelector("#scanStatus");
     const scansEl = document.querySelector("#scans");
 
+    for (const tab of document.querySelectorAll("[data-tab]")) {
+      tab.addEventListener("click", () => showTab(tab.dataset.tab));
+    }
     document.querySelector("#list").addEventListener("click", listObjects);
     document.querySelector("#loadScans").addEventListener("click", listScans);
+
+    function showTab(name) {
+      for (const tab of document.querySelectorAll("[data-tab]")) {
+        tab.setAttribute("aria-selected", String(tab.dataset.tab === name));
+      }
+      for (const panel of document.querySelectorAll("[data-panel]")) {
+        panel.hidden = panel.dataset.panel !== name;
+      }
+    }
 
     async function listObjects() {
       const prefix = document.querySelector("#prefix").value || "fantasy402/";
@@ -999,7 +1083,7 @@ function archiveViewer(): Response {
 </html>`, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Cache-Control": WORKER_NO_STORE_CACHE_CONTROL,
       "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
     },
   });
@@ -1018,19 +1102,25 @@ function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Content-Type": JSON_CONTENT_TYPE,
+      "Cache-Control": WORKER_NO_STORE_CACHE_CONTROL,
     },
   });
+}
+
+function errorJson(code: ErrorCode, message = ERROR_DEFAULT_MESSAGE[code], details?: unknown): Response {
+  return json(
+    {
+      success: false,
+      error: details === undefined ? { code, message } : { code, message, details },
+    },
+    ERROR_HTTP_STATUS[code],
+  );
 }
 
 function required(value: string | undefined, name: string): string {
   if (!value) throw new Error(`${name} is required`);
   return value;
-}
-
-function isEndpointKey(key: string): key is EndpointKey {
-  return Object.prototype.hasOwnProperty.call(ENDPOINTS, key);
 }
 
 function errorMessage(error: unknown): string {

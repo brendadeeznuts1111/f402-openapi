@@ -39,6 +39,8 @@ Optional:
 - `FANTASY402_CUSTOMER_ID`
 - `ALERT_WEBHOOK_URL`
 
+Runtime vars and bindings are declared in `wrangler.toml` and summarized in `manifest.json`.
+
 ## Local Setup
 
 ```bash
@@ -47,6 +49,20 @@ npm run verify
 npm run migrate:local
 npm run dev
 ```
+
+## Test Commands
+
+```bash
+npm run typecheck
+npm test
+npm run test:coverage
+npm run test:harness:ci
+npm run validate:openapi
+npm run validate:upstream-contract
+npm run manifest:validate
+```
+
+`npm run test:coverage` uses Node's built-in coverage gate with 85% line, function, and branch thresholds.
 
 Manual ingestion is protected:
 
@@ -122,9 +138,49 @@ The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints
 
 The Worker's own operational API is documented in `openapi.worker.json`.
 
-- `GET /health` is unauthenticated and returns runtime health.
-- `POST /trigger` requires `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
-- `GET /scans` lists recent URL Scanner verdicts and requires the same bearer token.
-- `POST /scans/trigger` runs a protected manual URL scan.
+- Copyable OpenAPI JSON: `openapi.worker.json`
+- Public route manifest: `public-routes.json`
+- Copyable Zod exports: `docs/zod-schemas.ts`
+- Error code registry: `error-codes.json` and `docs/error-codes.md`
+- Agent sync documentation: `docs/agent-sync.md`
+
+Use `/api/v1/*` for new integrations. Root routes are compatibility aliases for this Worker version.
+
+All JSON errors use:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_001",
+    "message": "Unauthorized"
+  }
+}
+```
 
 Run `npm run validate:openapi` before publishing API docs for this Worker.
+
+## Build Artifacts
+
+```bash
+npm run build:artifacts
+```
+
+This writes `dist/manifest.json`, `dist/openapi.worker.json`, `dist/public-routes.json`, and `dist/error-codes.json` for CI artifacts, API gateways, and documentation generators.
+
+## Component Test Harness
+
+The shared component harness lives in `test/harness.ts`. Use it for isolated tests of Worker routes, URL Scanner integration, schema helpers, and Cloudflare binding behavior.
+
+- `createComponentHarness()` returns an isolated `Env` with in-memory KV, D1, and R2 bindings.
+- `harness.authorized()` and `harness.request()` build protected and anonymous Worker requests.
+- `harness.systemView()` exposes global state, D1 statements, KV writes, and R2 writes for assertions.
+- `withFetchMock()` isolates external dependencies such as Fantasy402 upstream APIs, Cloudflare URL Scanner, and alert webhooks.
+
+Shared schema and validation helpers live in `src/schema.ts`; keep that module aligned with `openapi.worker.json`, `manifest.json`, and the component tests.
+
+OpenAPI and Zod schema snapshots live under `test/__snapshots__/` and fail the test suite when schema structure drifts. Refresh them only for intentional contract changes:
+
+```bash
+npm run test:update-snapshots
+```

@@ -1,0 +1,111 @@
+{
+  "name": "fantasy402-ingestion",
+  "version": "0.1.0",
+  "description": "Cloudflare Worker for read-only Fantasy402 ingestion, archive readback, and URL Scanner verdict capture.",
+  "runtime": "cloudflare-workers",
+  "entrypoints": {
+    "worker": "src/index.ts",
+    "urlScanner": "src/url-scanner.ts",
+    "schema": "src/schema.ts"
+  },
+  "contracts": {
+    "workerOpenApi": "openapi.worker.json",
+    "upstreamEndpoints": "upstream-endpoints.json",
+    "publicRoutes": "public-routes.json",
+    "errorCodes": "error-codes.json"
+  },
+  "publicEndpoints": [
+    "/api/v1/health",
+    "/api/v1/trigger",
+    "/api/v1/archive",
+    "/api/v1/archive/object",
+    "/api/v1/archive/viewer",
+    "/api/v1/scans",
+    "/api/v1/scans/trigger",
+    "/api/v1/settings",
+    "/api/v1/settings/schema",
+    "/api/v1/settings/validate",
+    "/api/v1/agents",
+    "/api/v1/agents/health"
+  ],
+  "environment": {
+    "requiredSecrets": [
+      "FANTASY402_USERNAME",
+      "FANTASY402_PASSWORD",
+      "FANTASY402_AGENT_ID",
+      "INGESTION_TRIGGER_TOKEN",
+      "CLOUDFLARE_API_TOKEN"
+    ],
+    "optionalSecrets": [
+      "FANTASY402_CUSTOMER_ID",
+      "ALERT_WEBHOOK_URL"
+    ],
+    "bindings": [
+      "SESSION_KV",
+      "ANALYTICS_DB",
+      "RAW_ARCHIVE"
+    ]
+  },
+  "llmAgents": [
+    {
+      "id": "Summarizer",
+      "healthRoute": "/api/v1/agents/health",
+      "inputSchema": "AgentInput",
+      "outputSchema": "AgentOutput"
+    },
+    {
+      "id": "Router",
+      "healthRoute": "/api/v1/agents/health",
+      "inputSchema": "AgentInput",
+      "outputSchema": "AgentOutput"
+    },
+    {
+      "id": "CodeGen",
+      "healthRoute": "/api/v1/agents/health",
+      "inputSchema": "AgentInput",
+      "outputSchema": "AgentOutput"
+    }
+  ],
+  "schemas": [
+    "AgentHealthResponse",
+    "AgentInput",
+    "AgentOutput",
+    "ArchiveListResponse",
+    "ArchiveObjectSummary",
+    "ErrorResponse",
+    "HealthResponse",
+    "ScanListResponse",
+    "ScanTriggerRequest",
+    "ScanTriggerResponse",
+    "ScanVerdict",
+    "SettingsSchema",
+    "TriggerResponse"
+  ],
+  "public": {
+    "llm": "public/llm.txt",
+    "llms": "public/llms.txt"
+  },
+  "tests": {
+    "componentHarness": "test/harness.ts",
+    "command": "npm test"
+  },
+  "bindings": {
+    "kv": ["SESSION_KV"],
+    "d1": ["ANALYTICS_DB"],
+    "r2": ["RAW_ARCHIVE"]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include=src/schema.ts --test-coverage-lines=85 --test-coverage-functions=85 --test-coverage-branches=85 --import tsx --test test/*.test.ts",
+    "test:harness:ci": "node --import tsx scripts/harness-report.ts --check && node --import tsx --test test/snapshot.test.ts test/metadata-sync.test.ts test/harness-self.test.ts test/openapi-validator.test.ts test/performance.test.ts",
+    "test:update-snapshots": "UPDATE_SNAPSHOTS=1 node --import tsx --test test/*.test.ts",
+    "harness:watch": "node --watch-path=src --watch-path=test --watch-path=public --watch-path=scripts scripts/harness-watch.mjs",
+    "harness:report": "node --import tsx scripts/harness-report.ts",
+    "manifest:validate": "node scripts/validate-manifest.mjs",
+    "build:artifacts": "node scripts/build-artifacts.mjs",
+    "verify": "npm run typecheck && npm run test && npm run bootstrap:cloudflare:self-test && npm run audit && npm run validate:openapi && npm run validate:upstream-contract",
+    "dev": "npx wrangler@latest dev",
+    "deploy": "npx wrangler@latest deploy"
+  }
+}

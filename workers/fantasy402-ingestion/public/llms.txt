@@ -1,0 +1,69 @@
+# Fantasy402 Ingestion Worker
+
+## Dashboard Routes
+
+- `/health`
+- `/trigger`
+- `/archive`
+- `/archive/object`
+- `/archive/viewer`
+- `/agents`
+- `/agents/health`
+- `/scans`
+- `/scans/trigger`
+- `/settings`
+- `/settings/schema`
+- `/settings/validate`
+
+## Route Schemas
+
+- `AgentHealthResponse`
+- `AgentInput`
+- `AgentOutput`
+- `ArchiveListResponse`
+- `ArchiveObjectSummary`
+- `ErrorResponse`
+- `HealthResponse`
+- `ScanListResponse`
+- `ScanTriggerRequest`
+- `ScanTriggerResponse`
+- `ScanVerdict`
+- `SettingsSchema`
+- `TriggerResponse`
+
+## Route And Error Manifests
+
+- `public-routes.json`
+- `error-codes.json`
+- `docs/error-codes.md`
+- `docs/agent-sync.md`
+- `docs/zod-schemas.ts`
+
+## Harness Artifacts
+
+- `test/harness.ts`
+- `test/harness-self.test.ts`
+- `test/openapi-validator.test.ts`
+- `test/performance.test.ts`
+- `test/error-paths.test.ts`
+- `test/route-crawler.test.ts`
+- `test/schema.test.ts`
+- `test/snapshot.test.ts`
+- `test/zod-utils.ts`
+- `test/zod-validation.test.ts`
+- `test/__snapshots__/openapi-schemas.snap.json`
+- `test/__snapshots__/zod-schemas.snap.json`
+- `test/__snapshots__/performance-baseline.json`
+- `test/harness/snapshots/settings-schema.snap.json`
+- `scripts/harness-report.ts`
+- `scripts/harness-watch.mjs`
+
+## Project Links
+
+- `src/index.ts`
+- `src/schema.ts`
+- `src/url-scanner.ts`
+- `openapi.worker.json`
+- `manifest.json`
+- `agents.md`
+- `public/llm.txt`

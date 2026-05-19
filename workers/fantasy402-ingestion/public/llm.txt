@@ -1,0 +1,57 @@
+# Fantasy402 Ingestion Worker LLM Context
+
+This project is a Cloudflare Worker that ingests read-only Fantasy402 API data into Cloudflare D1 and archives raw JSON, failure records, URL Scanner JSON, screenshots, and HAR artifacts into R2.
+
+Primary files:
+- `src/index.ts`: Worker routes, scheduled ingestion, D1 writes, R2 archive readback, and operator viewer.
+- `src/url-scanner.ts`: Cloudflare URL Scanner submission, polling, artifact archival, and verdict storage.
+- `src/schema.ts`: Shared route models, endpoint keys, Zod schemas, validation helpers, archive key helpers, and public response types.
+- `test/harness.ts`: In-memory component test harness for KV, D1, R2, request construction, auth, fetch replacement, and state inspection.
+- `openapi.worker.json`: Operational API contract for the Worker.
+- `manifest.json`: Project structure, entry points, contracts, bindings, and verification commands.
+
+Settings routes:
+- `/settings`
+- `/settings/schema`
+- `/settings/validate`
+
+Agent routes:
+- `/agents`
+- `/agents/health`
+- `/api/v1/agents`
+- `/api/v1/agents/health`
+
+Route schemas:
+- AgentHealthResponse
+- AgentInput
+- AgentOutput
+- ArchiveListResponse
+- ArchiveObjectSummary
+- ErrorResponse
+- HealthResponse
+- ScanListResponse
+- ScanTriggerRequest
+- ScanTriggerResponse
+- ScanVerdict
+- SettingsSchema
+- TriggerResponse
+
+Public route manifest:
+- `public-routes.json`
+- `error-codes.json`
+- `docs/error-codes.md`
+- `docs/agent-sync.md`
+- `docs/zod-schemas.ts`
+
+Testing expectations:
+- Use `createComponentHarness()` from `test/harness.ts` for isolated component tests.
+- Inspect `harness.systemView()` when a test needs global state, D1 statements, KV writes, or R2 archive writes.
+- Use `withFetchMock()` for external dependencies such as Fantasy402 upstream calls, Cloudflare URL Scanner, and alert webhooks.
+- Keep schema helper behavior aligned with `openapi.worker.json` and route behavior.
+- Checked-in snapshots under `test/__snapshots__/` detect OpenAPI and Zod schema drift. Update them only with `UPDATE_SNAPSHOTS=1` after intentionally changing schema shape.
+
+Safety rules:
+- Do not commit secrets, session cookies, bearer tokens, `.env`, `.dev.vars`, or generated secret payloads.
+- Protected Worker routes require `Authorization: Bearer <INGESTION_TRIGGER_TOKEN>`.
+- Archive object access must stay under the `fantasy402/` R2 prefix.
+- Raw archived responses must continue to redact credential-like fields before writing to R2.

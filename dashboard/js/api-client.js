@@ -241,6 +241,30 @@ if (typeof window !== 'undefined' && isLocalDevHost()) {
 }
 
 const MOCK_RESPONSES = {
+  '/weekly-figures': {
+    records: [{
+      agent_id: 'BILLY666',
+      week: 20,
+      type: 'lite',
+      wager_count: 321,
+      volume: 1250000,
+      net_amount: -21968,
+      captured_at: new Date().toISOString(),
+    }],
+  },
+  '/search-customers': {
+    total: 2,
+    records: [
+      { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666', captured_at: new Date().toISOString() },
+      { customer_id: 'C002', login: 'BM28241', name_first: 'Player One', agent_id: 'TOPDAWG', captured_at: new Date().toISOString() },
+    ],
+  },
+  '/customer-profile': {
+    customerId: 'C001',
+    player: { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666' },
+    account: { snapshotId: 'snap-1', capturedAt: new Date().toISOString(), data: { balance: 5000 } },
+    facets: { getInfoPlayer: { INFO: { customerID: 'C001', status: 'active' } } },
+  },
   '/customer-activity-search': {
     records: [
       { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666' },

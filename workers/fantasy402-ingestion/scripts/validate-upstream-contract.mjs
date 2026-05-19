@@ -41,7 +41,7 @@ for (const endpoint of manifest.endpoints) {
   if (operation.operationId !== endpoint.operationId) {
     findings.push(`${endpoint.key} operationId drifted: expected ${endpoint.operationId}, found ${operation.operationId ?? "missing"}`);
   }
-  if (operation.deprecated === true) {
+  if (operation.deprecated === true && endpoint.acceptDeprecated !== true) {
     findings.push(`${endpoint.key} points at a deprecated upstream operation`);
   }
   if (!operation.security || operation.security.length === 0) {

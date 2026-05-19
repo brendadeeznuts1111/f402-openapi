@@ -433,7 +433,9 @@
       "method": "post",
       "path": "/cloud/api/Manager/getWebLog",
       "operationId": "post_cloud_api_Manager_getWebLog",
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "acceptDeprecated": true,
+      "deprecatedNote": "Secured spec marks deprecated until audit-log replacement exists; required for Activity web_logs ingest"
     },
     {
       "key": "getWeeklyFigureByAgent",
@@ -517,14 +519,18 @@
       "method": "post",
       "path": "/cloud/api/Report/getScoresLiveDynamic",
       "operationId": "post_cloud_api_Report_getScoresLiveDynamic",
-      "contentType": "application/json"
+      "contentType": "application/json",
+      "requiresCustomerId": true,
+      "customerIdSource": "Manager/getPlayers"
     },
     {
       "key": "reportGetTicketDetailPrint",
       "method": "post",
       "path": "/cloud/api/Report/getTicketDetailPrint",
       "operationId": "post_cloud_api_Report_getTicketDetailPrint",
-      "contentType": "application/x-www-form-urlencoded"
+      "contentType": "application/x-www-form-urlencoded",
+      "acceptDeprecated": true,
+      "deprecatedNote": "Secured spec marks deprecated pending valid backend method audit"
     },
     {
       "key": "reportGetTransactions",

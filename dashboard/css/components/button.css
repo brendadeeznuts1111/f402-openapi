@@ -1,22 +1,62 @@
-/* dashboard/css/components/button.ds-css */
+/* Primary actions — canonical tokens + focus/disabled states */
 
 .ds-btn {
-  background: var(--blue);
-  color: #fff;
-  border: none;
-  border-radius: 0.25rem;
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  background: var(--info);
+  color: var(--primary-text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-sans);
   cursor: pointer;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
 }
 
-.ds-btn:hover { opacity: 0.85; }
+.ds-btn:hover:not(:disabled) { opacity: 0.9; }
+
+.ds-btn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.ds-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .ds-btn-sm,
-.ds-btn--sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
+.ds-btn--sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
 
 .ds-btn-danger,
-.ds-btn--danger { background: var(--red); }
+.ds-btn--danger {
+  background: var(--error);
+}
 
 .ds-btn-amber,
-.ds-btn--amber { background: var(--amber); color: #000; }
+.ds-btn--amber {
+  background: var(--warning);
+  color: var(--primary-bg);
+}
+
+[data-theme="light"] .ds-btn--amber {
+  color: #212529;
+}
+
+.ds-btn--ghost {
+  background: transparent;
+  border-color: var(--border-ds);
+  color: var(--primary-text);
+}
+
+.ds-btn--ghost:hover:not(:disabled) {
+  background: var(--hover-bg);
+  opacity: 1;
+}

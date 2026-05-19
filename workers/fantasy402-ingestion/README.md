@@ -243,7 +243,7 @@ app_session=<redacted>; cf_clearance=<redacted>; __cf_bm=<redacted>
 
 The observed browser flow can use bearer auth plus Cloudflare cookies without a separate non-Cloudflare application cookie; production ingestion accepts bearer auth plus Cloudflare cookies. Include `sessionCookie` only when a successful browser request actually carries an app cookie; diagnostics reports only cookie names and booleans, never values.
 
-The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints.json`. Run `npm run validate:upstream-contract` after changing ingestion endpoints; it verifies each path against the secured examples spec and checks auth, role, rate-limit annotations, and redaction of every example value mapped to an `x-sensitive: true` schema field.
+The complete allowed upstream endpoint catalog is tracked in `upstream-endpoints.json`. `GET /upstream-endpoints` returns that manifest (with `configured` flags from `FANTASY402_INGESTION_ENDPOINTS`). Run `npm run validate:upstream-contract` after changing ingestion endpoints; it verifies each path against the secured examples spec and checks auth, role, rate-limit annotations, and redaction of every example value mapped to an `x-sensitive: true` schema field.
 
 The secured static docs include an `Operation Request Parameters` section generated from `openapi.secured.examples.json`. The validator fails if any non-GET upstream operation loses its request body schema or required parameter list.
 

@@ -8,7 +8,7 @@
 /** Worker routes reachable without bearer token via Pages proxy (see dashboard/_worker.js). */
 export const PUBLIC_API_PATHS = ['/health', '/live-wagers'];
 
-export const CHART_COLORS = {
+const CHART_COLOR_FALLBACKS = {
   success: '#00FF88',
   warning: '#FFD700',
   info: '#00BFFF',
@@ -16,7 +16,33 @@ export const CHART_COLORS = {
   purple: '#DA70D6',
 };
 
+/** Static fallbacks (SSR / tests). Prefer getChartColors() at render time. */
+export const CHART_COLORS = { ...CHART_COLOR_FALLBACKS };
+
+function readCssToken(name, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+/** Read chart dataset colors from CSS tokens (theme-aware). */
+export function getChartColors() {
+  return {
+    success: readCssToken('--success', CHART_COLOR_FALLBACKS.success),
+    warning: readCssToken('--warning', CHART_COLOR_FALLBACKS.warning),
+    info: readCssToken('--info', CHART_COLOR_FALLBACKS.info),
+    accent: readCssToken('--accent', CHART_COLOR_FALLBACKS.accent),
+    purple: readCssToken('--purple', CHART_COLOR_FALLBACKS.purple),
+  };
+}
+
 /** Wager type distribution: Straight, Parlay, Moneyline, Live */
+export function getWagerTypeChartColors() {
+  const c = getChartColors();
+  return [c.success, c.warning, c.info, c.purple];
+}
+
+/** @deprecated use getWagerTypeChartColors() */
 export const WAGER_TYPE_CHART_COLORS = [
   CHART_COLORS.success,
   CHART_COLORS.warning,
@@ -37,7 +63,10 @@ export const ZONE_COLORS = {
 };
 
 export const ENDPOINT_ZONE_MAP = {
+  '/upstream':           'upstream',
   '/ingest':             'ingestion',
+  '/chart-aggregates':   'query',
+  '/upstream-endpoints': 'upstream',
   '/bet-ticker':         'query',
   '/performance':        'query',
   '/graded':             'query',
@@ -62,6 +91,8 @@ export const ENDPOINT_ZONE_MAP = {
 
 export const REFRESH_INTERVALS = {
   '/live-wagers':        'realtime',
+  '/chart-aggregates':    15000,
+  '/upstream-endpoints':  60000,
   '/bet-ticker-wagers':   5000,
   '/graded-wagers':      10000,
   '/summary':            15000,

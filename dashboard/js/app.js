@@ -20,7 +20,7 @@ import { AutoRefreshManager } from './utils.js';
 import { DataStore } from './store.js';
 import { SettingsManager } from './settings-manager.js';
 import { StatusPoller } from './status-poller.js';
-import { destroyAllCharts, resizeAllCharts } from './charts.js';
+import { destroyAllCharts, resizeAllCharts, initChartPlotResizeObserver } from './charts.js';
 import { createTicker } from './ticker.js';
 import { applyTheme, initTheme } from './theme.js';
 import {
@@ -34,6 +34,7 @@ import {
   switchLogTab,
   switchSettingsTab,
   requestNotificationPermission,
+  initChartTabKeyboard,
 } from './ui.js';
 import { $, debounce } from './dom.js';
 import { loadOverview, renderVolumeChart } from './views/overview.js';
@@ -59,6 +60,7 @@ import {
   triggerIngestion,
   refreshAuth,
   updateCookieHealth,
+  onEndpointTabChange,
 } from './views/endpoints.js';
 
 const store = new DataStore();
@@ -115,6 +117,15 @@ function onChartsThemeChange() {
   destroyAllCharts();
   if (currentView === 'overview') renderVolumeChart(ctx);
   if (currentView === 'analytics') renderAnalyticsCharts(ctx);
+}
+
+let resizeChartsTimer = null;
+function scheduleResizeCharts() {
+  if (resizeChartsTimer) clearTimeout(resizeChartsTimer);
+  resizeChartsTimer = setTimeout(() => {
+    resizeChartsTimer = null;
+    resizeAllCharts();
+  }, 150);
 }
 
 const ctx = {
@@ -252,12 +263,11 @@ $('sidebarToggle').addEventListener('click', () => {
   const collapsed = document.querySelector('.ds-sidebar').classList.contains('ds-sidebar--collapsed');
   $('sidebarToggle').innerHTML = collapsed ? '&raquo;' : '&laquo;';
   $('sidebarToggle').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-  requestAnimationFrame(() => resizeAllCharts());
+  scheduleResizeCharts();
 });
 
-window.addEventListener('resize', () => {
-  requestAnimationFrame(() => resizeAllCharts());
-});
+window.addEventListener('resize', scheduleResizeCharts);
+initChartPlotResizeObserver(scheduleResizeCharts);
 
 document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
   item.addEventListener('click', () => switchView(item.dataset.view));
@@ -269,6 +279,7 @@ document.querySelectorAll('[data-chart-tab]').forEach((t) => {
     switchChartTab(t.dataset.chartTab, (name) => onChartTabVisible(name, ctx));
   });
 });
+initChartTabKeyboard();
 
 document.querySelectorAll('[data-log-tab]').forEach((t) => {
   t.addEventListener('click', () => switchLogTab(t.dataset.logTab));
@@ -288,6 +299,9 @@ $('clearCacheBtn').addEventListener('click', () => clearCache(ctx));
 $('exportConfigBtn').addEventListener('click', () => exportConfig(ctx));
 $('endpointZoneFilter').addEventListener('change', () => loadEndpoints(ctx));
 $('endpointMethodFilter').addEventListener('change', () => loadEndpoints(ctx));
+document.querySelectorAll('[data-endpoint-tab]').forEach((t) => {
+  t.addEventListener('click', () => onEndpointTabChange(t.dataset.endpointTab));
+});
 $('triggerIngestBtn').addEventListener('click', () => triggerIngestion(ctx));
 $('refreshAuthBtn').addEventListener('click', () => refreshAuth(ctx));
 

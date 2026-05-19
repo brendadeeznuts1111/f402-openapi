@@ -4,11 +4,18 @@ import { $ } from '../dom.js';
 import { escapeHtml } from '../dom.js';
 import { fmt, usd, ago } from '../format.js';
 import { renderErrorState, storeTTL } from '../ui.js';
-import { getRefreshInterval, CHART_COLORS } from '../design-system.js';
+import { getRefreshInterval, getChartColors, chartFillColor, renderEmptyState } from '../design-system.js';
+import { announceChartStatus } from '../chart-dom.js';
+import { resolveVolumeChartType } from '../utils.js';
 import { ensureChart } from '../charts.js';
+import { ensureChartMarkup, showChartReady, showChartError, showChartMessage } from '../chart-dom.js';
+import { chartDataFromAggregates, mountLineBarTable } from '../chart-data.js';
 import { SortableTable } from '../sortable-table.js';
 
 let agentTable = null;
+
+const VOLUME_MOUNT = { wrapId: 'volumeChartWrap', canvasId: 'volumeChart', plotSize: 'lg' };
+const CHART_HOURS = 24;
 
 export async function loadOverview(ctx) {
   $('lastUpdate').textContent = new Date().toLocaleTimeString();
@@ -22,8 +29,15 @@ export async function loadOverview(ctx) {
 
 async function loadStatCards(ctx) {
   try {
-    const data = await ctx.store.fetch('/summary', () => ctx.api('/summary'), storeTTL(getRefreshInterval('/summary')));
-    $('statCards').innerHTML = `
+    const data = await ctx.store.fetch(
+      '/summary',
+      () => ctx.api('/summary?days=1'),
+      storeTTL(getRefreshInterval('/summary')),
+    );
+    const windowHint = data.window?.label
+      ? `<p class="ds-stat-grid__hint">${escapeHtml(data.window.label)}</p>`
+      : '';
+    $('statCards').innerHTML = `${windowHint}
       <div class="ds-stat-card"><div class="ds-stat-card__icon">🎰</div><div class="ds-stat-card__value">${fmt(data.liveWagers.total)}</div><div class="ds-stat-card__label">Live Wagers</div></div>
       <div class="ds-stat-card"><div class="ds-stat-card__icon">✅</div><div class="ds-stat-card__value">${fmt(data.gradedWagers.total)}</div><div class="ds-stat-card__label">Graded</div></div>
       <div class="ds-stat-card"><div class="ds-stat-card__icon">💰</div><div class="ds-stat-card__value">${usd(data.liveWagers.volume)}</div><div class="ds-stat-card__label">Volume</div></div>
@@ -37,36 +51,50 @@ async function loadStatCards(ctx) {
 }
 
 export async function renderVolumeChart(ctx) {
-  try {
-    const d = await ctx.api('/bet-ticker-wagers?limit=100');
-    if (!d.wagers?.length) { $('volumeChartWrap').innerHTML = '<div class="ds-loading">No data</div>'; return; }
-    const buckets = {};
-    for (const w of d.wagers) {
-      const hour = w.captured_at?.slice(0, 13) + ':00';
-      buckets[hour] = (buckets[hour] || 0) + (w.amount_wagered || 0);
-    }
-    const labels = Object.keys(buckets).sort();
-    const values = labels.map((l) => buckets[l] / 100);
+  const mount = ensureChartMarkup(VOLUME_MOUNT);
+  if (!mount) return;
 
-    const volumeChart = ensureChart('volume', 'volumeChart', 'line');
-    const wrap = $('volumeChartWrap');
-    const canvas = $('volumeChart');
-    if (wrap) wrap.style.display = 'none';
-    if (canvas) canvas.style.display = 'block';
-    volumeChart.data = {
-      labels,
+  try {
+    const agg = await ctx.api(`/chart-aggregates?hours=${CHART_HOURS}`);
+    const derived = chartDataFromAggregates(agg);
+    if (!derived.volumeLabels.length) {
+      showChartMessage(VOLUME_MOUNT.wrapId, renderEmptyState({ message: 'No wager data for chart' }));
+      mountLineBarTable('volumeChartData', 'Volume trend', [], [], 'Volume ($)');
+      return;
+    }
+
+    const chartColors = getChartColors();
+    const { type: volumeType, fill } = resolveVolumeChartType(ctx.settings.get('chartType'));
+    const volumeChart = ensureChart('volume', 'volumeChart', volumeType);
+    showChartReady(mount);
+
+    const isBar = volumeType === 'bar';
+    const chartData = {
+      labels: derived.volumeLabels,
       datasets: [{
         label: 'Volume ($)',
-        data: values,
-        borderColor: CHART_COLORS.success,
-        backgroundColor: 'rgba(0, 255, 136, 0.1)',
-        fill: true,
-        tension: 0.4,
+        data: derived.volumeValues,
+        borderColor: chartColors.success,
+        backgroundColor: isBar ? chartColors.success : (fill ? chartFillColor(chartColors.success) : 'transparent'),
+        fill: !isBar && fill,
+        tension: volumeType === 'line' ? 0.4 : 0,
       }],
     };
-    await volumeChart.render();
+
+    mountLineBarTable('volumeChartData', 'Volume trend (24h)', derived.volumeLabels, derived.volumeValues, 'Volume ($)');
+
+    if (volumeChart.hasChart) {
+      volumeChart.update(chartData);
+    } else {
+      volumeChart.data = chartData;
+      await volumeChart.render();
+    }
+    announceChartStatus(`Volume chart loaded, ${derived.volumeLabels.length} hourly buckets from server aggregates`);
   } catch (e) {
-    $('volumeChartWrap').innerHTML = renderErrorState(e.message);
+    const msg = e.message?.includes('CDN') || e.message?.includes('vendor')
+      ? 'Chart library failed to load. Check network or use offline vendor bundle.'
+      : e.message;
+    showChartError(VOLUME_MOUNT.wrapId, msg, '/chart-aggregates');
   }
 }
 
@@ -99,7 +127,7 @@ async function loadEventTimeline(ctx) {
     ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
 
     if (!events.length) {
-      $('eventTimeline').innerHTML = '<div class="ds-empty-state"><div class="ds-empty-state__icon">📭</div><div class="ds-empty-state__message">No recent events</div></div>';
+      $('eventTimeline').innerHTML = renderEmptyState({ icon: '📭', message: 'No recent events' });
       return;
     }
     $('eventTimeline').innerHTML = events.map((e) => `

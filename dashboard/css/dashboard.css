@@ -1,5 +1,6 @@
 /* Fantasy402 Dashboard — bundled styles (replaces per-component <link> tags) */
 @import url('design-system.css');
+@import url('components/utilities.css');
 @import url('components/card.css');
 @import url('components/table.css');
 @import url('components/badge.css');

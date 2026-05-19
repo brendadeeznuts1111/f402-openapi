@@ -55,6 +55,10 @@ export const updateCookiesSchema = z.object({
   __cf_bm: z.string().min(1),
 });
 
+export const chartAggregatesSchema = z.object({
+  hours: z.coerce.number().int().min(1).max(168).default(24).catch(24),
+});
+
 export type Pagination = z.infer<typeof paginationSchema>;
 export type WagerQuery = z.infer<typeof wagerQuerySchema>;
 export type LocalIngestItem = z.infer<typeof localIngestItemSchema>;

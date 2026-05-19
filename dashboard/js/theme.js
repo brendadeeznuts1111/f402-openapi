@@ -15,6 +15,9 @@ export function applyTheme(settings, preference) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('f402-theme', theme);
   $('themeToggle').textContent = theme === 'light' ? '☀️' : '🌙';
+  document.documentElement.dispatchEvent(
+    new CustomEvent('f402-theme-change', { detail: { theme } }),
+  );
 }
 
 export function initTheme(settings, onThemeChange) {

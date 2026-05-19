@@ -34,6 +34,33 @@
   --text-md: 16px;
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-full: 999px;
+  --surface: var(--primary-bg);
+  --elevated-bg: var(--secondary-bg);
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.65;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --focus-ring: 2px solid var(--info);
+  --focus-ring-offset: 2px;
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-fill-alpha: 0.12;
+  --sidebar-width: 220px;
+  --sidebar-width-collapsed: 56px;
+  --z-toast: 1000;
+  --z-modal-backdrop: 2000;
+  --z-modal: 3000;
+  --z-dropdown: 4000;
+  --z-tooltip: 5000;
   /* Legacy aliases → canonical tokens (single palette) */
   --bg: var(--primary-bg);
   --card: var(--secondary-bg);
@@ -55,9 +82,30 @@ body {
 }
 
 /* ── Typography ── */
-h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
-h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
+h1 {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+h2 {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-sm);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-xs);
+  color: var(--muted);
+}
 
 /* ── Grid Utilities ── */
 .ds-grid { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
@@ -117,6 +165,13 @@ h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
   --error: #dc3545;
   --info: #0d6efd;
   --accent: #e85d04;
+  --surface: #f8f9fa;
+  --elevated-bg: #ffffff;
+  --chart-grid: rgba(0, 0, 0, 0.08);
+  --chart-fill-alpha: 0.15;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 [data-theme="light"] body { background: var(--bg); color: var(--text); }
 [data-theme="light"] .ds-card { background: var(--card); border-color: var(--border); }
@@ -139,8 +194,8 @@ h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
 
 /* ── Focus Styles ── */
 :focus-visible {
-  outline: 2px solid var(--info);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 button.ds-tab {
@@ -189,7 +244,7 @@ button.ds-tab {
 }
 
 .ds-sidebar {
-  width: 220px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
   background: var(--secondary-bg);
   border-right: 1px solid var(--border-ds);
@@ -200,7 +255,7 @@ button.ds-tab {
 }
 
 .ds-sidebar--collapsed {
-  width: 56px;
+  width: var(--sidebar-width-collapsed);
 }
 
 .ds-sidebar--collapsed .ds-sidebar__label {
@@ -380,21 +435,15 @@ button.ds-tab {
 .ds-zone-badge--worker    { background: #1E3A5F; color: #FFFFFF; }
 .ds-zone-badge--upstream  { background: #0E0E2D; color: #6B8E23; }
 
-/* ── Z-Index Hierarchy ──
-   Lowest to highest stacking order:
-   1000  toast        (notifications above normal content)
-   2000  modal-backdrop (dimming overlay blocks interaction)
-   3000  modal        (interactive dialog above backdrop)
-   4000  dropdown     (menus inside modals must float above modal)
-   5000  tooltip      (hover info above everything)
-*/
-:root {
-  --z-toast: 1000;
-  --z-modal-backdrop: 2000;
-  --z-modal: 3000;
-  --z-dropdown: 4000;
-  --z-tooltip: 5000;
-}
+[data-theme="light"] .ds-zone-badge--ingestion { background: color-mix(in srgb, var(--accent) 18%, var(--elevated-bg)); color: var(--accent); }
+[data-theme="light"] .ds-zone-badge--query     { background: color-mix(in srgb, var(--success) 18%, var(--elevated-bg)); color: var(--success); }
+[data-theme="light"] .ds-zone-badge--auth      { background: color-mix(in srgb, var(--warning) 22%, var(--elevated-bg)); color: var(--warning); }
+[data-theme="light"] .ds-zone-badge--do        { background: color-mix(in srgb, var(--purple) 18%, var(--elevated-bg)); color: var(--purple); }
+[data-theme="light"] .ds-zone-badge--data      { background: color-mix(in srgb, var(--accent) 12%, var(--elevated-bg)); color: #8b5a2b; }
+[data-theme="light"] .ds-zone-badge--network   { background: color-mix(in srgb, var(--info) 18%, var(--elevated-bg)); color: var(--info); }
+[data-theme="light"] .ds-zone-badge--cookie    { background: color-mix(in srgb, var(--error) 15%, var(--elevated-bg)); color: var(--error); }
+[data-theme="light"] .ds-zone-badge--worker    { background: color-mix(in srgb, var(--info) 22%, var(--elevated-bg)); color: var(--info); }
+[data-theme="light"] .ds-zone-badge--upstream  { background: color-mix(in srgb, var(--success) 12%, var(--elevated-bg)); color: #5a7a1a; }
 
 /* ── Header ── */
 .ds-header {
@@ -461,8 +510,8 @@ button.ds-tab {
 }
 
 .ds-icon-button:focus-visible {
-  outline: 2px solid var(--info);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* ── Print Styles ── */

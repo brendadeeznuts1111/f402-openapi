@@ -39,13 +39,15 @@ If the dashboard shows **500 / missing token** on `/api/*`, run `set-pages-secre
 | `views/settings.js` | Settings tabs, dropzone import, export |
 | `views/endpoints.js` | Route manifest, ingestion health, quick actions |
 | `dom.js`, `format.js`, `ui.js`, `charts.js`, `theme.js`, `ticker.js` | Shared helpers |
-| `constants.js` | `ZONE_COLORS`, `CHART_COLORS`, `ENDPOINT_ZONE_MAP`, refresh intervals |
+| `constants.js` | `ZONE_COLORS`, `getChartColors()`, `ENDPOINT_ZONE_MAP`, refresh intervals |
 | `design-system.js` | Re-exports + `ComponentFactory` |
 | `api-client.js` | Fetch wrapper with dedup, TTL cache, global error handler |
 | `websocket-client.js` | `WagerSocket`, `PollingFallback` (SSE + polling fallback) |
 | `store.js` | `DataStore` — TTL cache + pub/sub |
 | `status-poller.js` | Polls `/endpoint-status` (includes `routeLatency`) |
 | `chart-wrapper.js` | Chart.js CDN loader, theme-aware scales |
+| `chart-dom.js` | Plot/frame/canvas markup, loading/empty/error overlays |
+| `charts.js` | Named chart registry, `ResizeObserver` on plots |
 | `sortable-table.js` | Click-to-sort tables |
 | `json-viewer.js` | Syntax-highlighted JSON |
 | `settings-manager.js` | `localStorage` settings + import/export |
@@ -63,6 +65,32 @@ Browser → Cloudflare Pages (index.html + _worker.js proxy)
           │
           └── / (static assets) → Pages CDN
 ```
+
+## Charts (canonical markup)
+
+Every chart uses the **framed pattern** so Chart.js cannot expand the card layout. Do not put `<canvas>` directly under `.ds-chart-container`.
+
+```html
+<div class="ds-chart-container">
+  <div class="ds-chart-title">Volume Trend</div>
+  <div class="ds-chart-plot ds-chart-plot--lg">
+    <div id="volumeChartWrap"><!-- skeleton / empty / error --></div>
+    <div class="ds-chart-plot__frame">
+      <canvas id="volumeChart" class="ds-chart-canvas" hidden aria-label="Volume trend chart"></canvas>
+    </div>
+  </div>
+</div>
+```
+
+Plot heights: `--sm` 200px, `--md` 240px, `--lg` 320px (see `css/components/chart.css`). `chart-dom.js` repairs legacy markup at runtime; CSS `:not(:has(.ds-chart-plot__frame))` is a fallback only.
+
+Wager charts use **`GET /chart-aggregates?hours=24`** (server-side SQL buckets). Settings → Appearance → **Chart type** applies to the Overview volume chart only (`line` / `bar` / `area`).
+
+**Offline charts:** Chart.js is vendored at `vendor/chart.umd.min.js` (loads before CDN). Each chart has a screen-reader data table (`#volumeChartData`, etc.).
+
+**Upstream catalog:** Endpoints view → **Upstream Fantasy402** tab calls `GET /upstream-endpoints`.
+
+Full audit report: `AUDIT.md`. Token reference: `TOKENS.md`.
 
 ## Naming
 

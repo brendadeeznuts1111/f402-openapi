@@ -41,8 +41,28 @@ export function destroyAllCharts() {
 
 export function resizeAllCharts() {
   for (const chart of Object.values(instances)) {
-    chart?.resize();
+    if (!chart?.hasChart) continue;
+    chart.resize();
   }
+}
+
+let plotResizeObserver = null;
+let resizeDebounce = null;
+
+/** Observe .ds-chart-plot size changes (sidebar collapse, flex layout). */
+export function initChartPlotResizeObserver(onResize) {
+  if (typeof ResizeObserver === 'undefined') return;
+  if (plotResizeObserver) return;
+  plotResizeObserver = new ResizeObserver(() => {
+    if (resizeDebounce) clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(() => {
+      resizeDebounce = null;
+      onResize();
+    }, 150);
+  });
+  document.querySelectorAll('.ds-chart-plot').forEach((plot) => {
+    plotResizeObserver.observe(plot);
+  });
 }
 
 export { ChartWrapper };

@@ -2,13 +2,37 @@
 
 import { $ } from '../dom.js';
 import { renderErrorState } from '../ui.js';
-import { CHART_COLORS, WAGER_TYPE_CHART_COLORS } from '../design-system.js';
-import { ensureChart, getChart, setChart } from '../charts.js';
+import {
+  getChartColors,
+  getWagerTypeChartColors,
+  chartFillColor,
+  renderEmptyState,
+} from '../design-system.js';
+import { ensureChart, getChart } from '../charts.js';
+import {
+  ensureChartMarkup,
+  showChartReady,
+  showChartError,
+  showChartMessage,
+  mountChartLegend,
+  announceChartStatus,
+} from '../chart-dom.js';
+import {
+  chartDataFromAggregates,
+  mountLineBarTable,
+  mountTypeTable,
+  mountAgentTable,
+  mountLatencyTable,
+} from '../chart-data.js';
 import { JsonViewer } from '../json-viewer.js';
+
+const CHART_HOURS = 24;
 
 let jsonViewer = null;
 let activeChartTab = 'traffic';
 let analyticsData = null;
+
+const EMPTY_WAGERS_HTML = renderEmptyState({ message: 'No wager data' });
 
 export function getActiveChartTab() {
   const tab = document.querySelector('[data-chart-tab].ds-active');
@@ -19,17 +43,23 @@ export function setActiveChartTab(name) {
   activeChartTab = name;
 }
 
-function isTabPanelVisible(tabId) {
-  const el = document.getElementById(tabId);
-  if (!el) return false;
-  return getComputedStyle(el).display !== 'none';
-}
+const CHART_MOUNTS = {
+  traffic: { wrapId: 'trafficChartWrap', canvasId: 'trafficChart', plotSize: 'lg' },
+  latency: { wrapId: 'latencyChartWrap', canvasId: 'latencyChart', plotSize: 'lg' },
+  type: { wrapId: 'typeChartWrap', canvasId: 'typeChart', plotSize: 'md' },
+  agent: { wrapId: 'agentChartWrap', canvasId: 'agentChart', plotSize: 'md' },
+};
 
-function showChartCanvas(wrapId, canvasId) {
-  const wrap = $(wrapId);
-  const canvas = $(canvasId);
-  if (wrap) wrap.style.display = 'none';
-  if (canvas) canvas.style.display = 'block';
+const LATENCY_EMPTY_HTML = renderEmptyState({
+  icon: '&#9201;',
+  message: 'No ingestion run latency data yet.',
+  hint: 'Trigger an ingestion run to populate metrics.',
+});
+
+function chartLoadErrorMessage(err) {
+  return err?.message?.includes('CDN')
+    ? 'Chart library failed to load. Check network or CDN availability.'
+    : err?.message || 'Chart failed to load';
 }
 
 export async function loadAnalytics(ctx) {
@@ -45,124 +75,143 @@ export async function loadAnalytics(ctx) {
 
 export async function renderAnalyticsCharts(ctx) {
   const tab = getActiveChartTab();
+  const chartColors = getChartColors();
 
   try {
-    const [wagersRes, statusRes] = await Promise.all([
-      ctx.api('/bet-ticker-wagers?limit=100'),
+    const [agg, statusRes] = await Promise.all([
+      ctx.api(`/chart-aggregates?hours=${CHART_HOURS}`),
       ctx.api('/endpoint-status').catch(() => ({ routeLatency: [] })),
     ]);
-    const wagers = wagersRes.wagers || [];
-    analyticsData = { wagers, routeLatency: statusRes.routeLatency || [] };
+    const derived = chartDataFromAggregates(agg);
+    analyticsData = { aggregates: agg, routeLatency: statusRes.routeLatency || [] };
 
-    if (!wagers.length) {
-      ['trafficChartWrap', 'latencyChartWrap', 'typeChartWrap', 'agentChartWrap'].forEach((id) => {
-        const el = $(id);
-        if (el) el.innerHTML = '<div class="ds-empty-state"><div class="ds-empty-state__message">No wager data</div></div>';
-      });
+    const hasWagers = derived.trafficLabels.length > 0
+      || derived.typeValues.some((v) => v > 0);
+
+    if (!hasWagers) {
+      showChartMessage(CHART_MOUNTS.traffic.wrapId, EMPTY_WAGERS_HTML);
+      showChartMessage(CHART_MOUNTS.type.wrapId, EMPTY_WAGERS_HTML);
+      showChartMessage(CHART_MOUNTS.agent.wrapId, EMPTY_WAGERS_HTML);
+      mountLineBarTable('trafficChartData', 'Traffic (24h)', [], [], 'Wagers');
+      mountTypeTable('typeChartData', [], []);
+      mountAgentTable('agentChartData', [], []);
+      if (tab === 'latency') {
+        await renderLatencyChart(ctx, analyticsData.routeLatency);
+      } else {
+        showChartMessage(CHART_MOUNTS.latency.wrapId, LATENCY_EMPTY_HTML);
+      }
       return;
     }
 
-    const hourBuckets = {};
-    for (const w of wagers) {
-      const h = w.captured_at?.slice(11, 13) + ':00';
-      hourBuckets[h] = (hourBuckets[h] || 0) + 1;
-    }
-    const hours = Object.keys(hourBuckets).sort();
     const trafficData = {
-      labels: hours,
-      datasets: [{ label: 'Wagers', data: hours.map((h) => hourBuckets[h]), backgroundColor: CHART_COLORS.info }],
+      labels: derived.trafficLabels,
+      datasets: [{ label: 'Wagers', data: derived.trafficCounts, backgroundColor: chartColors.info }],
     };
 
-    const typeBuckets = { S: 0, P: 0, M: 0, L: 0 };
-    for (const w of wagers) typeBuckets[w.wager_type] = (typeBuckets[w.wager_type] || 0) + 1;
     const typeData = {
-      labels: ['Straight', 'Parlay', 'Moneyline', 'Live'],
+      labels: derived.typeLabels,
       datasets: [{
-        data: [typeBuckets.S, typeBuckets.P, typeBuckets.M, typeBuckets.L],
-        backgroundColor: [...WAGER_TYPE_CHART_COLORS],
+        data: derived.typeValues,
+        backgroundColor: [...getWagerTypeChartColors()],
       }],
     };
 
-    const agentBuckets = {};
-    for (const w of wagers) {
-      agentBuckets[w.agent_id] = (agentBuckets[w.agent_id] || 0) + (w.amount_wagered || 0);
-    }
-    const topAgents = Object.entries(agentBuckets).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const agentData = {
-      labels: topAgents.map((a) => a[0]),
-      datasets: [{ label: 'Volume', data: topAgents.map((a) => a[1] / 100), backgroundColor: CHART_COLORS.accent }],
+      labels: derived.agentLabels,
+      datasets: [{ label: 'Volume', data: derived.agentVolumes, backgroundColor: chartColors.accent }],
     };
 
-    const trafficChart = ensureChart('traffic', 'trafficChart', 'bar');
-    showChartCanvas('trafficChartWrap', 'trafficChart');
-    trafficChart.data = trafficData;
-    if (tab === 'traffic') await trafficChart.render();
+    mountLineBarTable('trafficChartData', 'Traffic (24h)', derived.trafficLabels, derived.trafficCounts, 'Wagers');
+    mountTypeTable('typeChartData', derived.typeLabels, derived.typeValues);
+    mountAgentTable('agentChartData', derived.agentLabels, derived.agentVolumes.map((v) => v * 100));
 
+    const trafficMount = ensureChartMarkup(CHART_MOUNTS.traffic);
+    const trafficChart = ensureChart('traffic', 'trafficChart', 'bar');
+    showChartReady(trafficMount);
+    if (tab === 'traffic') {
+      if (trafficChart.hasChart) trafficChart.update(trafficData);
+      else {
+        trafficChart.data = trafficData;
+        await trafficChart.render();
+      }
+    } else {
+      trafficChart.data = trafficData;
+    }
+
+    const typeMount = ensureChartMarkup(CHART_MOUNTS.type);
     const typeChart = ensureChart('type', 'typeChart', 'doughnut');
-    showChartCanvas('typeChartWrap', 'typeChart');
     typeChart.data = typeData;
 
+    const agentMount = ensureChartMarkup(CHART_MOUNTS.agent);
     const agentChart = ensureChart('agent', 'agentChart', 'bar');
-    showChartCanvas('agentChartWrap', 'agentChart');
     agentChart.data = agentData;
 
     if (tab === 'latency') {
       await renderLatencyChart(ctx, analyticsData.routeLatency);
     } else if (tab === 'distribution') {
-      await typeChart.render();
-      await agentChart.render();
+      showChartReady(typeMount);
+      if (typeChart.hasChart) typeChart.update(typeData);
+      else {
+        typeChart.data = typeData;
+        await typeChart.render();
+      }
+      mountChartLegend('typeChartLegend', [
+        { label: 'Straight', color: getWagerTypeChartColors()[0] },
+        { label: 'Parlay', color: getWagerTypeChartColors()[1] },
+        { label: 'Moneyline', color: getWagerTypeChartColors()[2] },
+        { label: 'Live', color: getWagerTypeChartColors()[3] },
+      ]);
+      showChartReady(agentMount);
+      if (agentChart.hasChart) agentChart.update(agentData);
+      else {
+        agentChart.data = agentData;
+        await agentChart.render();
+      }
+    } else {
+      typeChart.data = typeData;
+      agentChart.data = agentData;
     }
   } catch (e) {
-    ['trafficChartWrap', 'latencyChartWrap', 'typeChartWrap', 'agentChartWrap'].forEach((id) => {
-      const el = $(id);
-      if (el) el.innerHTML = renderErrorState(e.message);
-    });
+    const msg = chartLoadErrorMessage(e);
+    showChartError(CHART_MOUNTS.traffic.wrapId, msg);
+    showChartError(CHART_MOUNTS.latency.wrapId, msg);
+    showChartError(CHART_MOUNTS.type.wrapId, msg);
+    showChartError(CHART_MOUNTS.agent.wrapId, msg);
   }
 }
 
 export async function renderLatencyChart(ctx, routeLatency) {
-  const prev = getChart('latency');
-  if (prev) {
-    prev.destroy();
-    setChart('latency', null);
-  }
-
   if (!routeLatency?.length) {
-    $('latencyChart').style.display = 'none';
-    $('latencyChartWrap').style.display = 'flex';
-    $('latencyChartWrap').innerHTML = [
-      '<div class="ds-empty-state">',
-      '<div class="ds-empty-state__icon">&#9201;</div>',
-      '<div class="ds-empty-state__message">No ingestion run latency data yet. Trigger an ingestion run to populate metrics.</div>',
-      '</div>',
-    ].join('');
+    showChartMessage(CHART_MOUNTS.latency.wrapId, LATENCY_EMPTY_HTML);
     return;
   }
 
+  const chartColors = getChartColors();
   const labels = routeLatency.map((r) => r.path || r.endpoint_key);
   const values = routeLatency.map((r) => Number(r.avg_duration_ms) || 0);
 
-  $('latencyChartWrap').innerHTML = [
-    '<div class="ds-skeleton ds-skeleton-row"></div>',
-    '<div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>',
-    '<div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>',
-  ].join('');
-  $('latencyChartWrap').style.display = 'none';
-
+  const latencyMount = ensureChartMarkup(CHART_MOUNTS.latency);
   const latencyChart = ensureChart('latency', 'latencyChart', 'line');
-  showChartCanvas('latencyChartWrap', 'latencyChart');
-  latencyChart.data = {
+  showChartReady(latencyMount);
+  const payload = {
     labels,
     datasets: [{
       label: 'Avg latency (ms)',
       data: values,
-      borderColor: CHART_COLORS.warning,
-      backgroundColor: 'rgba(255, 215, 0, 0.25)',
+      borderColor: chartColors.warning,
+      backgroundColor: chartFillColor(chartColors.warning),
       tension: 0.3,
       fill: true,
     }],
   };
-  await latencyChart.render();
+  mountLatencyTable('latencyChartData', routeLatency);
+
+  if (latencyChart.hasChart) latencyChart.update(payload);
+  else {
+    latencyChart.data = payload;
+    await latencyChart.render();
+  }
+  announceChartStatus(`Latency chart loaded, ${labels.length} routes`);
 }
 
 export function onChartTabVisible(name, ctx) {
@@ -185,11 +234,19 @@ export function onChartTabVisible(name, ctx) {
     const typeChart = getChart('type');
     const agentChart = getChart('agent');
     if (typeChart) {
-      showChartCanvas('typeChartWrap', 'typeChart');
+      showChartReady(ensureChartMarkup(CHART_MOUNTS.type));
       typeChart.render();
+      if (analyticsData?.aggregates) {
+        mountChartLegend('typeChartLegend', [
+          { label: 'Straight', color: getWagerTypeChartColors()[0] },
+          { label: 'Parlay', color: getWagerTypeChartColors()[1] },
+          { label: 'Moneyline', color: getWagerTypeChartColors()[2] },
+          { label: 'Live', color: getWagerTypeChartColors()[3] },
+        ]);
+      }
     }
     if (agentChart) {
-      showChartCanvas('agentChartWrap', 'agentChart');
+      showChartReady(ensureChartMarkup(CHART_MOUNTS.agent));
       agentChart.render();
     }
   }

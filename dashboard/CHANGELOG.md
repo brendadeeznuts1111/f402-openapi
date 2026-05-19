@@ -1,5 +1,61 @@
 # Changelog
 
+## v3.6.0 — Chart a11y, server aggregates, upstream manifest
+
+### Added
+- **`GET /chart-aggregates`** — Server-side hourly volume/traffic, type mix, top agents (replaces client bucketing of 100 rows)
+- **`GET /upstream-endpoints`** — All 86 routes from `upstream-endpoints.json` with `configured`, `contentType`, and `operationId`
+- **Accessible chart data tables** — Screen-reader-only tabular fallbacks (`#volumeChartData`, etc.) via `chart-data.js`
+- **Vendored Chart.js** — `vendor/chart.umd.min.js` with CDN fallback in `chart-wrapper.js`
+- **Endpoints view** — Worker API / Upstream Fantasy402 tabs; zone filter includes `upstream`, `data`, `worker`
+
+### Changed
+- Overview & Analytics charts use `/chart-aggregates?hours=24`
+- Ticker & Logs empty states use `renderEmptyState()`
+
+## v3.5.0 — Design system depth
+
+### Added
+- **Token expansion** — shadows, focus ring, chart grid/fill, sidebar widths, typography weights, `--elevated-bg`
+- **`css/components/utilities.css`** — `.ds-stack`, `.ds-cluster`, `.ds-sr-only`, `.ds-chart-live`, `prefers-reduced-motion` globals
+- **`TOKENS.md`** — token reference for authors
+- **JS primitives** — `readDesignToken`, `chartFillColor`, `renderEmptyState`, `renderChartLegend`, `getZoneBadgeClass`
+- **HTML chart legend** — `#typeChartLegend` on Analytics distribution tab
+- **`aria-live`** region `#chartLiveStatus` for chart load announcements
+- **Keyboard nav** — Arrow/Home/End on Analytics chart tabs
+
+### Changed
+- **Badges** — `color-mix` on semantic tokens (light/dark aware)
+- **Buttons** — focus/disabled states, `--ghost` variant, canonical spacing
+- **Zone badges** — light theme overrides via `color-mix`
+- **Tabs** — canonical border/focus tokens
+- **Cards / stat cards** — `--radius-md`, `--shadow-*`, `--elevated-bg`
+
+## v3.4.1 — UI audit remediations
+
+### Fixed
+- **Hour bucketing mismatch** — Overview and Analytics traffic charts now share `bucketWagersByHour()` (datetime keys)
+- **`chartType` setting ignored** — Volume chart respects line / bar / area (`area` → line + fill)
+- **Appearance save** — `saveAppearance()` re-renders charts via `onChartsThemeChange()`
+- **Latency chart DOM** — Empty state uses `showChartMessage` without destroying canvas/registry
+- **Analytics errors** — Per-chart `showChartError`; CDN load failures show user-visible message
+- **Chart dataset colors** — `getChartColors()` reads CSS tokens (light/dark aware)
+
+### Added
+- `ResizeObserver` on `.ds-chart-plot` via `initChartPlotResizeObserver()` (CHANGELOG v3.3 claim now accurate)
+- Design tokens `--radius-sm/md/lg`, `--surface`
+- `dashboard/AUDIT.md` — design system, charts, a11y, and doc drift report
+
+### Changed
+- Log/settings tabs use `.ds-tab-content.ds-active` (same as analytics chart tabs)
+- Analytics tabs: WAI-ARIA `role="tab"`, `aria-selected`, `tabpanel`
+
+## v3.4.0 — Canonical chart frames
+
+### Changed
+- All charts in `index.html` use `.ds-chart-plot` + `.ds-chart-plot__frame` + `canvas` (documented in `README.md`)
+- `chart.css` — framed layout without global `!important`; legacy fallback via `:not(:has(.ds-chart-plot__frame))`
+
 ## v3.3.0 — Chart sizing audit
 
 ### Fixed

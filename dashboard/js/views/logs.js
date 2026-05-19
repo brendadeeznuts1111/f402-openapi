@@ -4,6 +4,7 @@ import { $ } from '../dom.js';
 import { escapeHtml } from '../dom.js';
 import { usd, ago } from '../format.js';
 import { renderErrorState } from '../ui.js';
+import { renderEmptyState } from '../design-system.js';
 import { SortableTable } from '../sortable-table.js';
 
 let agentLogTable = null;

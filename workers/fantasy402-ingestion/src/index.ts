@@ -1,6 +1,7 @@
 import { diagnoseUrlScanner, submitAndWait, UrlScannerApiError } from "./url-scanner";
+import { UPSTREAM_MANIFEST } from "./upstream-manifest";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
-import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema } from "./schemas";
+import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
 
 export interface Env {
@@ -1021,6 +1022,20 @@ const worker = {
       return listIngestionRunEndpoints(url, env);
     }
 
+    if (url.pathname === "/chart-aggregates" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryChartAggregates(url, env);
+    }
+
+    if (url.pathname === "/upstream-endpoints" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return listUpstreamEndpoints(env);
+    }
+
     if (url.pathname === "/bet-ticker-wagers" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -1067,7 +1082,7 @@ const worker = {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
-      return getDashboardSummary(env);
+      return getDashboardSummary(url, env);
     }
 
     if (url.pathname === "/alerts" && request.method === "GET") {
@@ -3096,6 +3111,91 @@ async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> 
   );
 }
 
+async function queryChartAggregates(url: URL, env: Env): Promise<Response> {
+  const { hours } = chartAggregatesSchema.parse(Object.fromEntries(url.searchParams));
+  const sinceExpr = `datetime('now', '-${hours} hours')`;
+
+  const hourly = await env.ANALYTICS_DB.prepare(
+    `SELECT substr(captured_at, 1, 13) || ':00' AS hour,
+            COUNT(*) AS count,
+            COALESCE(SUM(amount_wagered), 0) AS volume_cents
+     FROM bet_ticker_wagers
+     WHERE captured_at >= ${sinceExpr}
+     GROUP BY hour
+     ORDER BY hour ASC`,
+  ).all();
+
+  const byType = await env.ANALYTICS_DB.prepare(
+    `SELECT wager_type, COUNT(*) AS count
+     FROM bet_ticker_wagers
+     WHERE captured_at >= ${sinceExpr}
+     GROUP BY wager_type`,
+  ).all();
+
+  const topAgents = await env.ANALYTICS_DB.prepare(
+    `SELECT agent_id,
+            COUNT(*) AS count,
+            COALESCE(SUM(amount_wagered), 0) AS volume_cents
+     FROM bet_ticker_wagers
+     WHERE captured_at >= ${sinceExpr}
+     GROUP BY agent_id
+     ORDER BY volume_cents DESC
+     LIMIT 5`,
+  ).all();
+
+  const typeMap: Record<string, number> = { S: 0, P: 0, M: 0, L: 0 };
+  for (const row of byType.results ?? []) {
+    const wt = String((row as { wager_type?: string }).wager_type ?? "");
+    if (wt in typeMap) typeMap[wt] = Number((row as { count?: number }).count) || 0;
+  }
+
+  return json(
+    {
+      hours,
+      since: new Date(Date.now() - hours * 3600000).toISOString(),
+      hourly: hourly.results ?? [],
+      byType: typeMap,
+      topAgents: topAgents.results ?? [],
+    },
+    200,
+  );
+}
+
+function listUpstreamEndpoints(env: Env): Response {
+  const configured = new Set(
+    env.FANTASY402_INGESTION_ENDPOINTS.split(",")
+      .map((part) => part.trim())
+      .filter(Boolean),
+  );
+  const routes = UPSTREAM_MANIFEST.endpoints.map((entry) => {
+    const isConfigured = configured.has(entry.key);
+    const implemented = Object.prototype.hasOwnProperty.call(ENDPOINTS, entry.key);
+    return {
+      key: entry.key,
+      path: entry.path,
+      method: entry.method.toUpperCase(),
+      zone: "upstream",
+      configured: isConfigured,
+      implemented,
+      contentType: entry.contentType,
+      operationId: entry.operationId,
+      requiresCustomerId: entry.requiresCustomerId === true,
+      description: entry.operationId,
+      refreshMs: isConfigured ? "ingestion" : "—",
+    };
+  });
+  return json(
+    {
+      count: routes.length,
+      configuredCount: routes.filter((r) => r.configured).length,
+      implementedCount: routes.filter((r) => r.implemented).length,
+      spec: UPSTREAM_MANIFEST.spec,
+      routes,
+    },
+    200,
+  );
+}
+
 async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
   const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
   const limit = filters.limit;
@@ -3260,9 +3360,20 @@ async function queryPositionData(url: URL, env: Env): Promise<Response> {
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
-async function getDashboardSummary(env: Env): Promise<Response> {
+async function getDashboardSummary(url: URL, env: Env): Promise<Response> {
+  const mode = url.searchParams.get("mode") === "calendar" ? "calendar" : "rolling";
+  const days = clampInteger(Number(url.searchParams.get("days") ?? "1"), 1, 90);
   const today = new Date().toISOString().slice(0, 10);
-  const since = `${today}T00:00:00.000Z`;
+  const since =
+    mode === "calendar"
+      ? `${today}T00:00:00.000Z`
+      : new Date(Date.now() - days * 86400000).toISOString();
+  const windowLabel =
+    mode === "calendar"
+      ? `UTC day ${today}`
+      : days === 1
+        ? "Last 24 hours"
+        : `Last ${days} days`;
 
   const [tickerCount, gradedCount, perfRows, posRows] = await Promise.all([
     env.ANALYTICS_DB.prepare(
@@ -3296,6 +3407,7 @@ async function getDashboardSummary(env: Env): Promise<Response> {
 
   return json({
     date: today,
+    window: { mode, days, since, label: windowLabel },
     liveWagers: {
       total: tickerCount?.total ?? 0,
       volume: tickerCount?.volume ?? 0,
@@ -5529,6 +5641,8 @@ interface WorkerEndpointEntry {
 
 const WORKER_API_ZONE: Record<string, string> = {
   '/summary': 'query',
+  '/chart-aggregates': 'query',
+  '/upstream-endpoints': 'upstream',
   '/bet-ticker-wagers': 'query',
   '/performance': 'query',
   '/graded-wagers': 'query',
@@ -5557,6 +5671,8 @@ const WORKER_API_ZONE: Record<string, string> = {
 
 const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/summary', method: 'GET', description: 'Aggregated daily KPIs', refreshMs: 15000 },
+  { path: '/chart-aggregates', method: 'GET', description: 'Server-side chart buckets (hourly, types, agents)', refreshMs: 15000 },
+  { path: '/upstream-endpoints', method: 'GET', description: 'Fantasy402 upstream API catalog + configured flags', refreshMs: 60000 },
   { path: '/bet-ticker-wagers', method: 'GET', description: 'Live wager ticker (polling fallback)', refreshMs: 5000 },
   { path: '/performance', method: 'GET', description: 'Agent performance metrics', refreshMs: 15000 },
   { path: '/graded-wagers', method: 'GET', description: 'Graded wager results', refreshMs: 10000 },

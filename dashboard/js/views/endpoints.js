@@ -4,36 +4,93 @@ import { $ } from '../dom.js';
 import { escapeHtml } from '../dom.js';
 import { ago } from '../format.js';
 import { renderErrorState } from '../ui.js';
+import { renderEmptyState, getZoneBadgeClass } from '../design-system.js';
+
+let endpointManifestTab = 'worker';
+let workerRoutes = [];
+let upstreamRoutes = [];
+let upstreamMeta = {};
+
+export function setEndpointManifestTab(name) {
+  endpointManifestTab = name === 'upstream' ? 'upstream' : 'worker';
+}
+
+export function getEndpointManifestTab() {
+  return endpointManifestTab;
+}
+
+function renderRoutesTable(routes) {
+  if (!routes.length) {
+    return renderEmptyState({ message: 'No endpoints match filter' });
+  }
+  const showUpstreamMeta = endpointManifestTab === 'upstream';
+  const rows = routes.map((r) => {
+    const zoneClass = getZoneBadgeClass(r.zone || 'worker');
+    const configured = r.configured === true
+      ? '<span class="ds-badge ds-badge--success">yes</span>'
+      : r.configured === false
+        ? '<span class="ds-badge ds-badge--warn">no</span>'
+        : '—';
+    const contentType = showUpstreamMeta && r.contentType
+      ? `<td class="ds-cell-sm"><code>${escapeHtml(r.contentType)}</code></td>`
+      : '';
+    return `<tr>
+      <td><span class="ds-zone-badge ${zoneClass}">${escapeHtml(r.zone || 'worker')}</span></td>
+      <td><code>${escapeHtml(r.method)}</code></td>
+      <td><code>${escapeHtml(r.path)}</code></td>
+      <td class="ds-cell-sm">${escapeHtml(r.description || r.key || '')}</td>
+      ${contentType}
+      <td class="ds-cell-sm">${r.refreshMs === 'realtime' ? '⚡ live' : r.refreshMs === 'manual' ? '—' : r.refreshMs === 'ingestion' ? 'ingest' : (typeof r.refreshMs === 'number' ? (r.refreshMs / 1000) + 's' : '—')}</td>
+      <td>${configured}</td>
+    </tr>`;
+  }).join('');
+  const contentHeader = showUpstreamMeta ? '<th>Content type</th>' : '';
+  return `<table class="ds-table-sm"><thead><tr><th>Zone</th><th>Method</th><th>Path</th><th>Description</th>${contentHeader}<th>Refresh</th><th>Configured</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function filterRoutes(routes) {
+  const zoneFilter = $('endpointZoneFilter').value;
+  const methodFilter = $('endpointMethodFilter').value;
+  let list = routes;
+  if (zoneFilter) list = list.filter((r) => r.zone === zoneFilter);
+  if (methodFilter) list = list.filter((r) => r.method === methodFilter);
+  return list;
+}
+
+function paintEndpointsTable() {
+  const routes = endpointManifestTab === 'upstream' ? upstreamRoutes : workerRoutes;
+  const filtered = filterRoutes(routes);
+  $('endpointsTable').innerHTML = renderRoutesTable(filtered);
+    const label = endpointManifestTab === 'upstream' ? 'upstream Fantasy402' : 'Worker API';
+  const configuredHint = endpointManifestTab === 'upstream' && upstreamMeta.configuredCount != null
+    ? ` · ${upstreamMeta.configuredCount} configured`
+    : '';
+  $('endpointsCount').textContent = `${filtered.length} / ${routes.length} ${label}${configuredHint}`;
+}
 
 export async function loadEndpoints(ctx) {
   try {
-    const [manifest, health] = await Promise.all([
+    const [manifest, upstream, health] = await Promise.all([
       ctx.store.fetch('endpoints-manifest', () => ctx.api('/endpoints'), 60000),
+      ctx.store.fetch('upstream-endpoints', () => ctx.api('/upstream-endpoints'), 60000),
       ctx.api('/endpoint-status').catch(() => ({ latestRun: null, recentFailures: [] })),
     ]);
-    $('endpointsCount').textContent = `${manifest?.count || 0} routes`;
 
-    const zoneFilter = $('endpointZoneFilter').value;
-    const methodFilter = $('endpointMethodFilter').value;
-    let routes = manifest?.routes || [];
-    if (zoneFilter) routes = routes.filter((r) => r.zone === zoneFilter);
-    if (methodFilter) routes = routes.filter((r) => r.method === methodFilter);
+    workerRoutes = manifest?.routes || [];
+    upstreamRoutes = upstream?.routes || [];
+    upstreamMeta = {
+      configuredCount: upstream?.configuredCount,
+      implementedCount: upstream?.implementedCount,
+    };
 
-    if (!routes.length) {
-      $('endpointsTable').innerHTML = '<div class="ds-loading">No endpoints match filter</div>';
-    } else {
-      const rows = routes.map((r) => {
-        const zoneColor = r.zone ? `ds-zone-badge--${r.zone}` : 'ds-zone-badge--worker';
-        return `<tr>
-          <td><span class="ds-zone-badge ${zoneColor}">${escapeHtml(r.zone || 'worker')}</span></td>
-          <td><code>${escapeHtml(r.method)}</code></td>
-          <td><code>${escapeHtml(r.path)}</code></td>
-          <td class="ds-cell-sm">${escapeHtml(r.description)}</td>
-          <td class="ds-cell-sm">${r.refreshMs === 'realtime' ? '⚡ live' : r.refreshMs === 'manual' ? '—' : (r.refreshMs / 1000) + 's'}</td>
-        </tr>`;
-      }).join('');
-      $('endpointsTable').innerHTML = `<table class="ds-table-sm"><thead><tr><th>Zone</th><th>Method</th><th>Path</th><th>Description</th><th>Refresh</th></tr></thead><tbody>${rows}</tbody></table>`;
-    }
+    document.querySelectorAll('[data-endpoint-tab]').forEach((t) => {
+      const on = t.dataset.endpointTab === endpointManifestTab;
+      t.classList.toggle('ds-active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.setAttribute('tabindex', on ? '0' : '-1');
+    });
+
+    paintEndpointsTable();
 
     const run = health?.latestRun;
     const failures = health?.recentFailures || [];
@@ -47,10 +104,17 @@ export async function loadEndpoints(ctx) {
         healthHtml += `<div class="ds-timeline__item"><span class="ds-timeline__dot ds-timeline__dot--error"></span><div class="ds-timeline__content"><div class="ds-timeline__time">${ago(f.last_failure)}</div><div class="ds-timeline__title">Failed: ${escapeHtml(f.endpoint_key || '?')}</div><div class="ds-timeline__meta">${f.failure_count}x in 24h</div></div></div>`;
       }
     }
-    $('endpointHealth').innerHTML = healthHtml ? `<div class="ds-timeline">${healthHtml}</div>` : '<div class="ds-loading">No ingestion data</div>';
+    $('endpointHealth').innerHTML = healthHtml
+      ? `<div class="ds-timeline">${healthHtml}</div>`
+      : renderEmptyState({ message: 'No ingestion data', hint: 'Trigger an ingestion run from Quick Actions.' });
   } catch (e) {
     $('endpointsTable').innerHTML = renderErrorState(e.message, '/endpoints');
   }
+}
+
+export function onEndpointTabChange(name) {
+  setEndpointManifestTab(name);
+  paintEndpointsTable();
 }
 
 export async function triggerIngestion(ctx) {
@@ -78,8 +142,8 @@ export function updateCookieHealth(ctx) {
   const cookieFailures = failures.filter((f) => (f.path || f.endpoint_key || '').includes('cookie') || (f.path || f.endpoint_key || '').includes('refresh'));
   const el = $('cookieHealth');
   if (cookieFailures.length) {
-    el.innerHTML = `<span class="ds-badge ds-badge--warn">⚠️ ${cookieFailures.length} cookie failure(s) in 24h</span>`;
+    el.innerHTML = `<span class="ds-badge ds-badge--error">${cookieFailures.length} cookie/auth failures (24h)</span>`;
   } else {
-    el.innerHTML = `<span class="ds-badge ds-badge--info">🍪 Cookies OK</span>`;
+    el.innerHTML = '<span class="ds-badge ds-badge--success">Cookie health OK</span>';
   }
 }

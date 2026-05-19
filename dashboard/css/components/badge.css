@@ -1,36 +1,69 @@
-/* dashboard/css/components/badge.ds-css */
+/* Wager + status badges — theme-aware via color-mix on semantic tokens */
 
 .ds-badge {
   display: inline-block;
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-sans);
+  line-height: var(--line-height-tight);
 }
 
 .ds-badge-s,
 .ds-badge--s,
-.ds-badge--straight { background: #1e3a5f; color: var(--blue); }
+.ds-badge--straight {
+  background: color-mix(in srgb, var(--info) 24%, var(--secondary-bg));
+  color: var(--info);
+}
+
 .ds-badge-p,
 .ds-badge--p,
-.ds-badge--parlay { background: #3b1f5e; color: var(--purple); }
+.ds-badge--parlay {
+  background: color-mix(in srgb, var(--purple) 24%, var(--secondary-bg));
+  color: var(--purple);
+}
+
 .ds-badge-m,
 .ds-badge--m,
-.ds-badge--moneyline { background: #1a3d2e; color: var(--green); }
+.ds-badge--moneyline {
+  background: color-mix(in srgb, var(--success) 24%, var(--secondary-bg));
+  color: var(--success);
+}
+
 .ds-badge-l,
 .ds-badge--l,
-.ds-badge--live { background: #3d2e1a; color: var(--amber); }
+.ds-badge--live {
+  background: color-mix(in srgb, var(--warning) 24%, var(--secondary-bg));
+  color: var(--warning);
+}
+
 .ds-badge-warning,
 .ds-badge--warning,
 .ds-badge-warn,
-.ds-badge--warn { background: #3d2e1a; color: var(--amber); }
+.ds-badge--warn {
+  background: color-mix(in srgb, var(--warning) 24%, var(--secondary-bg));
+  color: var(--warning);
+}
+
 .ds-badge-critical,
 .ds-badge--critical,
 .ds-badge-error,
-.ds-badge--error { background: #3d1a1a; color: var(--red); }
+.ds-badge--error {
+  background: color-mix(in srgb, var(--error) 22%, var(--secondary-bg));
+  color: var(--error);
+}
+
 .ds-badge-info,
-.ds-badge--info { background: #1a2d3d; color: var(--blue); }
+.ds-badge--info {
+  background: color-mix(in srgb, var(--info) 24%, var(--secondary-bg));
+  color: var(--info);
+}
+
 .ds-badge-ok,
 .ds-badge--ok,
 .ds-badge-success,
-.ds-badge--success { background: #1a3d2e; color: var(--green); }
+.ds-badge--success {
+  background: color-mix(in srgb, var(--success) 24%, var(--secondary-bg));
+  color: var(--success);
+}

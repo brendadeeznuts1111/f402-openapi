@@ -11,15 +11,17 @@ Zero-build monitoring UI for the ingestion Worker. Deployed on Cloudflare Pages 
 
 The dashboard calls `/api/*` on the Pages origin; `dashboard/_worker.js` forwards those requests to the Worker with `INGESTION_TRIGGER_TOKEN` injected server-side.
 
-## Views (v3.2)
+## Views (5)
 
 | View | Purpose |
 |------|---------|
-| **Overview** | Stat cards, volume chart, live wager ticker (SSE), agent table, event timeline |
+| **Overview** | Stat cards, volume chart (type from Settings), live wager ticker (SSE), agent table, event timeline |
 | **Analytics** | Traffic, **route latency** (from latest ingestion run), type distribution, agent volume, JSON viewer |
 | **Logs** | Filterable event timeline, agent log table, system health log |
-| **Settings** | Theme (dark/light/auto), API refresh interval, notifications, config import/export |
+| **Settings** | Theme (dark/light/auto), chart type (volume), API refresh interval, notifications, config import/export |
 | **Endpoints** | Worker route manifest, zone filters, ingestion health, trigger ingest / refresh auth |
+
+Charts aggregate the latest **100** wagers client-side (`GET /bet-ticker-wagers?limit=100`) unless noted. See `dashboard/AUDIT.md` for audit details and verification steps.
 
 ## Source layout
 
@@ -43,7 +45,9 @@ Detailed design notes: `dashboard/DESIGN.md`. Changelog: `dashboard/CHANGELOG.md
 | Route | Used by |
 |-------|---------|
 | `GET /summary` | Overview stat cards |
-| `GET /bet-ticker-wagers` | Ticker, charts, logs |
+| `GET /chart-aggregates` | Overview volume chart, Analytics traffic/type/agent charts |
+| `GET /upstream-endpoints` | Endpoints view (Upstream Fantasy402 tab; full `upstream-endpoints.json` catalog + configured flags) |
+| `GET /bet-ticker-wagers` | Ticker, logs, event timelines |
 | `GET /performance` | Agent tables |
 | `GET /live-wagers` | SSE wager stream (Durable Object) |
 | `GET /endpoint-status` | Sidebar health, latency chart, system log (`routeLatency` from latest run) |
@@ -87,6 +91,10 @@ npm run deploy
 If `wrangler` fails with API token auth errors, run without `CLOUDFLARE_API_TOKEN` in the environment so Wrangler uses OAuth (`unset CLOUDFLARE_API_TOKEN`).
 
 Without this secret, protected `/api/*` routes return **500** with `code: MISSING_PAGES_TOKEN`. Public routes **`/api/health`** and **`/api/live-wagers`** (SSE) work without the secret so live wagers and health checks still function.
+
+**Preview vs production:** Each `*.pages.dev` deployment hash is tied to the build that created it. After changing Pages secrets, **redeploy** (`npm run deploy`). Old hashes (e.g. `b6972826…`) keep the old proxy env and keep failing. Prefer **https://fantasy402-dashboard-5q6.pages.dev** (production) or the branch alias. Preview env needs the same token as the Worker; `./scripts/set-pages-secrets.sh` can read it from 1Password when `.archive-auth-token` is absent.
+
+**1Password console noise:** `webauthn-listeners.js: Cannot overwrite navigator.credentials…` is from the 1Password browser extension, not this dashboard — safe to ignore.
 
 Redeploy the Worker when adding new API fields (e.g. `routeLatency` on `/endpoint-status`).
 

@@ -252,6 +252,25 @@ const MOCK_RESPONSES = {
       { agent_id: 'TOPDAWG', total_wagers: 211, total_volume: 320000, win_rate: 52.1 },
     ],
   },
+  '/chart-aggregates': {
+    hours: 24,
+    since: new Date(Date.now() - 86400000).toISOString(),
+    hourly: [
+      { hour: new Date().toISOString().slice(0, 13) + ':00', count: 12, volume_cents: 450000 },
+    ],
+    byType: { S: 8, P: 2, M: 1, L: 1 },
+    topAgents: [{ agent_id: 'BILLY666', count: 10, volume_cents: 300000 }],
+  },
+  '/upstream-endpoints': {
+    count: 86,
+    configuredCount: 2,
+    implementedCount: 86,
+    spec: '../../.o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json',
+    routes: [
+      { key: 'getBetTicker', path: '/cloud/api/Manager/getBetTicker', method: 'POST', zone: 'upstream', configured: true, implemented: true, contentType: 'application/x-www-form-urlencoded', operationId: 'post_cloud_api_Manager_getBetTicker', description: 'post_cloud_api_Manager_getBetTicker', refreshMs: 'ingestion' },
+      { key: 'getAgentPerformance', path: '/cloud/api/Manager/getAgentPerformance', method: 'POST', zone: 'upstream', configured: true, implemented: true, contentType: 'application/x-www-form-urlencoded', operationId: 'post_cloud_api_Manager_getAgentPerformance', description: 'post_cloud_api_Manager_getAgentPerformance', refreshMs: 'ingestion' },
+    ],
+  },
   '/bet-ticker-wagers': {
     wagers: [
       {

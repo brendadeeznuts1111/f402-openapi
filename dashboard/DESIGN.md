@@ -58,7 +58,7 @@ flowchart TB
     subgraph PAGES[Cloudflare Pages]
         PROXY[Pages Function Proxy<br/>inject Bearer token<br/>CORS + Rate Limit]
         DASHBOARD[Dashboard index.html v3]
-        subgraph VIEWS[4 Views — ESM Modules]
+        subgraph VIEWS[5 Views — ESM Modules]
             subgraph OVERVIEW[Overview]
                 STATS[6 Stat Cards<br/>volume/agents/PNL/types]
                 VOL_CHART[VolumeTrendChart<br/>Chart.js line]

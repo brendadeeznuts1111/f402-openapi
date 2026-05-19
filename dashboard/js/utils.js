@@ -422,6 +422,30 @@ export const ModalFactory = {
   },
 };
 
+/** Bucket wagers by hour for charts (unified datetime keys: YYYY-MM-DDTHH:00). */
+export function bucketWagersByHour(wagers, { value = 'count' } = {}) {
+  const buckets = {};
+  for (const w of wagers) {
+    if (!w.captured_at) continue;
+    const hour = w.captured_at.slice(0, 13) + ':00';
+    const add = value === 'volume' ? (w.amount_wagered || 0) : 1;
+    buckets[hour] = (buckets[hour] || 0) + add;
+  }
+  const labels = Object.keys(buckets).sort();
+  return { labels, values: labels.map((l) => buckets[l]) };
+}
+
+/** Map settings chartType to Chart.js type + fill (area → line + fill). */
+export function resolveVolumeChartType(chartTypeSetting) {
+  if (chartTypeSetting === 'area' || chartTypeSetting === 'line') {
+    return { type: 'line', fill: chartTypeSetting === 'area' };
+  }
+  if (chartTypeSetting === 'bar') {
+    return { type: 'bar', fill: false };
+  }
+  return { type: 'line', fill: true };
+}
+
 // Backward-compat globals for the existing inline <script> in index.html
 // Remove once index.html migrates to <script type="module">
 if (typeof window !== 'undefined') {

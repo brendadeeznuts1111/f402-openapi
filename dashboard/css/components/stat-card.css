@@ -8,6 +8,15 @@
   margin-bottom: var(--space-lg);
 }
 
+.ds-stat-grid__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--secondary-text);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
 @media (max-width: 1200px) {
   .ds-stat-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -17,17 +26,18 @@
 }
 
 .ds-stat-card {
-  background: var(--secondary-bg);
+  background: var(--elevated-bg);
   border: 1px solid var(--border-ds);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: var(--space-md);
   text-align: center;
+  box-shadow: var(--shadow-sm);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ds-stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .ds-stat-card__icon {

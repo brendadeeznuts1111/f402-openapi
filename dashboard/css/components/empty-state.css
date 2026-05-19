@@ -22,6 +22,14 @@
   max-width: 280px;
 }
 
+.ds-empty-state__hint {
+  font-size: var(--text-xs);
+  color: var(--tertiary-text);
+  font-family: var(--font-mono);
+  max-width: 320px;
+  line-height: var(--line-height-relaxed);
+}
+
 .ds-empty-state__action {
   font-size: var(--text-xs);
   color: var(--info);

@@ -54,6 +54,7 @@ export function saveApi(ctx) {
 export function saveAppearance(ctx) {
   ctx.settings.set('chartType', $('settingChartType').value);
   ctx.settings.set('logLevel', $('settingLogLevel').value);
+  ctx.onChartsThemeChange();
   ctx.showAlert('Appearance settings saved', 'info');
 }
 

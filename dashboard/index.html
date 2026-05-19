@@ -22,6 +22,8 @@
 </head>
 <body>
 
+<div id="chartLiveStatus" class="ds-chart-live" role="status" aria-live="polite" aria-atomic="true"></div>
+
 <header class="ds-header">
   <div class="ds-header__brand">
     <h1 class="ds-header__title">Fantasy402 Dashboard</h1>
@@ -81,6 +83,7 @@
         <div class="ds-stat-card"><div class="ds-skeleton ds-skeleton-row"></div></div>
       </div>
 
+      <!-- Chart: .ds-chart-plot > wrap + .ds-chart-plot__frame > canvas (dashboard/README.md) -->
       <div class="ds-grid ds-main-grid">
         <div class="ds-chart-container">
           <div class="ds-chart-title">Volume Trend</div>
@@ -90,8 +93,11 @@
               <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
               <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
             </div>
-            <canvas id="volumeChart" class="ds-chart-canvas" style="display:none" aria-label="Volume trend chart"></canvas>
+            <div class="ds-chart-plot__frame">
+              <canvas id="volumeChart" class="ds-chart-canvas" style="display:none" aria-label="Volume trend chart" aria-describedby="volumeChartData"></canvas>
+            </div>
           </div>
+          <div id="volumeChartData" class="ds-chart-data-table-wrap ds-sr-only"></div>
         </div>
         <div class="ds-card">
           <h2>Live Wager Ticker</h2>
@@ -124,13 +130,13 @@
 
     <!-- ═══ Analytics View ═══ -->
     <div class="ds-view" id="view-analytics">
-      <div class="ds-tabs" role="tablist">
-        <button class="ds-tab ds-active" data-chart-tab="traffic">Traffic</button>
-        <button class="ds-tab" data-chart-tab="latency">Latency</button>
-        <button class="ds-tab" data-chart-tab="distribution">Distribution</button>
+      <div class="ds-tabs" role="tablist" aria-label="Analytics charts">
+        <button type="button" class="ds-tab ds-active" role="tab" id="chart-tab-traffic" aria-selected="true" aria-controls="tab-traffic" data-chart-tab="traffic">Traffic</button>
+        <button type="button" class="ds-tab" role="tab" id="chart-tab-latency" aria-selected="false" aria-controls="tab-latency" tabindex="-1" data-chart-tab="latency">Latency</button>
+        <button type="button" class="ds-tab" role="tab" id="chart-tab-distribution" aria-selected="false" aria-controls="tab-distribution" tabindex="-1" data-chart-tab="distribution">Distribution</button>
       </div>
 
-      <div class="ds-tab-content ds-active" id="tab-traffic">
+      <div class="ds-tab-content ds-active" id="tab-traffic" role="tabpanel" aria-labelledby="chart-tab-traffic">
         <div class="ds-chart-container">
           <div class="ds-chart-title">Request Traffic</div>
           <div class="ds-chart-plot ds-chart-plot--lg">
@@ -139,12 +145,15 @@
               <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
               <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
             </div>
-            <canvas id="trafficChart" class="ds-chart-canvas" style="display:none" aria-label="Request traffic chart"></canvas>
+            <div class="ds-chart-plot__frame">
+              <canvas id="trafficChart" class="ds-chart-canvas" style="display:none" aria-label="Request traffic chart" aria-describedby="trafficChartData"></canvas>
+            </div>
           </div>
+          <div id="trafficChartData" class="ds-chart-data-table-wrap ds-sr-only"></div>
         </div>
       </div>
 
-      <div class="ds-tab-content" id="tab-latency">
+      <div class="ds-tab-content" id="tab-latency" role="tabpanel" aria-labelledby="chart-tab-latency" aria-hidden="true">
         <div class="ds-chart-container">
           <div class="ds-chart-title">Endpoint Latency</div>
           <div class="ds-chart-plot ds-chart-plot--lg">
@@ -152,12 +161,15 @@
               <div class="ds-skeleton ds-skeleton-row"></div>
               <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
             </div>
-            <canvas id="latencyChart" class="ds-chart-canvas" style="display:none" aria-label="Endpoint latency chart"></canvas>
+            <div class="ds-chart-plot__frame">
+              <canvas id="latencyChart" class="ds-chart-canvas" style="display:none" aria-label="Endpoint latency chart" aria-describedby="latencyChartData"></canvas>
+            </div>
           </div>
+          <div id="latencyChartData" class="ds-chart-data-table-wrap ds-sr-only"></div>
         </div>
       </div>
 
-      <div class="ds-tab-content" id="tab-distribution">
+      <div class="ds-tab-content" id="tab-distribution" role="tabpanel" aria-labelledby="chart-tab-distribution" aria-hidden="true">
         <div class="ds-grid ds-main-grid">
           <div class="ds-chart-container">
             <div class="ds-chart-title">Wager Types</div>
@@ -166,8 +178,12 @@
                 <div class="ds-skeleton ds-skeleton-row"></div>
                 <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
               </div>
-              <canvas id="typeChart" class="ds-chart-canvas" style="display:none" aria-label="Wager types chart"></canvas>
+              <div class="ds-chart-plot__frame">
+                <canvas id="typeChart" class="ds-chart-canvas" style="display:none" aria-label="Wager types chart" aria-describedby="typeChartData"></canvas>
+              </div>
             </div>
+            <div id="typeChartData" class="ds-chart-data-table-wrap ds-sr-only"></div>
+            <div id="typeChartLegend" class="ds-chart-legend" aria-hidden="true"></div>
           </div>
           <div class="ds-chart-container">
             <div class="ds-chart-title">Agent Volume</div>
@@ -176,8 +192,11 @@
                 <div class="ds-skeleton ds-skeleton-row"></div>
                 <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
               </div>
-              <canvas id="agentChart" class="ds-chart-canvas" style="display:none" aria-label="Agent volume chart"></canvas>
+              <div class="ds-chart-plot__frame">
+                <canvas id="agentChart" class="ds-chart-canvas" style="display:none" aria-label="Agent volume chart" aria-describedby="agentChartData"></canvas>
+              </div>
             </div>
+            <div id="agentChartData" class="ds-chart-data-table-wrap ds-sr-only"></div>
           </div>
         </div>
       </div>
@@ -307,8 +326,12 @@
     <div class="ds-view" id="view-endpoints">
       <div class="ds-card">
         <h2>Endpoint Manifest <span class="ds-subtitle" id="endpointsCount"></span></h2>
+        <div class="ds-tabs ds-tabs--compact" role="tablist" aria-label="Endpoint manifest type">
+          <button type="button" class="ds-tab ds-active" role="tab" id="endpoint-tab-worker" data-endpoint-tab="worker" aria-selected="true">Worker API</button>
+          <button type="button" class="ds-tab" role="tab" id="endpoint-tab-upstream" data-endpoint-tab="upstream" aria-selected="false" tabindex="-1">Upstream Fantasy402</button>
+        </div>
         <div class="ds-filters ds-filters-bar">
-          <label>Zone <select id="endpointZoneFilter"><option value="">All</option><option value="query">Query</option><option value="auth">Auth</option><option value="network">Network</option><option value="do">Durable Object</option><option value="ingestion">Ingestion</option><option value="cookie">Cookie</option></select></label>
+          <label>Zone <select id="endpointZoneFilter"><option value="">All</option><option value="query">Query</option><option value="auth">Auth</option><option value="network">Network</option><option value="do">Durable Object</option><option value="ingestion">Ingestion</option><option value="cookie">Cookie</option><option value="upstream">Upstream</option><option value="data">Data</option><option value="worker">Worker</option></select></label>
           <label>Method <select id="endpointMethodFilter"><option value="">All</option><option value="GET">GET</option><option value="POST">POST</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select></label>
         </div>
         <div id="endpointsTable">
@@ -367,6 +390,6 @@
 </div>
 <div class="ds-drawer__backdrop" id="drawerBackdrop" aria-hidden="true"></div>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=3.4.0"></script>
 </body>
 </html>

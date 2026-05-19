@@ -4,6 +4,7 @@ import { $ } from './dom.js';
 import { escapeHtml } from './dom.js';
 import { fmt, usd, ago, tag } from './format.js';
 import { isMissingTokenError } from './api-client.js';
+import { renderEmptyState } from './design-system.js';
 
 export function createTicker(ctx) {
   let tickerSince = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -43,12 +44,16 @@ export function createTicker(ctx) {
     const filtered = tickerItems.filter(matchesFilters);
     if (!filtered.length) {
       if (!apiConfigured) {
-        feed.innerHTML = '<div class="ds-empty-state"><div class="ds-empty-state__icon">🔑</div><div class="ds-empty-state__message">Live wagers available via SSE. Configure Pages secret for historical ticker data.</div></div>';
+        feed.innerHTML = renderEmptyState({
+          icon: '🔑',
+          message: 'Live wagers available via SSE.',
+          hint: 'Configure Pages secret for historical ticker data.',
+        });
         return;
       }
       feed.innerHTML = tickerItems.length === 0
         ? '<div class="ds-skeleton ds-skeleton-ticker"></div><div class="ds-skeleton ds-skeleton-ticker"></div><div class="ds-skeleton ds-skeleton-ticker"></div>'
-        : '<div class="ds-empty-state"><div class="ds-empty-state__icon">📭</div><div class="ds-empty-state__message">No wagers match filters</div></div>';
+        : renderEmptyState({ icon: '📭', message: 'No wagers match filters' });
       return;
     }
     feed.innerHTML = filtered.map((w) => `

@@ -1,27 +1,34 @@
-/* dashboard/css/components/card.css */
+/* Panel container — elevated surface variant for emphasis */
 
 .ds-card {
   background: var(--secondary-bg);
   border: 1px solid var(--border-ds);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: var(--space-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.ds-card--elevated {
+  background: var(--elevated-bg);
+  box-shadow: var(--shadow-md);
 }
 
 .ds-card .ds-label {
-  font-size: 0.75rem;
-  color: var(--muted);
+  font-size: var(--text-xs);
+  color: var(--secondary-text);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .ds-card .ds-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-top: 0.25rem;
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-bold);
+  margin-top: var(--space-xs);
+  color: var(--primary-text);
 }
 
 .ds-card .ds-sub {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-top: 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--secondary-text);
+  margin-top: var(--space-xs);
 }

@@ -33,13 +33,19 @@
 </head>
 <body>
 
-<h1>
-  <span class="ds-conn-status ds-conn-polling" id="connStatus"></span>
-  Fantasy402 Dashboard
-  <span class="ds-last-update" id="lastUpdate"></span>
-  <button class="ds-theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme">🌙</button>
-  <button class="ds-theme-toggle" id="drawerToggle" title="Quick settings" aria-label="Open settings drawer">⚡</button>
-</h1>
+<header class="ds-header">
+  <div class="ds-header__brand">
+    <h1 class="ds-header__title">Fantasy402 Dashboard</h1>
+    <div class="ds-header__status">
+      <span class="ds-conn-status ds-conn-polling" id="connStatus"></span>
+      <span class="ds-last-update" id="lastUpdate"></span>
+    </div>
+  </div>
+  <div class="ds-header__actions">
+    <button class="ds-icon-button" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme">🌙</button>
+    <button class="ds-icon-button" id="drawerToggle" title="Quick settings" aria-label="Open settings drawer">⚙️</button>
+  </div>
+</header>
 
 <div class="ds-layout">
   <nav class="ds-sidebar">

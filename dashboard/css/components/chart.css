@@ -34,7 +34,6 @@
   width: 100%;
   height: 280px;
   overflow: hidden;
-  contain: strict;
 }
 
 .ds-chart-plot--sm { height: 200px; }

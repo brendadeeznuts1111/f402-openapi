@@ -46,6 +46,16 @@ export function resizeAllCharts() {
   }
 }
 
+/** Re-render charts that deferred because their plot had no layout size yet. */
+export function flushDeferredCharts() {
+  for (const chart of Object.values(instances)) {
+    if (!chart || chart.hasChart) continue;
+    if (chart.data || chart._pendingData) {
+      chart.render(undefined, { force: true });
+    }
+  }
+}
+
 let plotResizeObserver = null;
 let resizeDebounce = null;
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.6.1 — Chart layout sizing fix
+
+### Fixed
+- Charts rendering as a thin strip when stat cards / layout reflow after first paint
+- Deferred render when plot has zero size; post-layout resize via ResizeObserver
+- Removed `contain: strict` on chart plots (broke Chart.js dimension reads)
+
 ## v3.6.0 — Chart a11y, server aggregates, upstream manifest
 
 ### Added

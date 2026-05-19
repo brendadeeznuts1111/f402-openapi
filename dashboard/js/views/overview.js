@@ -7,7 +7,7 @@ import { renderErrorState, storeTTL } from '../ui.js';
 import { getRefreshInterval, getChartColors, chartFillColor, renderEmptyState } from '../design-system.js';
 import { announceChartStatus } from '../chart-dom.js';
 import { resolveVolumeChartType } from '../utils.js';
-import { ensureChart } from '../charts.js';
+import { ensureChart, flushDeferredCharts, resizeAllCharts } from '../charts.js';
 import { ensureChartMarkup, showChartReady, showChartError, showChartMessage } from '../chart-dom.js';
 import { chartDataFromAggregates, mountLineBarTable } from '../chart-data.js';
 import { SortableTable } from '../sortable-table.js';
@@ -19,12 +19,22 @@ const CHART_HOURS = 24;
 
 export async function loadOverview(ctx) {
   $('lastUpdate').textContent = new Date().toLocaleTimeString();
+  await loadStatCards(ctx);
   await Promise.all([
-    loadStatCards(ctx),
     renderVolumeChart(ctx),
     loadAgentTable(ctx),
     loadEventTimeline(ctx),
   ]);
+  scheduleOverviewChartResize();
+}
+
+function scheduleOverviewChartResize() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      flushDeferredCharts();
+      resizeAllCharts();
+    });
+  });
 }
 
 async function loadStatCards(ctx) {

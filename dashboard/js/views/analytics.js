@@ -8,7 +8,7 @@ import {
   chartFillColor,
   renderEmptyState,
 } from '../design-system.js';
-import { ensureChart, getChart } from '../charts.js';
+import { ensureChart, getChart, flushDeferredCharts, resizeAllCharts } from '../charts.js';
 import {
   ensureChartMarkup,
   showChartReady,
@@ -171,6 +171,8 @@ export async function renderAnalyticsCharts(ctx) {
       typeChart.data = typeData;
       agentChart.data = agentData;
     }
+
+    scheduleAnalyticsChartResize();
   } catch (e) {
     const msg = chartLoadErrorMessage(e);
     showChartError(CHART_MOUNTS.traffic.wrapId, msg);
@@ -218,7 +220,10 @@ export function onChartTabVisible(name, ctx) {
   setActiveChartTab(name);
   if (name === 'traffic') {
     const chart = getChart('traffic');
-    if (chart) chart.render();
+    if (chart) {
+      showChartReady(ensureChartMarkup(CHART_MOUNTS.traffic));
+      chart.render(undefined, { force: !chart.hasChart });
+    }
   }
   if (name === 'latency') {
     const latency = analyticsData?.routeLatency;
@@ -235,7 +240,7 @@ export function onChartTabVisible(name, ctx) {
     const agentChart = getChart('agent');
     if (typeChart) {
       showChartReady(ensureChartMarkup(CHART_MOUNTS.type));
-      typeChart.render();
+      typeChart.render(undefined, { force: !typeChart.hasChart });
       if (analyticsData?.aggregates) {
         mountChartLegend('typeChartLegend', [
           { label: 'Straight', color: getWagerTypeChartColors()[0] },
@@ -247,7 +252,17 @@ export function onChartTabVisible(name, ctx) {
     }
     if (agentChart) {
       showChartReady(ensureChartMarkup(CHART_MOUNTS.agent));
-      agentChart.render();
+      agentChart.render(undefined, { force: !agentChart.hasChart });
     }
   }
+  scheduleAnalyticsChartResize();
+}
+
+function scheduleAnalyticsChartResize() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      flushDeferredCharts();
+      resizeAllCharts();
+    });
+  });
 }

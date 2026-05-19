@@ -20,7 +20,7 @@ import { AutoRefreshManager } from './utils.js';
 import { DataStore } from './store.js';
 import { SettingsManager } from './settings-manager.js';
 import { StatusPoller } from './status-poller.js';
-import { destroyAllCharts, resizeAllCharts, initChartPlotResizeObserver } from './charts.js';
+import { destroyAllCharts, resizeAllCharts, initChartPlotResizeObserver, flushDeferredCharts } from './charts.js';
 import { createTicker } from './ticker.js';
 import { applyTheme, initTheme } from './theme.js';
 import {
@@ -124,6 +124,7 @@ function scheduleResizeCharts() {
   if (resizeChartsTimer) clearTimeout(resizeChartsTimer);
   resizeChartsTimer = setTimeout(() => {
     resizeChartsTimer = null;
+    flushDeferredCharts();
     resizeAllCharts();
   }, 150);
 }

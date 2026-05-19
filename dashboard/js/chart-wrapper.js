@@ -75,9 +75,44 @@ function getThemeColors() {
 
 function isElementVisible(el) {
   if (!el) return false;
-  if (el.offsetParent !== null) return true;
   const style = getComputedStyle(el);
-  return style.display !== 'none' && style.visibility !== 'hidden';
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  if (el.offsetParent !== null) return true;
+  return style.position === 'fixed' || style.position === 'sticky';
+}
+
+function plotHasSize(plot) {
+  if (!plot) return false;
+  const rect = plot.getBoundingClientRect();
+  return rect.width >= 8 && rect.height >= 8;
+}
+
+function waitForPlotSize(plot, timeoutMs = 3000) {
+  if (!plot || plotHasSize(plot)) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve();
+    };
+    const observer = new ResizeObserver(() => {
+      if (plotHasSize(plot)) finish();
+    });
+    observer.observe(plot);
+    const timer = setTimeout(finish, timeoutMs);
+  });
+}
+
+function scheduleChartResize(chart) {
+  if (!chart?.chart) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      chart.resize();
+    });
+  });
 }
 
 function getPlotElement(canvas) {
@@ -119,6 +154,7 @@ export class ChartWrapper {
     this.chart = null;
     this._deferred = false;
     this._pendingData = null;
+    this._plotObserver = null;
   }
 
   get hasChart() {
@@ -182,18 +218,26 @@ export class ChartWrapper {
     }
 
     const plot = getPlotElement(canvas);
-    if (!isElementVisible(plot || canvas) && !canvas.hasAttribute('data-chart-force')) {
+    const visible = isElementVisible(plot || canvas);
+    const sized = plotHasSize(plot);
+
+    if ((!visible || !sized) && !canvas.hasAttribute('data-chart-force')) {
       this._deferred = true;
       if (data) this._pendingData = data;
+      this._watchPlotSize(plot);
       return;
     }
     this._deferred = false;
+    this._clearPlotWatch();
 
     if (this.chart && !force) {
-      return this.update(this._pendingData || this.data);
+      const result = this.update(this._pendingData || this.data);
+      scheduleChartResize(this);
+      return result;
     }
 
     await ensureChartJs();
+    await waitForPlotSize(plot);
     if (this.chart) {
       this.chart.destroy();
       this.chart = null;
@@ -213,7 +257,24 @@ export class ChartWrapper {
       options: this._buildOptions(theme),
     });
     this._pendingData = null;
+    scheduleChartResize(this);
     return this.chart;
+  }
+
+  _watchPlotSize(plot) {
+    if (!plot || this._plotObserver) return;
+    this._plotObserver = new ResizeObserver(() => {
+      if (!this._deferred || !plotHasSize(plot) || !isElementVisible(plot)) return;
+      this.render(undefined, { force: !this.chart });
+    });
+    this._plotObserver.observe(plot);
+  }
+
+  _clearPlotWatch() {
+    if (this._plotObserver) {
+      this._plotObserver.disconnect();
+      this._plotObserver = null;
+    }
   }
 
   update(data) {
@@ -238,6 +299,7 @@ export class ChartWrapper {
   }
 
   destroy() {
+    this._clearPlotWatch();
     if (this.chart) {
       this.chart.destroy();
       this.chart = null;
@@ -246,5 +308,6 @@ export class ChartWrapper {
     if (canvas) resetCanvasElement(canvas);
     this._deferred = false;
     this._pendingData = null;
+    this._plotObserver = null;
   }
 }

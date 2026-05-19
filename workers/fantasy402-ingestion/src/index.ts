@@ -1242,6 +1242,20 @@ const worker = {
       }
     }
 
+    if (url.pathname === "/endpoints" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return json(listWorkerEndpoints(), 200);
+    }
+
+    if (url.pathname === "/endpoint-status" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return getEndpointStatus(env);
+    }
+
     return json({ status: "failed", message: "Not Found" }, 404);
   },
 };
@@ -5502,6 +5516,109 @@ function json(body: unknown, status: number): Response {
       "Cache-Control": "no-store",
     },
   });
+}
+
+// ── Worker API Endpoint Manifest ──────────────────────────────
+
+interface WorkerEndpointEntry {
+  path: string;
+  method: string;
+  refreshMs: number | string;
+  description: string;
+}
+
+const WORKER_API_ZONE: Record<string, string> = {
+  '/summary': 'query',
+  '/bet-ticker-wagers': 'query',
+  '/performance': 'query',
+  '/graded-wagers': 'query',
+  '/prop-wagers': 'query',
+  '/position-data': 'query',
+  '/authorizations': 'query',
+  '/players': 'query',
+  '/alert-rules': 'auth',
+  '/alert-log': 'auth',
+  '/alerts': 'auth',
+  '/alerts/summary': 'auth',
+  '/health': 'auth',
+  '/diagnostics': 'auth',
+  '/runs': 'auth',
+  '/runs/endpoints': 'auth',
+  '/endpoints': 'auth',
+  '/endpoint-status': 'auth',
+  '/scans': 'network',
+  '/scanner/diagnostics': 'network',
+  '/live-wagers': 'do',
+  '/ingest/local': 'ingestion',
+  '/refresh-auth': 'cookie',
+  '/update-cookies': 'cookie',
+  '/upstream-cookies-status': 'cookie',
+};
+
+const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
+  { path: '/summary', method: 'GET', description: 'Aggregated daily KPIs', refreshMs: 15000 },
+  { path: '/bet-ticker-wagers', method: 'GET', description: 'Live wager ticker (polling fallback)', refreshMs: 5000 },
+  { path: '/performance', method: 'GET', description: 'Agent performance metrics', refreshMs: 15000 },
+  { path: '/graded-wagers', method: 'GET', description: 'Graded wager results', refreshMs: 10000 },
+  { path: '/prop-wagers', method: 'GET', description: 'Prop bet wagers', refreshMs: 15000 },
+  { path: '/position-data', method: 'GET', description: 'Sport-level position data', refreshMs: 30000 },
+  { path: '/authorizations', method: 'GET', description: 'Agent authorization permissions', refreshMs: 30000 },
+  { path: '/players', method: 'GET', description: 'Player list', refreshMs: 30000 },
+  { path: '/alert-rules', method: 'GET', description: 'List alert rules', refreshMs: 30000 },
+  { path: '/alert-rules', method: 'POST', description: 'Create alert rule', refreshMs: 'manual' },
+  { path: '/alert-rules', method: 'PATCH', description: 'Toggle alert rule', refreshMs: 'manual' },
+  { path: '/alert-rules', method: 'DELETE', description: 'Delete alert rule', refreshMs: 'manual' },
+  { path: '/alert-log', method: 'GET', description: 'Alert breach history', refreshMs: 30000 },
+  { path: '/alerts', method: 'GET', description: 'Recent alerts', refreshMs: 30000 },
+  { path: '/alerts/summary', method: 'GET', description: 'Alert summary counts', refreshMs: 30000 },
+  { path: '/health', method: 'GET', description: 'Worker, D1, DO, upstream health', refreshMs: 30000 },
+  { path: '/diagnostics', method: 'GET', description: 'Full system diagnostics', refreshMs: 60000 },
+  { path: '/runs', method: 'GET', description: 'Ingestion run history', refreshMs: 30000 },
+  { path: '/runs/endpoints', method: 'GET', description: 'Per-run endpoint details', refreshMs: 30000 },
+  { path: '/endpoints', method: 'GET', description: 'API endpoint manifest', refreshMs: 60000 },
+  { path: '/endpoint-status', method: 'GET', description: 'Endpoint health status', refreshMs: 30000 },
+  { path: '/scans', method: 'GET', description: 'Scan history', refreshMs: 30000 },
+  { path: '/scanner/diagnostics', method: 'GET', description: 'Scanner subsystem diagnostics', refreshMs: 60000 },
+  { path: '/live-wagers', method: 'GET', description: 'SSE real-time wager stream', refreshMs: 'realtime' },
+  { path: '/ingest/local', method: 'POST', description: 'Local browser ingestion', refreshMs: 'manual' },
+  { path: '/refresh-auth', method: 'POST', description: 'Refresh upstream auth token', refreshMs: 'manual' },
+  { path: '/update-cookies', method: 'POST', description: 'Update browser cookies', refreshMs: 'manual' },
+  { path: '/upstream-cookies-status', method: 'GET', description: 'Cookie health status', refreshMs: 60000 },
+];
+
+function listWorkerEndpoints(): { count: number; routes: (WorkerEndpointEntry & { zone: string })[] } {
+  const routes = WORKER_API_ROUTES.map((r) => ({
+    ...r,
+    zone: WORKER_API_ZONE[r.path] || 'worker',
+  }));
+  return { count: routes.length, routes };
+}
+
+async function getEndpointStatus(env: Env): Promise<Response> {
+  const latestRun = await env.ANALYTICS_DB.prepare(
+    `SELECT id, started_at, finished_at, status, endpoints_requested, endpoints_succeeded, endpoints_failed, error_message
+     FROM ingestion_runs
+     ORDER BY started_at DESC
+     LIMIT 1`,
+  ).all();
+
+  const failures = await env.ANALYTICS_DB.prepare(
+    `SELECT endpoint_key, path, COUNT(*) as failure_count, MAX(failed_at) as last_failure
+     FROM endpoint_failures
+     WHERE failed_at > datetime('now', '-1 day')
+     GROUP BY endpoint_key
+     ORDER BY failure_count DESC`,
+  ).all();
+
+  return json(
+    {
+      worker: 'ok',
+      latestRun: latestRun.results?.[0] ?? null,
+      recentFailures: failures.results ?? [],
+      timestamp: new Date().toISOString(),
+    },
+    200,
+  );
 }
 
 function required(value: string | undefined, name: string): string {

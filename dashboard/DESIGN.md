@@ -306,7 +306,7 @@ dashboard/
 ├── _worker.js                 # Pages Function proxy (injects Bearer token)
 ├── wrangler.toml              # Pages deployment config
 ├── css/
-│   ├── design-system.css      # Tokens, reset, utilities, animations, theme
+│   ├── design-system.css      # Tokens, reset, utilities, animations, theme, sidebar
 │   └── components/
 │       ├── card.css           # Card component
 │       ├── table.css          # Table component
@@ -326,30 +326,39 @@ dashboard/
 │       └── tooltip.css        # Tooltip on hover
 └── js/
     ├── constants.js           # ZONE_COLORS, ENDPOINT_ZONE_MAP, REFRESH_INTERVALS
-    └── utils.js               # DateFormatter, NumberFormatter, Exporter, LazyLoader, ModalFactory
+    ├── design-system.js       # ComponentFactory, getZoneColor, getRefreshInterval, getZoneName
+    ├── api-client.js          # api/Post/Patch/Delete with dedup, cache, bust, global error handler
+    ├── websocket-client.js    # WagerSocket (SSE) + PollingFallback
+    ├── store.js               # DataStore (TTL cache + EventEmitter)
+    ├── status-poller.js       # StatusPoller (endpoint health polling)
+    └── utils.js               # DateFormatter, NumberFormatter, Exporter, LazyLoader, AutoRefreshManager, ModalFactory
 ```
 
 ### 6.2 Dashboard Components
 
-| Component | Tab | Description | Data Source |
-|-----------|-----|-------------|-------------|
+| Component | View | Description | Data Source |
+|-----------|------|-------------|-------------|
 | **Connection Status** | — | SSE/polling indicator (green dot / red dot) | SSE open/error events |
 | **Last Update Time** | — | Timestamp of most recent ticker update | ticker push |
+| **Sidebar** | — | Left nav with view switching + zone status indicators | `StatusPoller` via `GET /endpoint-status` (30s) |
 | **SummaryCards** | Monitor | 4 KPI cards: live wager count, volume, top agents, top sport | `GET /summary` (15s) |
-| **LiveWagerTicker** | Monitor | Scrollable live wager feed, filterable by type + min amount | `GET /live-wagers` SSE + `GET /bet-ticker-wagers` fallback (5s) |
-| **AgentPerformanceTable** | Monitor | Agent metrics, sortable by volume/win% | `GET /performance` (15s) |
+| **LiveWagerTicker** | Monitor | Scrollable live wager feed, filterable by type + min amount | `WagerSocket` SSE + `PollingFallback` (5s) |
+| **AgentPerformanceTable** | Monitor | Top agent metrics, sortable | `GET /performance` (15s) |
 | **GradedWagersTable** | Monitor | Graded results, filterable by result/agent | `GET /graded-wagers` (10s) |
 | **AuthorizationsGrid** | Monitor | Card-style agent permission list | `GET /authorizations` (30s) |
+| **AgentDetailTable** | Agents | Full agent list with search/filter | `GET /performance` (15s) |
+| **ScansTable** | Scans | Recent scan history with verdicts | `GET /scans` (manual) |
 | **AlertRulesForm** | Alerts | Create new alert rules | `POST /alert-rules` |
-| **AlertRulesList** | Alerts | Existing rules with toggle/delete | `GET /alert-rules`, `DELETE /alert-rules`, `PATCH /alert-rules` |
+| **AlertRulesList** | Alerts | Existing rules with toggle/delete | `GET /alert-rules` + CRUD |
 | **AlertLogViewer** | Alerts | Breach history, filterable | `GET /alert-log` |
 | **Toast Container** | — | Threshold alert toasts + browser notifications | Client-side `checkThresholds()` |
-| **Skeleton Loader** | — | Shimmer-animated placeholder for cards/tables/ticker | CSS `skeleton` class |
+| **Skeleton Loader** | — | Shimmer placeholder for cards/tables/ticker | CSS `skeleton` class |
 | **ErrorState** | — | Zone-colored inline error display | `renderErrorState(msg, endpoint)` |
 | **ThemeToggle** | — | Light/dark mode switcher with `localStorage` persistence | `[data-theme="light"]` override |
-| **Modal** | — | Overlay dialog with focus trapping, Escape to close, body scroll lock | `ModalFactory.create/open/close/destroy` |
-| **ChartContainer** | — | Responsive canvas wrapper for future chart libraries | `.ds-chart-container` + `.ds-chart-canvas` |
-| **Dropdown** | — | Action menu with click-outside-to-close | `.ds-dropdown` + `.ds-dropdown__menu` |
+| **SidebarStatus** | — | Zone health dots (ok/degraded/error) per subsystem | `StatusPoller` → zone derivation |
+| **Modal** | — | Overlay dialog with focus trapping, Escape, body scroll lock | `ModalFactory` |
+| **ChartContainer** | — | Responsive canvas wrapper for chart libraries | `.ds-chart-container` |
+| **Dropdown** | — | Action menu | `.ds-dropdown` + `.ds-dropdown__menu` |
 | **Tooltip** | — | Hover tooltip via `[data-tooltip]` attribute | CSS `::after` pseudo-element |
 
 ### 6.3 Real‑time Ticker Flow
@@ -369,10 +378,33 @@ dashboard/
 
 **Tab visibility optimization:** When `document.hidden` becomes `true`, all polling `setInterval` timers are cleared. When the tab becomes visible again, data is immediately refreshed and timers restart. SSE connection remains alive in the background. This reduces Worker load when the dashboard is not actively viewed.
 
-All requests go through `fetchWithDedupe(path, options)`:
-- **In-flight deduplication** — concurrent identical requests reuse the same promise.
-- **Response caching** — GET responses cached with TTL = `0.8 × refreshInterval` (or 2s for realtime). Mutations bypass cache but still dedupe.
-- **Cache invalidation** — automatic expiry based on endpoint's configured refresh interval from `constants.js`.
+### 6.4.1 DataStore Layer
+
+A `DataStore` (`js/store.js`) sits between views and the API client:
+
+```
+View → DataStore.fetch(key, fetcherFn, ttlMs) → api() → response
+                                                    ↕
+                                            DataStore (TTL cache)
+                                            EventEmitter (on/off)
+```
+
+- **TTL caching** — cached entries expire after `ttlMs`. Enables cross-view data sharing without re-fetch.
+- **In-flight deduplication** — concurrent `fetch(key)` calls share the same promise.
+- **EventEmitter** — `.on(key, fn)` notifies listeners when data changes or is invalidated.
+- **Cache invalidation** — `.invalidate(key)` / `.invalidateAll()` for manual bust on mutation.
+
+The low-level dedup in `api-client.js` still operates for same-second duplicate requests. DataStore adds a higher-level cache that persists across tab switches.
+
+### 6.4.2 Global Error Handler
+
+`api-client.js` exports `setGlobalErrorHandler(fn)`. The dashboard wires it to display `.ds-toast-item` notifications on any API error:
+
+```javascript
+setGlobalErrorHandler((err, path) => {
+  showAlert(`${path}: ${err.message}`, 'error');
+});
+```
 
 ### 6.4.1 Zone Color Deterministic Mapping
 Every component derives its accent color from its endpoint's zone via `getZoneColor(endpoint)` in `constants.js`:
@@ -398,21 +430,50 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 - **Theme toggle** has `aria-label="Toggle light/dark theme"` and `title` tooltip.
 - **Skeleton loaders** provide visual loading state without requiring ARIA live regions (content replaces skeletons atomically).
 
-### 6.7 JS Utilities (`js/utils.js`)
+### 6.7 JS Modules
+
+#### `js/utils.js` — Formatters, exporters, lifecycle
 
 | Utility | Purpose | Edge Cases Handled |
 |---------|---------|-------------------|
-| `DateFormatter.relative(iso)` | Human-readable relative time | Future dates ("in 5m"), null input returns `"-"` |
+| `DateFormatter.relative(iso)` | Human-readable relative time | Future dates, null returns `""` |
 | `DateFormatter.format(iso, opts)` | Absolute date/time | `{date, time}` options; null safe |
-| `NumberFormatter.currency(n)` | `$1,234.56` | Negative values, null safe |
-| `NumberFormatter.percentage(n, decimals)` | `45.5%` | Negative values, null safe |
-| `NumberFormatter.compact(n)` | `1.2K`, `3.4M` | Null safe, handles B/M/K thresholds |
-| `Exporter.csv(rows, filename)` | Browser CSV download | Escapes commas, quotes, newlines; nested objects flattened to `[object]` (use `Exporter.json` for nested) |
-| `Exporter.json(data, filename)` | Browser JSON download | Pretty-printed with 2-space indent |
-| `LazyLoader.observe(el, cb)` | IntersectionObserver wrapper | Auto-unobserves after first trigger; `disconnect()` cleans up all observers and handlers |
-| `ModalFactory.create(id, opts)` | Modal DOM builder | Focus trapping (Tab/Shift+Tab cycles), Escape to close, restores focus on close, body scroll lock |
+| `NumberFormatter.currency(n)` | `$1,234.56` | Negative, null safe |
+| `NumberFormatter.percentage(n, decimals)` | `45.5%` | Negative, null safe |
+| `NumberFormatter.compact(n)` | `1.2K`, `3.4M` | Null safe |
+| `Exporter.csv(rows, filename)` | Browser CSV download | RFC 4180 quote escaping |
+| `Exporter.json(data, filename)` | Browser JSON download | `WeakSet` circular reference detection |
+| `LazyLoader.observe(el, cb)` | IntersectionObserver wrapper | Auto-unobserve, WeakMap for GC |
+| `AutoRefreshManager` | setInterval registry | `pause()`/`resume()` for visibility changes |
+| `ModalFactory.create/open/close/destroy` | Modal dialog | Focus trap, Escape, body scroll lock |
 
-### 6.8 Z-Index Hierarchy
+#### `js/store.js` — DataStore
+
+| Method | Purpose |
+|--------|---------|
+| `store.get(key)` | Returns cached data or `undefined` if expired |
+| `store.set(key, data, ttl)` | Stores data with TTL |
+| `store.invalidate(key)` | Deletes cache entry + emits change |
+| `store.fetch(key, fetcher, ttl)` | Cache-through fetch with in-flight dedup |
+| `store.on(key, fn)` / `store.off(key, fn)` | Subscribe to changes for a key |
+
+#### `js/status-poller.js` — StatusPoller
+
+| Member | Purpose |
+|--------|---------|
+| `statusPoller.start()` | Begins polling `GET /endpoint-status` every 30s |
+| `statusPoller.onUpdate` | Callback receives `{ worker, zones, recentFailures, timestamp }` |
+| `statusPoller.status` | Snapshot of last known status |
+
+### 6.8 Phase 2 Considerations
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Virtual scrolling** | Planned | Agent table at 50K rows needs virtualized rendering (e.g. `@tanstack/react-virtual` or native `IntersectionObserver` chunking) or server-side cursor pagination. Current `limit=50` is a stopgap. |
+| **Status tooltip detail** | Planned | When a zone dot turns red, show tooltip with failing endpoint name + last error message on hover. |
+| **Chart widgets** | Planned | Use `ComponentFactory.createChart()` with chart library (Chart.js, D3, or lightweight canvas) for volume/PNL trends. |
+
+### 6.9 Z-Index Hierarchy
 ```
 1000  --z-toast        Toast notifications
 2000  --z-modal-backdrop  Modal overlay
@@ -497,7 +558,7 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 
 ---
 
-*Document version: 2.2 – covers v2.2 design system extraction (CSS components, constants.js, theme switcher, skeleton loaders, error states, request deduplication), SSE over HTTP, circuit breaker, idempotency, covering indexes, R2 archive, health/replay endpoints. Updated 2026-05-18.*
+*Document version: 2.3 – adds ESM module architecture, sidebar layout, DataStore, StatusPoller, global error handler, Agents and Scans views. Updated 2026-05-18.*
 
 ---
 
@@ -523,6 +584,17 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 ### 2026-05-18 — P4: WebSocket Migration
 - Deferred — Pages `_worker.js` proxy can't transparently forward WebSocket upgrades. SSE works for current ~100 concurrent connections.
 - Will revisit when Pages Functions natively support WebSocket upgrade pass-through or when dashboard DAU exceeds 50.
+
+### 2026-05-18 — P6: ESM Module Architecture + Sidebar + Store + StatusPoller
+- **ESM migration**: All JS files converted to ES modules with `export`. `index.html` uses `<script type="module">` with imports from all modules. Backward-compat globals set on `window` for non-module usage.
+- **Modules created**: `design-system.js` (ComponentFactory + re-exports), `api-client.js` (dedup + TTL cache + bust-on-mutation + `setGlobalErrorHandler`), `websocket-client.js` (WagerSocket + PollingFallback), `store.js` (DataStore), `status-poller.js` (StatusPoller).
+- **api-client.js enhancements**: Cache busts on POST/PATCH/DELETE. `setGlobalErrorHandler(fn)` wires all API errors to dashboard toasts. Mock mode on localhost with realistic mock data.
+- **WebSocket client**: `WagerSocket` tracks `since` parameter across reconnections (exponential backoff 1s→30s). `PollingFallback` dedup-aware with `tickerItems` reference.
+- **DataStore**: TTL cache with EventEmitter pattern. `fetch(key, fetcher, ttl)` provides cache-through semantics. In-flight dedup per key. Used for summary, performance, and authorizations data.
+- **StatusPoller**: Polls `GET /endpoint-status` every 30s, derives per-zone health from failure data, updates sidebar indicators via `onUpdate` callback.
+- **Sidebar layout**: Left nav with 4 views (Monitor, Agents, Scans, Alerts). Zone health dots at bottom. Collapses to top nav on mobile (<768px). Styles in `design-system.css` (`.ds-layout`, `.ds-sidebar`, `.ds-sidebar__item`, `.ds-sidebar__status`).
+- **Event delegation**: All dynamic content (toggle/delete rule buttons, dismiss toasts) handled via single `document click` listener with `[data-action]` attribute. No `onclick` in HTML.
+- **Worker endpoints**: `/endpoints` returns 28-route manifest. `/endpoint-status` returns latest ingestion run + 24h failure history.
 
 ### 2026-05-18 — P5: Design System v2.2 Extraction
 - **CSS extracted** from inline `<style>` block into `css/design-system.css` (tokens, reset, utilities, animations, theme overrides) + 17 component stylesheets under `css/components/`.

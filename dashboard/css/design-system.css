@@ -198,6 +198,130 @@ button.ds-tab {
 .ds-input-medium { width: 100px; }
 .ds-input-narrow { width: 70px; }
 
+/* ── Layout: Sidebar + Content ── */
+.ds-layout {
+  display: flex;
+  gap: 0;
+  min-height: calc(100vh - 5rem);
+}
+
+.ds-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--secondary-bg);
+  border-right: 1px solid var(--border-ds);
+  padding: var(--space-md) 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-sm);
+}
+
+.ds-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--secondary-text);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-radius: 3px;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.ds-sidebar__item:hover {
+  color: var(--primary-text);
+  background: var(--hover-bg);
+}
+
+.ds-sidebar__item--active {
+  color: var(--primary-text);
+  background: var(--hover-bg);
+  border-left: 2px solid var(--info);
+}
+
+.ds-sidebar__icon {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ds-sidebar__status {
+  margin-top: auto;
+  padding: var(--space-md);
+  border-top: 1px solid var(--border-ds);
+}
+
+.ds-sidebar__status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--tertiary-text);
+  padding: 2px 0;
+}
+
+.ds-sidebar__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ds-sidebar__status-dot--ok    { background: var(--success); }
+.ds-sidebar__status-dot--degraded { background: var(--warning); }
+.ds-sidebar__status-dot--error { background: var(--error); }
+.ds-sidebar__status-dot--unknown { background: var(--tertiary-text); }
+
+.ds-content {
+  flex: 1;
+  padding: 0 1.5rem 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .ds-layout { flex-direction: column; }
+  .ds-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-ds);
+    padding: var(--space-sm) 0;
+    flex-direction: row;
+  }
+  .ds-sidebar__nav { flex-direction: row; overflow-x: auto; }
+  .ds-sidebar__status { display: none; }
+}
+
+/* ── Zone Color Badges ── */
+.ds-zone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+}
+
+.ds-zone-badge--ingestion { background: #2D1B0E; color: #FF6B35; }
+.ds-zone-badge--query     { background: #0E2D1B; color: #00FF88; }
+.ds-zone-badge--auth      { background: #2D2D0E; color: #FFD700; }
+.ds-zone-badge--do        { background: #1E0E2D; color: #DA70D6; }
+.ds-zone-badge--network   { background: #0E1E3A; color: #00BFFF; }
+.ds-zone-badge--cookie    { background: #2D0E0E; color: #FF4444; }
+.ds-zone-badge--worker    { background: #1E3A5F; color: #FFFFFF; }
+.ds-zone-badge--upstream  { background: #0E0E2D; color: #6B8E23; }
+
 /* ── Z-Index Hierarchy ──
    Lowest to highest stacking order:
    1000  toast        (notifications above normal content)

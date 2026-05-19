@@ -29,476 +29,542 @@
   <span class="ds-conn-status ds-conn-polling" id="connStatus"></span>
   Fantasy402 Live Monitor
   <span class="ds-last-update" id="lastUpdate"></span>
-  <button class="ds-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle light/dark theme">🌙</button>
+  <button class="ds-theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme">🌙</button>
 </h1>
 
-<div class="ds-tabs" role="tablist">
-  <button class="ds-tab ds-active" data-tab="monitor" onclick="switchTab('monitor')" role="tab" aria-selected="true" aria-controls="tab-monitor" id="tab-btn-monitor">Monitor</button>
-  <button class="ds-tab" data-tab="alerts" onclick="switchTab('alerts')" role="tab" aria-selected="false" aria-controls="tab-alerts" id="tab-btn-alerts">Alerts</button>
-</div>
-
-<div class="ds-tab-content ds-active" id="tab-monitor">
-  <div class="ds-grid ds-summary-grid" id="summaryCards"></div>
-
-  <div class="ds-grid ds-main-grid">
-    <div class="ds-card">
-      <h2>Live Wager Ticker</h2>
-      <div class="ds-filters ds-filters-bar">
-        <label>Type <select id="tickerType"><option value="">All</option><option value="S">Straight</option><option value="P">Parlay</option><option value="M">Moneyline</option><option value="L">Live</option></select></label>
-        <label>Min $ <input type="number" id="tickerMin" value="0" class="ds-input-narrow"></label>
-      </div>
-      <div class="ds-ticker-container" id="tickerFeed">
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-      </div>
+<div class="ds-layout">
+  <nav class="ds-sidebar">
+    <div class="ds-sidebar__nav">
+      <button class="ds-sidebar__item ds-sidebar__item--active" data-view="monitor">
+        <span class="ds-sidebar__icon">📊</span> Monitor
+      </button>
+      <button class="ds-sidebar__item" data-view="agents">
+        <span class="ds-sidebar__icon">👥</span> Agents
+      </button>
+      <button class="ds-sidebar__item" data-view="scans">
+        <span class="ds-sidebar__icon">🔍</span> Scans
+      </button>
+      <button class="ds-sidebar__item" data-view="alerts">
+        <span class="ds-sidebar__icon">⚠️</span> Alerts
+      </button>
     </div>
-
-    <div class="ds-card">
-      <h2>Top Agents <span class="ds-subtitle">by volume</span></h2>
-      <div id="agentTable">
-        <div class="ds-skeleton ds-skeleton-row"></div>
-        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
-        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
-        <div class="ds-skeleton ds-skeleton-row"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="ds-grid ds-full-grid ds-mt-0">
-    <div class="ds-card">
-      <h2>Graded Wagers</h2>
-      <div class="ds-filters ds-filters-bar">
-        <label>Result <select id="gradedResult"><option value="">All</option><option value="W">Win</option><option value="L">Loss</option><option value="P">Push</option></select></label>
-        <label>Agent <input type="text" id="gradedAgent" placeholder="agent id" class="ds-input-medium"></label>
-      </div>
-      <div id="gradedFeed">
-        <div class="ds-skeleton ds-skeleton-row"></div>
-        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
-        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
-        <div class="ds-skeleton ds-skeleton-row"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="ds-grid ds-full-grid ds-mt-0">
-    <div class="ds-card">
-      <h2>Authorization Status</h2>
-      <div id="authGrid">
-        <div class="ds-skeleton ds-skeleton-card"></div>
-        <div class="ds-skeleton ds-skeleton-card"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="ds-tab-content" id="tab-alerts">
-  <div class="ds-card ds-mb-1">
-    <h2>Alert Rules</h2>
-    <div class="ds-form-row" id="ruleForm">
-      <div class="ds-form-group">
-        <label>Metric</label>
-        <select id="ruleMetric">
-          <option value="wager_amount">Max Wager</option>
-          <option value="agent_volume">Agent Volume</option>
-          <option value="agent_loss">Agent Loss</option>
-          <option value="agent_wager_count">Agent Wager Count</option>
-          <option value="total_volume">Total Volume</option>
-          <option value="win_rate">Win Rate (%)</option>
-        </select>
-      </div>
-      <div class="ds-form-group">
-        <label>Operator</label>
-        <select id="ruleOperator">
-          <option value="gt">&gt;</option>
-          <option value="gte">&ge;</option>
-          <option value="lt">&lt;</option>
-          <option value="lte">&le;</option>
-        </select>
-      </div>
-      <div class="ds-form-group">
-        <label>Threshold (cents)</label>
-        <input type="number" id="ruleThreshold" value="50000" min="0">
-      </div>
-      <div class="ds-form-group">
-        <label>Severity</label>
-        <select id="ruleSeverity">
-          <option value="info">Info</option>
-          <option value="warning" selected>Warning</option>
-          <option value="critical">Critical</option>
-        </select>
-      </div>
-      <div class="ds-form-group">
-        <label>Agent ID (* = all)</label>
-        <input type="text" id="ruleAgent" value="*" class="ds-input-short">
-      </div>
-      <div class="ds-form-group">
-        <label>&nbsp;</label>
-        <button class="ds-btn" onclick="createAlertRule()">Add Rule</button>
-      </div>
-    </div>
-    <div id="alertRulesList">
+    <div class="ds-sidebar__status" id="sidebarStatus">
       <div class="ds-skeleton ds-skeleton-row"></div>
-      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
       <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
-    </div>
-  </div>
-
-  <div class="ds-card">
-    <h2>Alert Log</h2>
-    <div class="ds-filters ds-filters-bar">
-      <label>Severity <select id="logSeverity" onchange="loadAlertLog()"><option value="">All</option><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option></select></label>
-        <label>Agent <input type="text" id="logAgent" placeholder="agent id" class="ds-input-medium" oninput="loadAlertLog()"></label>
-    </div>
-    <div id="alertLogFeed">
       <div class="ds-skeleton ds-skeleton-row"></div>
-      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
-      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
     </div>
-  </div>
+  </nav>
+
+  <main class="ds-content">
+
+    <!-- ═══ Monitor View ═══ -->
+    <div class="ds-view" id="view-monitor">
+      <div class="ds-grid ds-summary-grid" id="summaryCards"></div>
+
+      <div class="ds-grid ds-main-grid">
+        <div class="ds-card">
+          <h2>Live Wager Ticker</h2>
+          <div class="ds-filters ds-filters-bar">
+            <label>Type <select id="tickerType"><option value="">All</option><option value="S">Straight</option><option value="P">Parlay</option><option value="M">Moneyline</option><option value="L">Live</option></select></label>
+            <label>Min $ <input type="number" id="tickerMin" value="0" class="ds-input-narrow"></label>
+          </div>
+          <div class="ds-ticker-container" id="tickerFeed">
+            <div class="ds-skeleton ds-skeleton-ticker"></div>
+            <div class="ds-skeleton ds-skeleton-ticker"></div>
+            <div class="ds-skeleton ds-skeleton-ticker"></div>
+            <div class="ds-skeleton ds-skeleton-ticker"></div>
+            <div class="ds-skeleton ds-skeleton-ticker"></div>
+          </div>
+        </div>
+
+        <div class="ds-card">
+          <h2>Top Agents <span class="ds-subtitle">by volume</span></h2>
+          <div id="agentTable">
+            <div class="ds-skeleton ds-skeleton-row"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+            <div class="ds-skeleton ds-skeleton-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-grid ds-full-grid ds-mt-0">
+        <div class="ds-card">
+          <h2>Graded Wagers</h2>
+          <div class="ds-filters ds-filters-bar">
+            <label>Result <select id="gradedResult"><option value="">All</option><option value="W">Win</option><option value="L">Loss</option><option value="P">Push</option></select></label>
+            <label>Agent <input type="text" id="gradedAgent" placeholder="agent id" class="ds-input-medium"></label>
+          </div>
+          <div id="gradedFeed">
+            <div class="ds-skeleton ds-skeleton-row"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+            <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+            <div class="ds-skeleton ds-skeleton-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-grid ds-full-grid ds-mt-0">
+        <div class="ds-card">
+          <h2>Authorization Status</h2>
+          <div id="authGrid">
+            <div class="ds-skeleton ds-skeleton-card"></div>
+            <div class="ds-skeleton ds-skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Agents View ═══ -->
+    <div class="ds-view" id="view-agents">
+      <div class="ds-card">
+        <h2>Agent Performance</h2>
+        <div class="ds-filters ds-filters-bar">
+          <label>Search <input type="text" id="agentSearch" placeholder="agent id" class="ds-input-medium"></label>
+        </div>
+        <div id="agentDetailTable">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+          <div class="ds-skeleton ds-skeleton-row"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Scans View ═══ -->
+    <div class="ds-view" id="view-scans">
+      <div class="ds-card">
+        <h2>Recent Scans</h2>
+        <div id="scanFeed">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+          <div class="ds-skeleton ds-skeleton-row"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Alerts View ═══ -->
+    <div class="ds-view" id="view-alerts">
+      <div class="ds-card ds-mb-1">
+        <h2>Alert Rules</h2>
+        <div class="ds-form-row" id="ruleForm">
+          <div class="ds-form-group">
+            <label>Metric</label>
+            <select id="ruleMetric">
+              <option value="wager_amount">Max Wager</option>
+              <option value="agent_volume">Agent Volume</option>
+              <option value="agent_loss">Agent Loss</option>
+              <option value="agent_wager_count">Agent Wager Count</option>
+              <option value="total_volume">Total Volume</option>
+              <option value="win_rate">Win Rate (%)</option>
+            </select>
+          </div>
+          <div class="ds-form-group">
+            <label>Operator</label>
+            <select id="ruleOperator">
+              <option value="gt">&gt;</option>
+              <option value="gte">&ge;</option>
+              <option value="lt">&lt;</option>
+              <option value="lte">&le;</option>
+            </select>
+          </div>
+          <div class="ds-form-group">
+            <label>Threshold (cents)</label>
+            <input type="number" id="ruleThreshold" value="50000" min="0">
+          </div>
+          <div class="ds-form-group">
+            <label>Severity</label>
+            <select id="ruleSeverity">
+              <option value="info">Info</option>
+              <option value="warning" selected>Warning</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div class="ds-form-group">
+            <label>Agent ID (* = all)</label>
+            <input type="text" id="ruleAgent" value="*" class="ds-input-short">
+          </div>
+          <div class="ds-form-group">
+            <label>&nbsp;</label>
+            <button class="ds-btn" id="addRuleBtn">Add Rule</button>
+          </div>
+        </div>
+        <div id="alertRulesList">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+        </div>
+      </div>
+
+      <div class="ds-card">
+        <h2>Alert Log</h2>
+        <div class="ds-filters ds-filters-bar">
+          <label>Severity <select id="logSeverity"><option value="">All</option><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option></select></label>
+          <label>Agent <input type="text" id="logAgent" placeholder="agent id" class="ds-input-medium"></label>
+        </div>
+        <div id="alertLogFeed">
+          <div class="ds-skeleton ds-skeleton-row"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+          <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
 <div class="ds-toast" id="alertContainer"></div>
 
-<script src="js/constants.js"></script>
-<script src="js/utils.js"></script>
-<script>
-function $(id) { return document.getElementById(id); }
+<script type="module">
+import { api, apiPost, apiPatch, apiDelete, setGlobalErrorHandler } from './js/api-client.js';
+import { WagerSocket, PollingFallback } from './js/websocket-client.js';
+import { ComponentFactory, getRefreshInterval, getZoneName } from './js/design-system.js';
+import { AutoRefreshManager } from './js/utils.js';
+import { DataStore } from './js/store.js';
+import { StatusPoller } from './js/status-poller.js';
 
-const API = "/api";
+// ── Bootstrap ──
+const $ = (id) => document.getElementById(id);
+const API = '/api';
+const store = new DataStore();
+
+// DataStore TTL should be ~65% of refresh interval so cache expires
+// BEFORE the next refresh, preventing stale data from being shown.
+function storeTTL(refreshMs) {
+  if (typeof refreshMs !== 'number' || refreshMs <= 0) return 3000;
+  return Math.max(refreshMs * 0.65, 3000);
+}
+
+// ── Global error handler → toast ──
+setGlobalErrorHandler((err, path) => {
+  showAlert(`${path || 'API'}: ${err.message}`, 'error');
+});
+
+// ── State ──
 let tickerSince = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-let tickerTimer = null;
-let sseSource = null;
 const MAX_TICKER_ITEMS = 100;
 let tickerItems = [];
+let currentView = 'monitor';
+
+// ── Wager Socket ──
+const wagerSocket = new WagerSocket(API);
+const pollFallback = new PollingFallback(API, 5000);
+
+wagerSocket.onWager = (wager) => addWagerToTicker(wager);
+
+wagerSocket.onStatusChange = (status) => {
+  updateConn(status);
+  if (status === 'connected') pollFallback.stop();
+};
+
+pollFallback.onWager = (wager) => addWagerToTicker(wager);
+
+// ── Status Poller ──
+const statusPoller = new StatusPoller(api, store);
+statusPoller.onUpdate = (status) => renderSidebarStatus(status);
+statusPoller.start();
 
 // ── Theme ──
 function initTheme() {
-  const saved = localStorage.getItem("f402-theme");
-  const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-  const theme = saved || (prefersLight ? "light" : "dark");
-  document.documentElement.setAttribute("data-theme", theme);
-  $("themeToggle").textContent = theme === "light" ? "☀️" : "🌙";
+  const saved = localStorage.getItem('f402-theme');
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  const theme = saved || (prefersLight ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', theme);
+  $('themeToggle').textContent = theme === 'light' ? '☀️' : '🌙';
 }
+
 function toggleTheme() {
-  const current = document.documentElement.getAttribute("data-theme") || "dark";
-  const next = current === "light" ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem("f402-theme", next);
-  $("themeToggle").textContent = next === "light" ? "☀️" : "🌙";
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('f402-theme', next);
+  $('themeToggle').textContent = next === 'light' ? '☀️' : '🌙';
 }
+
 initTheme();
 
-// ── Request Deduplication & Caching ──
-const apiCache = new Map();
-const inFlight = new Map();
+// ── Sidebar ──
+function switchView(name) {
+  currentView = name;
 
-function getCacheTTL(path) {
-  const interval = getRefreshInterval(path);
-  return interval === "realtime" ? 2000 : Math.max(interval * 0.8, 2000);
-}
-
-async function fetchWithDedupe(path, options = {}) {
-  const key = path + (options.body || "");
-  const isRead = !options.method || options.method === "GET";
-  const now = Date.now();
-
-  // Reuse in-flight promise
-  if (inFlight.has(key)) {
-    return inFlight.get(key);
-  }
-
-  // Return cached response if still fresh (GET only)
-  if (isRead && apiCache.has(path)) {
-    const cached = apiCache.get(path);
-    if (now - cached.ts < cached.ttl) {
-      return Promise.resolve(cached.data);
-    }
-  }
-
-  const promise = (async () => {
-    try {
-      const res = await fetch(`${API}${path}`, options);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (isRead) {
-        apiCache.set(path, { data, ts: now, ttl: getCacheTTL(path) });
-      }
-      return data;
-    } finally {
-      inFlight.delete(key);
-    }
-  })();
-
-  inFlight.set(key, promise);
-  return promise;
-}
-
-async function api(path) {
-  return fetchWithDedupe(path);
-}
-
-async function apiPost(path, body) {
-  return fetchWithDedupe(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+  document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
+    item.classList.toggle('ds-sidebar__item--active', item.dataset.view === name);
   });
-}
 
-async function apiPatch(path, body) {
-  return fetchWithDedupe(path, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+  document.querySelectorAll('.ds-view').forEach((v) => {
+    v.style.display = v.id === `view-${name}` ? 'block' : 'none';
   });
+
+  if (name === 'monitor') {
+    startSSE();
+  } else if (name === 'alerts') {
+    stopSSE();
+    loadAlerts();
+  } else if (name === 'agents') {
+    stopSSE();
+    loadAgentDetail();
+  } else if (name === 'scans') {
+    stopSSE();
+    loadScans();
+  }
 }
 
-async function apiDelete(path) {
-  return fetchWithDedupe(path, { method: "DELETE" });
+function renderSidebarStatus(status) {
+  const el = $('sidebarStatus');
+  if (!status || !status.zones) {
+    el.innerHTML = '<div class="ds-loading">Loading...</div>';
+    return;
+  }
+  const html = Object.entries(status.zones).map(([zone, info]) => {
+    const dotClass = `ds-sidebar__status-dot--${info.status}`;
+    const label = zone.charAt(0).toUpperCase() + zone.slice(1);
+    return `<div class="ds-sidebar__status-item"><span class="ds-sidebar__status-dot ${dotClass}"></span> ${label}</div>`;
+  }).join('');
+  el.innerHTML = html;
 }
 
+// ── Formatting ──
 function fmt(n) {
-  if (n == null) return "-";
-  return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  if (n == null) return '-';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function usd(n) {
-  if (n == null) return "-";
-  return "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (n == null) return '-';
+  return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function tag(wt) {
-  const map = { S: "straight", P: "parlay", M: "moneyline", L: "live" };
+  const map = { S: 'straight', P: 'parlay', M: 'moneyline', L: 'live' };
   return `<span class="ds-badge ds-badge-${wt.toLowerCase()}">${map[wt] || wt}</span>`;
 }
 
 function ago(iso) {
-  if (!iso) return "";
+  if (!iso) return '';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s/60)}m ago`;
-  return `${Math.floor(s/3600)}h ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return `${Math.floor(s / 3600)}h ago`;
 }
 
+// ── Connection ──
 function updateConn(status) {
-  const el = $("connStatus");
-  el.className = "ds-conn-status ds-conn-" + status;
+  $('connStatus').className = 'ds-conn-status ds-conn-' + status;
 }
 
+// ── Ticker ──
 function matchesTickerFilters(w) {
-  const type = $("tickerType").value;
-  const min = parseInt($("tickerMin").value) || 0;
+  const type = $('tickerType').value;
+  const min = parseInt($('tickerMin').value) || 0;
   if (type && w.wager_type !== type) return false;
   if (min > 0 && w.amount_wagered < min * 100) return false;
   return true;
 }
 
 function renderTicker() {
-  const feed = $("tickerFeed");
+  const feed = $('tickerFeed');
   const filtered = tickerItems.filter(matchesTickerFilters);
   if (!filtered.length) {
-    if (tickerItems.length === 0) {
-      feed.innerHTML = `
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-        <div class="ds-skeleton ds-skeleton-ticker"></div>
-      `;
-    } else {
-      feed.innerHTML = '<div class="ds-loading">No wagers match filters</div>';
-    }
+    feed.innerHTML = tickerItems.length === 0
+      ? '<div class="ds-skeleton ds-skeleton-ticker"></div><div class="ds-skeleton ds-skeleton-ticker"></div><div class="ds-skeleton ds-skeleton-ticker"></div>'
+      : '<div class="ds-loading">No wagers match filters</div>';
     return;
   }
-  const items = filtered.map(w => `
+  feed.innerHTML = filtered.map((w) => `
     <div class="ds-ticker-item">
-      <span class="ds-login">${w.login || "?"}</span>
+      <span class="ds-login">${w.login || '?'}</span>
       <span>${tag(w.wager_type)}</span>
       <span class="ds-amount">${usd(w.amount_wagered)}</span>
       <span class="ds-time">${ago(w.captured_at)}</span>
     </div>
-  `).join("");
-  feed.innerHTML = items;
+  `).join('');
 }
 
 function addWagerToTicker(wager) {
   tickerItems.unshift(wager);
-  if (tickerItems.length > MAX_TICKER_ITEMS) {
-    tickerItems = tickerItems.slice(0, MAX_TICKER_ITEMS);
-  }
-  if (wager.captured_at) {
+  if (tickerItems.length > MAX_TICKER_ITEMS) tickerItems = tickerItems.slice(0, MAX_TICKER_ITEMS);
+  if (wager.captured_at && wager.captured_at > tickerSince) {
     tickerSince = wager.captured_at;
+    wagerSocket.updateSince(tickerSince);
   }
   renderTicker();
-  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  $('lastUpdate').textContent = new Date().toLocaleTimeString();
   checkThresholds([wager]);
-  updateConn("connected");
+  updateConn('connected');
 }
 
-async function connectSSE() {
-  if (sseSource) {
-    sseSource.close();
-    sseSource = null;
-  }
-  clearInterval(tickerTimer);
-  tickerTimer = null;
-  updateConn("polling");
+// ── SSE lifecycle ──
+function startSSE() {
+  pollFallback.stop();
+  updateConn('polling');
 
-  // Seed ticker with recent wagers via API
-  try {
-    const d = await api(`/bet-ticker-wagers?limit=50&since=${encodeURIComponent(tickerSince)}`);
-    if (d.wagers?.length) {
-      for (const w of d.wagers.reverse()) {
-        addWagerToTicker(w);
-      }
-    }
-  } catch (e) {
-    console.warn("seed fetch failed", e);
-  }
+  api(`/bet-ticker-wagers?limit=50&since=${encodeURIComponent(tickerSince)}`)
+    .then((d) => { if (d.wagers?.length) for (const w of d.wagers.reverse()) addWagerToTicker(w); })
+    .catch((e) => console.warn('seed fetch failed', e));
 
-  // Connect SSE for live updates — use the latest captured_at as the since param
-  const since = tickerSince ? `?since=${encodeURIComponent(tickerSince)}` : "";
-  sseSource = new EventSource(`${API}/live-wagers${since}`);
+  wagerSocket.reconnect();
 
-  sseSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      const wager = data.wager || data;
-      addWagerToTicker(wager);
-    } catch (e) {
-      console.error("SSE parse error", e);
-    }
-  };
-
-  sseSource.onopen = () => {
-    updateConn("connected");
-    clearInterval(tickerTimer);
-    tickerTimer = null;
-  };
-
-  sseSource.onerror = () => {
-    updateConn("error");
-  };
-
-  // Fallback polling after 10s if SSE never connected
   setTimeout(() => {
-    if (sseSource && sseSource.readyState !== EventSource.OPEN && !tickerTimer) {
-      startPollingFallback();
+    const src = wagerSocket.source;
+    if (src && src.readyState !== EventSource.OPEN && !pollFallback.timer) {
+      pollFallback.setTickerItems(tickerItems);
+      pollFallback.start();
     }
   }, 10000);
 }
 
-function startPollingFallback() {
-  if (tickerTimer) return;
-  tickerTimer = setInterval(async () => {
-    try {
-      const since = new Date(Date.now() - 10000).toISOString();
-      const res = await fetch(`${API}/bet-ticker-wagers?since=${encodeURIComponent(since)}&limit=50`);
-      if (!res.ok) return;
-      const d = await res.json();
-      if (d.wagers?.length) {
-        for (const w of d.wagers) {
-          const exists = tickerItems.some(item => item.id === w.id);
-          if (!exists) {
-            addWagerToTicker(w);
-          }
-        }
-        updateConn("connected");
-      }
-    } catch (e) {
-      updateConn("error");
-    }
-  }, 5000);
+function stopSSE() {
+  wagerSocket.disconnect();
+  pollFallback.stop();
 }
 
-function switchTab(name) {
-  document.querySelectorAll(".ds-tab").forEach(t => {
-    t.classList.remove("ds-active");
-    t.setAttribute("aria-selected", "false");
-  });
-  document.querySelectorAll(".ds-tab-content").forEach(t => t.classList.remove("ds-active"));
-  const activeTab = document.querySelector(`.ds-tab[data-tab="${name}"]`);
-  activeTab.classList.add("ds-active");
-  activeTab.setAttribute("aria-selected", "true");
-  document.getElementById(`tab-${name}`).classList.add("ds-active");
-
-  if (name === "monitor") {
-    clearInterval(tickerTimer);
-    tickerTimer = null;
-    if (!sseSource) connectSSE();
-  } else if (name === "alerts") {
-    if (sseSource) { sseSource.close(); sseSource = null; }
-    clearInterval(tickerTimer);
-    tickerTimer = null;
-    loadAlerts();
+// ── Monitor view data ──
+async function loadSummary() {
+  try {
+    const data = await store.fetch('/summary', () => api('/summary'), storeTTL(getRefreshInterval('/summary')));
+    $('summaryCards').innerHTML = `
+      <div class="ds-card"><div class="ds-label">Live Wagers Today</div><div class="ds-value">${fmt(data.liveWagers.total)}</div><div class="ds-sub">${usd(data.liveWagers.volume)} volume · ${data.liveWagers.agents} agents</div></div>
+      <div class="ds-card"><div class="ds-label">Graded Wagers Today</div><div class="ds-value">${fmt(data.gradedWagers.total)}</div><div class="ds-sub">PNL: <span class="${data.gradedWagers.pnl >= 0 ? 'ds-positive' : 'ds-negative'}">${usd(data.gradedWagers.pnl)}</span></div></div>
+      <div class="ds-card"><div class="ds-label">Top Agents</div><div class="ds-value ds-text-md">${data.topAgents.map((a) => a.agent_id).join(', ') || 'none'}</div><div class="ds-sub">${data.topAgents.length} agents with activity today</div></div>
+      <div class="ds-card"><div class="ds-label">Top Sport</div><div class="ds-value ds-text-md">${data.topSports[0]?.sport_name || 'N/A'}</div><div class="ds-sub">${usd(data.topSports[0]?.volume)} volume</div></div>
+    `;
+  } catch (e) {
+    $('summaryCards').innerHTML = renderErrorState(e.message, '/summary');
   }
 }
 
-// ── Alerts tab ──
+async function loadAgents() {
+  try {
+    const d = await store.fetch('/performance', () => api('/performance?limit=20'), storeTTL(getRefreshInterval('/performance')));
+    if (!d.records?.length) { $('agentTable').innerHTML = '<div class="ds-loading">No agent data</div>'; return; }
+    const rows = d.records.map((a) => `
+      <tr><td><strong>${a.agent_id}</strong></td><td>${fmt(a.total_wagers)}</td><td>${usd(a.total_volume)}</td><td class="${a.win_rate >= 50 ? 'ds-positive' : 'ds-negative'}">${a.win_rate?.toFixed(1) ?? '-'}%</td></tr>
+    `).join('');
+    $('agentTable').innerHTML = `<table><thead><tr><th>Agent</th><th>Wagers</th><th>Volume</th><th>Win%</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    $('agentTable').innerHTML = renderErrorState(e.message, '/performance');
+  }
+}
 
+async function loadGraded() {
+  try {
+    const result = $('gradedResult').value;
+    const agent = $('gradedAgent').value.trim();
+    let path = '/graded-wagers?limit=30';
+    if (result) path += `&wager_type=${result}`;
+    if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
+    const d = await api(path);
+    if (!d.wagers?.length) { $('gradedFeed').innerHTML = '<div class="ds-loading">No graded wagers found</div>'; return; }
+    const rows = d.wagers.map((w) => `
+      <tr><td>${w.wager_number}</td><td>${w.login}</td><td>${usd(w.amount_wagered)}</td><td class="${w.net_amount >= 0 ? 'ds-positive' : 'ds-negative'}">${usd(w.net_amount ?? 0)}</td><td><span class="ds-badge ds-badge-${(w.result || 'x').toLowerCase()}">${w.result || '?'}</span></td><td>${ago(w.grade_date_time || w.captured_at)}</td></tr>
+    `).join('');
+    $('gradedFeed').innerHTML = `<table class="ds-table-sm"><thead><tr><th>#</th><th>Login</th><th>Amount</th><th>Net</th><th>Result</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    $('gradedFeed').innerHTML = renderErrorState(e.message, '/graded-wagers');
+  }
+}
+
+async function loadAuth() {
+  try {
+    const d = await store.fetch('/authorizations', () => api('/authorizations?limit=50'), storeTTL(getRefreshInterval('/authorizations')));
+    if (!d.records?.length) { $('authGrid').innerHTML = '<div class="ds-loading">No authorization data</div>'; return; }
+    const cards = d.records.map((a) => `
+      <div class="ds-auth-card"><div class="ds-auth-card__title">${a.agent_id}</div><div class="ds-auth-card__meta">Master: ${a.master_agent_id || '-'}</div><div class="ds-auth-card__meta">Comm: ${a.commission_type || '-'}</div></div>
+    `).join('');
+    $('authGrid').innerHTML = cards || '<div class="ds-loading">No agents authorized</div>';
+  } catch (e) {
+    $('authGrid').innerHTML = renderErrorState(e.message, '/authorizations');
+  }
+}
+
+// ── Agents view ──
+async function loadAgentDetail() {
+  try {
+    const search = $('agentSearch').value.trim().toLowerCase();
+    const d = await store.fetch('/performance', () => api('/performance?limit=50'), storeTTL(getRefreshInterval('/performance')));
+    if (!d.records?.length) { $('agentDetailTable').innerHTML = '<div class="ds-loading">No agent data</div>'; return; }
+    const filtered = search ? d.records.filter((a) => a.agent_id.toLowerCase().includes(search)) : d.records;
+    if (!filtered.length) { $('agentDetailTable').innerHTML = '<div class="ds-loading">No agents match filter</div>'; return; }
+    const rows = filtered.map((a) => `
+      <tr><td><strong>${a.agent_id}</strong></td><td>${fmt(a.total_wagers)}</td><td>${usd(a.total_volume)}</td><td class="${a.win_rate >= 50 ? 'ds-positive' : 'ds-negative'}">${a.win_rate?.toFixed(1) ?? '-'}%</td></tr>
+    `).join('');
+    $('agentDetailTable').innerHTML = `<table><thead><tr><th>Agent</th><th>Wagers</th><th>Volume</th><th>Win%</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    $('agentDetailTable').innerHTML = renderErrorState(e.message, '/performance');
+  }
+}
+
+// ── Scans view ──
+async function loadScans() {
+  try {
+    const d = await api('/scans?limit=20');
+    if (!d.scans?.length) { $('scanFeed').innerHTML = '<div class="ds-loading">No scans found</div>'; return; }
+    const rows = d.scans.map((s) => `
+      <tr><td>${s.scan_id?.slice(0, 8) || '-'}</td><td>${s.url || '-'}</td><td><span class="ds-badge ds-badge-${s.malicious ? 'critical' : 'info'}">${s.malicious ? 'Malicious' : 'Clean'}</span></td><td>${s.tls_valid_days != null ? s.tls_valid_days + 'd' : '-'}</td><td>${ago(s.created_at)}</td></tr>
+    `).join('');
+    $('scanFeed').innerHTML = `<table><thead><tr><th>ID</th><th>URL</th><th>Verdict</th><th>TLS</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    $('scanFeed').innerHTML = renderErrorState(e.message, '/scans');
+  }
+}
+
+// ── Alerts view ──
 async function loadAlerts() {
-  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  $('lastUpdate').textContent = new Date().toLocaleTimeString();
   await Promise.all([loadAlertRules(), loadAlertLog()]);
 }
 
 async function loadAlertRules() {
   try {
-    const d = await api("/alert-rules?limit=100");
-    if (!d.rules?.length) { $("alertRulesList").innerHTML = '<div class="ds-loading">No alert rules configured</div>'; return; }
-    $("alertRulesList").innerHTML = d.rules.map(r => `
+    const d = await api('/alert-rules?limit=100');
+    if (!d.rules?.length) { $('alertRulesList').innerHTML = '<div class="ds-loading">No alert rules configured</div>'; return; }
+    $('alertRulesList').innerHTML = d.rules.map((r) => `
       <div class="ds-rule-row">
         <span class="ds-badge ds-badge-${r.severity}">${r.severity}</span>
         <span><strong>${r.metric}</strong> ${r.operator} ${fmt(r.threshold)}</span>
         <span class="ds-subtitle">agent: ${r.agent_id}</span>
         <span class="ds-rule-meta">${r.enabled ? '✅ enabled' : '⏸ disabled'}</span>
-        <button class="ds-btn ds-btn-sm ${r.enabled ? 'ds-btn-amber' : 'ds-btn'}" onclick="toggleAlertRule('${r.id}', ${!r.enabled})">${r.enabled ? 'Disable' : 'Enable'}</button>
-        <button class="ds-btn ds-btn-sm ds-btn-danger" onclick="deleteAlertRule('${r.id}')">Delete</button>
+        <button class="ds-btn ds-btn-sm ${r.enabled ? 'ds-btn-amber' : 'ds-btn'}" data-action="toggle-rule" data-id="${r.id}" data-enable="${!r.enabled}">${r.enabled ? 'Disable' : 'Enable'}</button>
+        <button class="ds-btn ds-btn-sm ds-btn-danger" data-action="delete-rule" data-id="${r.id}">Delete</button>
       </div>
-    `).join("");
+    `).join('');
   } catch (e) {
-    $("alertRulesList").innerHTML = renderErrorState(e.message, "/alert-rules");
+    $('alertRulesList').innerHTML = renderErrorState(e.message, '/alert-rules');
   }
 }
 
 async function loadAlertLog() {
   try {
-    const severity = $("logSeverity").value;
-    const agent = $("logAgent").value.trim();
-    let path = "/alert-log?limit=100";
+    const severity = $('logSeverity').value;
+    const agent = $('logAgent').value.trim();
+    let path = '/alert-log?limit=100';
     if (severity) path += `&severity=${severity}`;
     if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
     const d = await api(path);
-    if (!d.entries?.length) { $("alertLogFeed").innerHTML = '<div class="ds-loading">No alert breaches</div>'; return; }
-    $("alertLogFeed").innerHTML = `<table class="ds-table-sm"><thead><tr><th>Time</th><th>Severity</th><th>Agent</th><th>Rule</th><th>Actual</th><th>Threshold</th></tr></thead><tbody>${
-      d.entries.map(e => `<tr>
-        <td class="ds-time">${ago(e.created_at)}</td>
-        <td>${severityBadge(e.severity)}</td>
-        <td><strong>${e.agent_id}</strong></td>
-        <td class="ds-cell-sm">${e.metric} ${e.operator}</td>
-        <td class="${Number(e.actual_value) > Number(e.threshold) ? 'ds-negative' : 'ds-positive'}">${fmt(e.actual_value)}</td>
-        <td>${fmt(e.threshold)}</td>
-      </tr>`).join("")
+    if (!d.entries?.length) { $('alertLogFeed').innerHTML = '<div class="ds-loading">No alert breaches</div>'; return; }
+    $('alertLogFeed').innerHTML = `<table class="ds-table-sm"><thead><tr><th>Time</th><th>Severity</th><th>Agent</th><th>Rule</th><th>Actual</th><th>Threshold</th></tr></thead><tbody>${
+      d.entries.map((e) => `<tr><td>${ago(e.created_at)}</td><td>${severityBadge(e.severity)}</td><td><strong>${e.agent_id}</strong></td><td class="ds-cell-sm">${e.metric} ${e.operator}</td><td class="${Number(e.actual_value) > Number(e.threshold) ? 'ds-negative' : 'ds-positive'}">${fmt(e.actual_value)}</td><td>${fmt(e.threshold)}</td></tr>`).join('')
     }</tbody></table>`;
   } catch (e) {
-    $("alertLogFeed").innerHTML = renderErrorState(e.message, "/alert-log");
+    $('alertLogFeed').innerHTML = renderErrorState(e.message, '/alert-log');
   }
 }
 
 async function createAlertRule() {
-  const metric = $("ruleMetric").value;
-  const operator = $("ruleOperator").value;
-  const threshold = parseInt($("ruleThreshold").value) || 0;
-  const severity = $("ruleSeverity").value;
-  const agentId = $("ruleAgent").value.trim() || "*";
+  const metric = $('ruleMetric').value;
+  const operator = $('ruleOperator').value;
+  const threshold = parseInt($('ruleThreshold').value) || 0;
+  const severity = $('ruleSeverity').value;
+  const agentId = $('ruleAgent').value.trim() || '*';
   try {
-    const result = await apiPost("/alert-rules", { metric, operator, threshold, severity, agent_id: agentId });
-    if (result.status === "created") {
-      showAlert(`Alert rule created: ${metric} ${operator} ${threshold}`, "info");
+    const result = await apiPost('/alert-rules', { metric, operator, threshold, severity, agent_id: agentId });
+    if (result.status === 'created') {
+      showAlert(`Alert rule created: ${metric} ${operator} ${threshold}`, 'info');
       await loadAlertRules();
     }
   } catch (e) {
-    showAlert(`Failed: ${e.message}`, "error");
+    showAlert(`Failed: ${e.message}`, 'error');
   }
 }
 
@@ -507,7 +573,7 @@ async function toggleAlertRule(id, enabled) {
     await apiPatch(`/alert-rules?id=${id}`, { enabled });
     await loadAlertRules();
   } catch (e) {
-    showAlert(`Failed to toggle: ${e.message}`, "error");
+    showAlert(`Failed to toggle: ${e.message}`, 'error');
   }
 }
 
@@ -516,7 +582,7 @@ async function deleteAlertRule(id) {
     await apiDelete(`/alert-rules?id=${id}`);
     await loadAlertRules();
   } catch (e) {
-    showAlert(`Failed to delete: ${e.message}`, "error");
+    showAlert(`Failed to delete: ${e.message}`, 'error');
   }
 }
 
@@ -524,153 +590,90 @@ function severityBadge(sev) {
   return `<span class="ds-badge ds-badge-${sev}">${sev}</span>`;
 }
 
-// ── Summary cards ──
-async function loadSummary() {
-  try {
-    const d = await api("/summary");
-    $("summaryCards").innerHTML = `
-      <div class="ds-card"><div class="ds-label">Live Wagers Today</div><div class="ds-value">${fmt(d.liveWagers.total)}</div><div class="ds-sub">${usd(d.liveWagers.volume)} volume · ${d.liveWagers.agents} agents</div></div>
-      <div class="ds-card"><div class="ds-label">Graded Wagers Today</div><div class="ds-value">${fmt(d.gradedWagers.total)}</div><div class="ds-sub">PNL: <span class="${d.gradedWagers.pnl >= 0 ? 'ds-positive' : 'ds-negative'}">${usd(d.gradedWagers.pnl)}</span></div></div>
-      <div class="ds-card"><div class="ds-label">Top Agents</div><div class="ds-value ds-text-md">${d.topAgents.map(a => a.agent_id).join(", ") || "none"}</div><div class="ds-sub">${d.topAgents.length} agents with activity today</div></div>
-      <div class="ds-card"><div class="ds-label">Top Sport</div><div class="ds-value ds-text-md">${d.topSports[0]?.sport_name || "N/A"}</div><div class="ds-sub">${usd(d.topSports[0]?.volume)} volume</div></div>
-    `;
-  } catch (e) {
-    $("summaryCards").innerHTML = renderErrorState(e.message, "/summary");
-  }
-}
-
-// Agent performance
-async function loadAgents() {
-  try {
-    const d = await api("/performance?limit=20");
-    if (!d.records?.length) { $("agentTable").innerHTML = '<div class="ds-loading">No agent data</div>'; return; }
-    const rows = d.records.map(a => `
-      <tr>
-        <td><strong>${a.agent_id}</strong></td>
-        <td>${fmt(a.total_wagers)}</td>
-        <td>${usd(a.total_volume)}</td>
-        <td class="${a.win_rate >= 50 ? 'ds-positive' : 'ds-negative'}">${a.win_rate?.toFixed(1) ?? "-"}%</td>
-      </tr>
-    `).join("");
-    $("agentTable").innerHTML = `<table><thead><tr><th>Agent</th><th>Wagers</th><th>Volume</th><th>Win%</th></tr></thead><tbody>${rows}</tbody></table>`;
-  } catch (e) {
-    $("agentTable").innerHTML = renderErrorState(e.message, "/performance");
-  }
-}
-
-// Graded wagers
-async function loadGraded() {
-  try {
-    const result = $("gradedResult").value;
-    const agent = $("gradedAgent").value.trim();
-    let path = "/graded-wagers?limit=30";
-    if (result) path += `&wager_type=${result}`;
-    if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
-    const d = await api(path);
-    if (!d.wagers?.length) { $("gradedFeed").innerHTML = '<div class="ds-loading">No graded wagers found</div>'; return; }
-    const rows = d.wagers.map(w => `
-      <tr>
-        <td>${w.wager_number}</td>
-        <td>${w.login}</td>
-        <td>${usd(w.amount_wagered)}</td>
-        <td class="${w.net_amount >= 0 ? 'ds-positive' : 'ds-negative'}">${usd(w.net_amount ?? 0)}</td>
-        <td><span class="ds-badge ds-badge-${(w.result || 'x').toLowerCase()}">${w.result || "?"}</span></td>
-        <td class="ds-time">${ago(w.grade_date_time || w.captured_at)}</td>
-      </tr>
-    `).join("");
-    $("gradedFeed").innerHTML = `<table class="ds-table-sm"><thead><tr><th>#</th><th>Login</th><th>Amount</th><th>Net</th><th>Result</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
-  } catch (e) {
-    $("gradedFeed").innerHTML = renderErrorState(e.message, "/graded-wagers");
-  }
-}
-
-// Authorizations
-async function loadAuth() {
-  try {
-    const d = await api("/authorizations?limit=50");
-    if (!d.records?.length) { $("authGrid").innerHTML = '<div class="ds-loading">No authorization data</div>'; return; }
-    const cards = d.records.map(a => `
-      <div class="ds-auth-card">
-        <div class="ds-auth-card__title">${a.agent_id}</div>
-        <div class="ds-auth-card__meta">Master: ${a.master_agent_id || "-"}</div>
-        <div class="ds-auth-card__meta">Comm: ${a.commission_type || "-"}</div>
-      </div>
-    `).join("");
-    $("authGrid").innerHTML = cards || '<div class="ds-loading">No agents authorized</div>';
-  } catch (e) {
-    $("authGrid").innerHTML = renderErrorState(e.message, "/authorizations");
-  }
-}
-
-// Threshold alerts
-const ALERT_THRESHOLDS = {
-  maxWager: 50000,
-  maxLossPerAgent: 100000,
-  agentDailyLoss: {},
-};
+// ── Threshold alerts ──
+const ALERT_THRESHOLDS = { maxWager: 50000, maxLossPerAgent: 100000, agentDailyLoss: {} };
 
 function checkThresholds(wagers) {
   for (const w of wagers) {
     if (w.amount_wagered > ALERT_THRESHOLDS.maxWager) {
-      showAlert(`Large wager: ${w.login || w.customer_id} wagered ${usd(w.amount_wagered)}`, "warn");
+      showAlert(`Large wager: ${w.login || w.customer_id} wagered ${usd(w.amount_wagered)}`, 'warn');
     }
   }
 }
 
-function showAlert(msg, severity = "warn") {
-  const container = $("alertContainer");
-  const el = document.createElement("div");
+function showAlert(msg, severity = 'warn') {
+  const el = document.createElement('div');
   el.className = `ds-toast-item ds-toast-item--${severity}`;
-  el.innerHTML = `${msg} <span class="ds-dismiss" onclick="this.parentElement.remove()">✕</span>`;
-  container.appendChild(el);
+  el.innerHTML = `${msg} <span class="ds-dismiss" data-action="dismiss-toast">✕</span>`;
+  $('alertContainer').appendChild(el);
   setTimeout(() => el.remove(), 8000);
-  if ("Notification" in window && Notification.permission === "granted") {
-    new Notification("Fantasy402 Alert", { body: msg });
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Fantasy402 Alert', { body: msg });
   }
 }
 
-function renderErrorState(msg, endpoint = "") {
-  const zone = getZone(endpoint);
-  const zoneClass = zone !== "worker" ? `ds-error-state--${zone}` : "";
-  return `<div class="ds-error-state ${zoneClass}">${msg}</div>`;
+function renderErrorState(msg, endpoint = '') {
+  const zone = getZoneName(endpoint);
+  return `<div class="ds-error-state ${zone !== 'worker' ? `ds-error-state--${zone}` : ''}">${msg}</div>`;
 }
 
 function requestNotificationPermission() {
-  if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission();
-  }
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
 }
 
-// Filter change handlers
-$("tickerType").addEventListener("change", renderTicker);
-$("tickerMin").addEventListener("input", renderTicker);
-$("gradedResult").addEventListener("change", loadGraded);
-$("gradedAgent").addEventListener("input", loadGraded);
+// ── Event delegation ──
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'toggle-rule') toggleAlertRule(btn.dataset.id, btn.dataset.enable === 'true');
+  else if (action === 'delete-rule') deleteAlertRule(btn.dataset.id);
+  else if (action === 'dismiss-toast') btn.closest('.ds-toast-item').remove();
+});
 
-// Initial load
+// ── DOM wiring ──
+$('themeToggle').addEventListener('click', toggleTheme);
+
+document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
+  item.addEventListener('click', () => switchView(item.dataset.view));
+});
+
+$('addRuleBtn').addEventListener('click', createAlertRule);
+
+$('tickerType').addEventListener('change', renderTicker);
+$('tickerMin').addEventListener('input', renderTicker);
+$('gradedResult').addEventListener('change', loadGraded);
+$('gradedAgent').addEventListener('input', loadGraded);
+$('logSeverity').addEventListener('change', loadAlertLog);
+$('logAgent').addEventListener('input', loadAlertLog);
+$('agentSearch').addEventListener('input', loadAgentDetail);
+
+// ── Initial load ──
 async function init() {
   requestNotificationPermission();
-  $("lastUpdate").textContent = new Date().toLocaleTimeString();
+  $('lastUpdate').textContent = new Date().toLocaleTimeString();
+
+  // Show initial view
+  document.getElementById('view-monitor').style.display = 'block';
+
   await Promise.all([loadSummary(), loadAgents(), loadGraded(), loadAuth()]);
-  connectSSE();
-  AutoRefreshManager.register("summary", loadSummary, getRefreshInterval('/summary'));
-  AutoRefreshManager.register("agents", loadAgents, getRefreshInterval('/performance'));
-  AutoRefreshManager.register("graded", loadGraded, getRefreshInterval('/graded-wagers'));
-  AutoRefreshManager.register("auth", loadAuth, getRefreshInterval('/authorizations'));
+  startSSE();
+
+  AutoRefreshManager.register('summary', loadSummary, getRefreshInterval('/summary'));
+  AutoRefreshManager.register('agents', loadAgents, getRefreshInterval('/performance'));
+  AutoRefreshManager.register('graded', loadGraded, getRefreshInterval('/graded-wagers'));
+  AutoRefreshManager.register('auth', loadAuth, getRefreshInterval('/authorizations'));
 }
 
-// Pause/resume intervals when tab hidden/visible to save Worker load
-document.addEventListener("visibilitychange", () => {
+document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // Tab hidden: pause all polling intervals (SSE stays alive)
     AutoRefreshManager.pause();
   } else {
-    // Tab visible: immediately refresh and re-register intervals
     loadSummary(); loadAgents(); loadGraded(); loadAuth();
-    AutoRefreshManager.register("summary", loadSummary, getRefreshInterval('/summary'));
-    AutoRefreshManager.register("agents", loadAgents, getRefreshInterval('/performance'));
-    AutoRefreshManager.register("graded", loadGraded, getRefreshInterval('/graded-wagers'));
-    AutoRefreshManager.register("auth", loadAuth, getRefreshInterval('/authorizations'));
+    AutoRefreshManager.register('summary', loadSummary, getRefreshInterval('/summary'));
+    AutoRefreshManager.register('agents', loadAgents, getRefreshInterval('/performance'));
+    AutoRefreshManager.register('graded', loadGraded, getRefreshInterval('/graded-wagers'));
+    AutoRefreshManager.register('auth', loadAuth, getRefreshInterval('/authorizations'));
   }
 });
 

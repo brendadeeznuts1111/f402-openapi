@@ -1,9 +1,10 @@
 // dashboard/js/utils.js
-// Formatters, exporter, lazy loader, modal factory.
-// Zero dependencies. Loaded after constants.js.
+// Formatters, exporter, lazy loader, modal factory, auto-refresh manager.
+// ESM exports (loaded via <script type="module"> import).
+// Backward-compat globals set on window for the existing inline <script>.
 
 // ── DateFormatter ──
-const DateFormatter = {
+export const DateFormatter = {
   _plural(n, singular, plural) {
     return n === 1 ? `1 ${singular}` : `${n} ${plural}`;
   },
@@ -43,7 +44,7 @@ const DateFormatter = {
 };
 
 // ── NumberFormatter ──
-const NumberFormatter = {
+export const NumberFormatter = {
   currency(n, currency = "USD") {
     if (n == null) return "-";
     const abs = Math.abs(n);
@@ -68,7 +69,7 @@ const NumberFormatter = {
 };
 
 // ── Exporter ──
-const Exporter = {
+export const Exporter = {
   csv(rows, filename = "export.csv") {
     if (!rows?.length) return;
 
@@ -131,7 +132,7 @@ const Exporter = {
 };
 
 // ── LazyLoader ──
-const LazyLoader = {
+export const LazyLoader = {
   _observer: null,
   _handlers: new WeakMap(),
 
@@ -180,7 +181,7 @@ const LazyLoader = {
 };
 
 // ── AutoRefreshManager ──
-const AutoRefreshManager = {
+export const AutoRefreshManager = {
   _timers: new Map(),
 
   register(name, fn, intervalMs) {
@@ -227,7 +228,7 @@ const AutoRefreshManager = {
 };
 
 // ── ModalFactory ──
-const ModalFactory = {
+export const ModalFactory = {
   _activeModal: null,
   _lastFocus: null,
   _focusableSelector:
@@ -345,3 +346,14 @@ const ModalFactory = {
     if (modal) modal.remove();
   },
 };
+
+// Backward-compat globals for the existing inline <script> in index.html
+// Remove once index.html migrates to <script type="module">
+if (typeof window !== 'undefined') {
+  window.DateFormatter = DateFormatter;
+  window.NumberFormatter = NumberFormatter;
+  window.Exporter = Exporter;
+  window.LazyLoader = LazyLoader;
+  window.AutoRefreshManager = AutoRefreshManager;
+  window.ModalFactory = ModalFactory;
+}

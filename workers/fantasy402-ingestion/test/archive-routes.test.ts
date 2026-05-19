@@ -322,7 +322,10 @@ test("archive object returns JSON body and archive headers", async () => {
 test("archive object rejects non-archive keys", async () => {
   const response = await worker.fetch(authorized("/archive/object?key=other/private.json"), env(new MemoryR2Bucket()));
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { status: "failed", message: "Invalid key prefix" });
+  const body = await response.json() as { status: string; code?: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.message, "Invalid key prefix");
 });
 
 test("diagnostics requires bearer auth", async () => {
@@ -1989,7 +1992,10 @@ test("scan detail returns D1 row and optional raw archive preview", async () => 
 test("scan detail rejects invalid scan ids", async () => {
   const response = await worker.fetch(authorized("/scans/detail?scanId=not-a-scan"), env(new MemoryR2Bucket()));
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { status: "failed", message: "Invalid scanId" });
+  const body = await response.json() as { status: string; code?: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.message, /scanId/i);
 });
 
 test("scan screenshot requires bearer auth", async () => {
@@ -2292,7 +2298,10 @@ test("scan evidence export returns verdict and artifact manifest", async () => {
 test("scan evidence export rejects invalid scan ids", async () => {
   const response = await worker.fetch(authorized("/scans/export?scanId=not-a-scan"), env(new MemoryR2Bucket()));
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { status: "failed", message: "Invalid scanId" });
+  const body = await response.json() as { status: string; code?: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.message, /scanId/i);
 });
 
 test("manual scan trigger requires bearer auth", async () => {

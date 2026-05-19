@@ -103,6 +103,7 @@ async function runOneBatch(planBody) {
 
   const childEnv = {
     ...process.env,
+    F402_UPSTREAM_LOG: process.env.F402_UPSTREAM_LOG,
     FANTASY402_BROWSER_AUTH_FILE: authFile,
     FANTASY402_LOCAL_PLAN_JSON: JSON.stringify(planBody),
     WORKER_ORIGIN: workerOrigin,

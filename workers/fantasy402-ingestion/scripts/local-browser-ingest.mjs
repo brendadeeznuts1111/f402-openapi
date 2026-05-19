@@ -6,6 +6,16 @@ import {
   planNeedsCustomerIdResolution,
 } from "./customer-id-utils.mjs";
 import { isLocalIngestProxyUrl, requireOperatorTokenUnlessProxy, workerAuthorizationHeaders } from "./proxy-client-utils.mjs";
+import {
+  buildUpstreamHeaders,
+  encodeUpstreamBody,
+  ENDPOINT_BODY_EXTRAS,
+  logUpstreamRequest,
+  normalizePlanBody,
+  resolveFantasyBaseUrl,
+} from "./fantasy402-upstream.mjs";
+
+const SOFT_SKIP_ENDPOINTS = new Set(["getWebLog"]);
 
 const EXPECTED_BROWSER_HEADER_NAMES = [
   "accept",
@@ -24,7 +34,8 @@ const EXPECTED_BROWSER_HEADER_NAMES = [
 ];
 
 const defaultOrigin = "https://fantasy402-ingestion.utahj4754.workers.dev";
-const fantasyOrigin = new URL(process.env.FANTASY402_BASE_URL ?? "https://fantasy402.com");
+let fantasyBaseUrl = resolveFantasyBaseUrl();
+let fantasyOrigin = new URL(fantasyBaseUrl);
 const workerOrigin = new URL(process.env.WORKER_ORIGIN ?? defaultOrigin);
 const operatorToken = process.env.INGESTION_TRIGGER_TOKEN || process.env.ARCHIVE_AUTH_TOKEN || readTokenFile();
 const authFile = process.env.FANTASY402_BROWSER_AUTH_FILE ?? process.argv[2] ?? "fantasy402/browser-auth.json";
@@ -90,10 +101,18 @@ if (operatorToken && isPlaceholderToken(operatorToken) && !isLocalIngestProxyUrl
 
 const authPayload = readAuthPayload(authFile);
 validateBrowserAuthPayload(authPayload, authFile);
-const planSpecs = readPlanSpecs();
+const planBundle = readPlanSpecs();
+if (planBundle?.baseUrl) {
+  fantasyBaseUrl = resolveFantasyBaseUrl(planBundle.baseUrl);
+  fantasyOrigin = new URL(fantasyBaseUrl);
+}
 const authorizationExpiry = jwtExpiryDiagnostics(authPayload.authorization);
 const browserHeaderShape = browserHeaderPresence(normalizeBrowserHeaders(authPayload.browserHeadersJson ?? authPayload.browserHeaders), authPayload);
-const agentId = process.env.FANTASY402_AGENT_ID || authPayload.agentId || authPayload.customerId || "";
+const agentId =
+  process.env.FANTASY402_AGENT_ID || planBundle?.agentId || authPayload.agentId || authPayload.customerId || "";
+if (process.env.F402_UPSTREAM_LOG === "1" || process.env.F402_UPSTREAM_LOG === "true") {
+  console.error(JSON.stringify({ event: "ingest-config", fantasyBaseUrl, workerOrigin: workerOrigin.href, agentId }, null, 2));
+}
 const customerId = process.env.FANTASY402_CUSTOMER_ID || authPayload.customerId || "";
 if (!agentId) fail("Missing agent id. Set FANTASY402_AGENT_ID or add agentId to the browser auth JSON file.");
 
@@ -110,8 +129,8 @@ if (!skipRefreshAuth) {
 }
 
 const fetched = [];
-if (planSpecs?.length) {
-  const resolvedSpecs = await resolvePlanSpecs(planSpecs);
+if (planBundle?.endpoints?.length) {
+  const resolvedSpecs = await resolvePlanSpecs(planBundle.endpoints);
   for (const spec of resolvedSpecs) {
     fetched.push(await fetchFantasy402Spec(spec));
   }
@@ -160,29 +179,44 @@ const summary = {
   },
 };
 
+const hardFailures = fetched.filter((item) => item.httpStatus >= 400 && !item.softSkipped);
 console.log(JSON.stringify(summary, null, 2));
-if (summary.status !== "ok") process.exitCode = 1;
+if (summary.status !== "ok" && hardFailures.length > 0) process.exitCode = 1;
 
 async function fetchFantasy402Spec(spec) {
   const now = new Date();
   const contentType = spec.contentType || "application/x-www-form-urlencoded; charset=UTF-8";
-  let body;
-  if (contentType.includes("json")) {
-    body = JSON.stringify(spec.body ?? {});
-  } else {
-    const form = new URLSearchParams();
-    for (const [key, value] of Object.entries(spec.body ?? {})) form.set(key, String(value));
-    body = form;
-  }
-  const response = await fetch(new URL(spec.path, fantasyOrigin), {
+  const body = normalizePlanBody(spec.body ?? {}, spec.key, { agentId, customerId, now });
+  const encoded = encodeUpstreamBody(body, contentType);
+  const url = new URL(spec.path, fantasyOrigin);
+  const headers = buildUpstreamHeaders(authPayload, encoded.contentType, { baseUrl: fantasyBaseUrl });
+  logUpstreamRequest(spec.key, url, body, headers);
+  const response = await fetch(url, {
     method: spec.method || "POST",
-    body,
-    headers: upstreamHeaders(contentType),
+    body: encoded.body,
+    headers,
     signal: AbortSignal.timeout(60_000),
   });
   const text = await response.text();
   const data = parseJson(text);
   if (!response.ok) {
+    if (shouldSoftSkipUpstreamFailure(spec.key, response.status, text)) {
+      console.error(
+        JSON.stringify({
+          status: "skipped",
+          endpointKey: spec.key,
+          httpStatus: response.status,
+          reason: "deprecated_or_empty_upstream_error",
+        }),
+      );
+      return {
+        endpointKey: spec.key,
+        httpStatus: response.status,
+        capturedAt: now.toISOString(),
+        data: { LIST: [], INFO: "soft-skipped" },
+        softSkipped: true,
+      };
+    }
     fail(`${spec.key} returned HTTP ${response.status}. ${diagnosticHint(spec.key, response.status, text)}`);
   }
   return {
@@ -197,10 +231,13 @@ async function fetchFantasy402Endpoint(endpointKey, endpoint) {
   const now = new Date();
   const body = requestBody(endpoint, now);
   const encoded = encodeBody(endpoint, body);
-  const response = await fetch(new URL(endpoint.path, fantasyOrigin), {
+  const url = new URL(endpoint.path, fantasyOrigin);
+  const headers = upstreamHeaders(encoded.contentType);
+  logUpstreamRequest(endpointKey, url, body, headers);
+  const response = await fetch(url, {
     method: "POST",
     body: encoded.body,
-    headers: upstreamHeaders(encoded.contentType),
+    headers,
     signal: AbortSignal.timeout(60_000),
   });
   const text = await response.text();
@@ -280,6 +317,12 @@ function safeBodySnippet(text, data) {
   return String(source ?? "").replace(/[A-Za-z0-9_-]{24,}/g, "[REDACTED_LONG_TOKEN]").slice(0, 1000);
 }
 
+function shouldSoftSkipUpstreamFailure(endpointKey, status, text) {
+  if (!SOFT_SKIP_ENDPOINTS.has(endpointKey)) return false;
+  if (status < 500) return false;
+  return text.trim().length === 0;
+}
+
 function diagnosticHint(endpointKey, status, text) {
   const sourceKey = authPayload.sourcePath ? endpointsByPath.get(authPayload.sourcePath) : null;
   const sourceHint = sourceKey && sourceKey !== endpointKey
@@ -296,72 +339,44 @@ function diagnosticHint(endpointKey, status, text) {
 }
 
 function requestBody(endpoint, now) {
-  if (endpoint.accountOwnerOnly) {
-    return {
-      operation: endpoint.operation,
-      agentOwner: agentId,
-    };
-  }
-  if (endpoint.contentType === "json") {
-    return {
-      RRO: 1,
-      agentID: agentId,
-      agentOwner: agentId,
-      customerID: customerId,
-      date: now.toISOString(),
-      path: "",
-      wagerType: "",
-      sort: "",
-      typeSort: "",
-      week: 0,
-    };
-  }
-  const date = now.toISOString().slice(0, 10);
-  const body = {
-    RRO: 1,
-    agentID: agentId,
-    agentOwner: agentId,
-    operation: endpoint.operation,
-    ...(endpoint.agentType ? { agentType: endpoint.agentType } : {}),
-    ...(endpoint.accountMessage ? { acc: agentId } : {}),
-    ...(endpoint.operation === "getMessage" ? { type: 0 } : {}),
-    ...(endpoint.weeklyFigure ? { week: 0, type: "A", layout: "byDay" } : {}),
-    ...(endpoint.extraFields ?? {}),
-  };
-  if (!endpoint.omitDateRange) {
-    body.startDate = date;
-    body.endDate = date;
-    body.start = date;
-    body.end = date;
-  }
-  return body;
+  const key = Object.entries(endpoints).find(([, cfg]) => cfg === endpoint)?.[0] ?? endpoint.operation;
+  const seed =
+    endpoint.accountOwnerOnly
+      ? { operation: endpoint.operation, agentOwner: agentId }
+      : endpoint.contentType === "json"
+        ? {
+            RRO: 1,
+            agentID: agentId,
+            agentOwner: agentId,
+            customerID: customerId,
+            date: now.toISOString(),
+            path: "",
+            wagerType: "",
+            sort: "",
+            typeSort: "",
+            week: 0,
+            operation: endpoint.operation,
+          }
+        : {
+            RRO: 1,
+            agentID: agentId,
+            agentOwner: agentId,
+            operation: endpoint.operation,
+            ...(endpoint.agentType ? { agentType: endpoint.agentType } : {}),
+            ...(endpoint.accountMessage ? { acc: agentId } : {}),
+            ...(endpoint.operation === "getMessage" ? { type: 0 } : {}),
+            ...(endpoint.weeklyFigure ? { week: 0, type: "A", layout: "byDay" } : {}),
+            ...(endpoint.extraFields ?? {}),
+          };
+  return normalizePlanBody(seed, key, { agentId, customerId, now });
 }
 
 function encodeBody(endpoint, body) {
-  if (endpoint.contentType === "json") {
-    return { body: JSON.stringify(body), contentType: "application/json" };
-  }
-  const form = new URLSearchParams();
-  for (const [key, value] of Object.entries(body)) form.set(key, String(value));
-  return { body: form, contentType: "application/x-www-form-urlencoded; charset=UTF-8" };
+  return encodeUpstreamBody(body, endpoint.contentType === "json" ? "application/json" : "form");
 }
 
 function upstreamHeaders(contentType) {
-  const browserHeaders = normalizeBrowserHeaders(authPayload.browserHeadersJson ?? authPayload.browserHeaders);
-  const headers = {
-    Accept: "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-    Origin: fantasyOrigin.origin,
-    Referer: authPayload.referer || `${fantasyOrigin.origin}/manager.html`,
-    "User-Agent": authPayload.userAgent || browserHeaders["user-agent"] || "Mozilla/5.0",
-    "X-Requested-With": "XMLHttpRequest",
-    ...canonicalizeHeaders(browserHeaders),
-    "Content-Type": contentType,
-    Cookie: cookieHeader(authPayload),
-  };
-  const authorization = normalizeAuthorization(authPayload.authorization);
-  if (authorization) headers.Authorization = authorization;
-  return headers;
+  return buildUpstreamHeaders(authPayload, contentType, { baseUrl: fantasyBaseUrl });
 }
 
 function browserHeaderPresence(headers, payload) {
@@ -586,7 +601,8 @@ function readPlanSpecs() {
   try {
     const parsed = JSON.parse(raw);
     const specs = parsed.endpoints ?? parsed;
-    return Array.isArray(specs) && specs.length ? specs : null;
+    if (!Array.isArray(specs) || !specs.length) return null;
+    return { baseUrl: parsed.baseUrl, agentId: parsed.agentId, endpoints: specs };
   } catch {
     return null;
   }

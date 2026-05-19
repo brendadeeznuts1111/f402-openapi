@@ -4,8 +4,9 @@
 import { $ } from '../dom.js';
 import { escapeHtml } from '../dom.js';
 import { usd, fmt, ago } from '../format.js';
-import { renderErrorState } from '../ui.js';
-import { renderEmptyState } from '../design-system.js';
+import { renderErrorState, storeTTL } from '../ui.js';
+import { renderEmptyState, getRefreshInterval } from '../design-system.js';
+import { AutoRefreshManager } from '../utils.js';
 
 const TIME_RANGES = [
   { label: '1h', hours: 1 },
@@ -18,20 +19,28 @@ let selectedLogin = null;
 let activeHours = 24;
 let activityFilter = 'all';
 let searchTimer = null;
+let dropdownIndex = -1;
 
 export function setActivityFilter(filter) {
   activityFilter = filter;
 }
 
 export async function loadActivityView(ctx) {
+  AutoRefreshManager.unregister('customer-activity');
   $('lastUpdate').textContent = new Date().toLocaleTimeString();
   $('activitySearchInput').value = '';
   $('activitySearchInput').focus();
-  $('activityDropdown').innerHTML = '';
-  $('activityDropdown').classList.remove('ds-dropdown--visible');
+  hideDropdown();
   $('activityCustomerCard').classList.add('ds-hidden');
   $('activityTimelineWrap').classList.add('ds-hidden');
+  $('activityFreshness').classList.add('ds-hidden');
   selectedLogin = null;
+}
+
+function hideDropdown() {
+  $('activityDropdown').innerHTML = '';
+  $('activityDropdown').classList.remove('ds-dropdown--visible');
+  dropdownIndex = -1;
 }
 
 function debouncedSearch(ctx) {
@@ -43,8 +52,7 @@ async function performSearch(ctx) {
   const q = ($('activitySearchInput').value || '').trim();
   const dropdown = $('activityDropdown');
   if (!q) {
-    dropdown.innerHTML = '';
-    dropdown.classList.remove('ds-dropdown--visible');
+    hideDropdown();
     return;
   }
   try {
@@ -53,29 +61,44 @@ async function performSearch(ctx) {
     if (!records.length) {
       dropdown.innerHTML = '<div class="ds-dropdown__empty">No customers found</div>';
       dropdown.classList.add('ds-dropdown--visible');
+      dropdownIndex = -1;
       return;
     }
-    dropdown.innerHTML = records.map((r) =>
-      `<div class="ds-dropdown__item" data-login="${escapeHtml(r.login)}">
+    dropdown.innerHTML = records.map((r, i) =>
+      `<div class="ds-dropdown__item" data-index="${i}" data-login="${escapeHtml(r.login)}">
         <span class="ds-dropdown__primary">${escapeHtml(r.login)}</span>
-        <span class="ds-dropdown__secondary">${escapeHtml(r.name_first || '')} · ${escapeHtml(r.agent_id)}</span>
+        <span class="ds-dropdown__secondary">${escapeHtml(r.name_first || '')} · ${escapeHtml(r.agent_id)} · ${escapeHtml(r.customer_id)}</span>
       </div>`
     ).join('');
     dropdown.classList.add('ds-dropdown--visible');
+    dropdownIndex = -1;
+    highlightDropdownItem(dropdown);
     dropdown.querySelectorAll('.ds-dropdown__item').forEach((item) => {
       item.addEventListener('click', () => selectCustomer(ctx, item.dataset.login));
     });
   } catch (e) {
     dropdown.innerHTML = `<div class="ds-dropdown__empty">${escapeHtml(e.message)}</div>`;
     dropdown.classList.add('ds-dropdown--visible');
+    dropdownIndex = -1;
+  }
+}
+
+function highlightDropdownItem(dropdown) {
+  dropdown.querySelectorAll('.ds-dropdown__item').forEach((item, i) => {
+    item.classList.toggle('ds-dropdown__item--active', i === dropdownIndex);
+  });
+  if (dropdownIndex >= 0) {
+    const active = dropdown.querySelector(`[data-index="${dropdownIndex}"]`);
+    if (active) active.scrollIntoView({ block: 'nearest' });
   }
 }
 
 async function selectCustomer(ctx, login) {
   selectedLogin = login;
   $('activitySearchInput').value = login;
-  $('activityDropdown').classList.remove('ds-dropdown--visible');
+  hideDropdown();
   await loadCustomerActivity(ctx);
+  AutoRefreshManager.register('customer-activity', () => loadCustomerActivity(ctx), getRefreshInterval('/customer-activity'));
 }
 
 function paintTimeRanges() {
@@ -97,9 +120,11 @@ function paintActivityFilters() {
 async function loadCustomerActivity(ctx) {
   if (!selectedLogin) return;
   try {
+    $('activityTimeline').innerHTML = '<div class="ds-skeleton ds-skeleton-row"></div><div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>';
     const data = await ctx.api(`/customer-activity?login=${encodeURIComponent(selectedLogin)}&hours=${activeHours}&limit=100`);
     const customer = data.customer;
     const summary = data.summary;
+    const profile = data.profile;
 
     $('activityCustomerCard').classList.remove('ds-hidden');
     if (customer) {
@@ -113,6 +138,11 @@ async function loadCustomerActivity(ctx) {
       $('activityCustomerInfo').innerHTML = `<span class="ds-badge">Login: ${escapeHtml(selectedLogin)}</span>`;
     }
 
+    const infoPlayer = profile?.facets?.getInfoPlayer;
+    const info = infoPlayer?.INFO?.data;
+    const account = profile?.account?.data;
+    const balance = infoPlayer?.INFO?.balance;
+
     $('activityStatCards').innerHTML = `
       <div class="ds-stat-card"><div class="ds-stat-card__icon">📊</div><div class="ds-stat-card__value">${fmt(summary.total_wagers)}</div><div class="ds-stat-card__label">Wagers</div></div>
       <div class="ds-stat-card"><div class="ds-stat-card__icon">💰</div><div class="ds-stat-card__value">${usd(summary.total_volume)}</div><div class="ds-stat-card__label">Volume</div></div>
@@ -120,10 +150,51 @@ async function loadCustomerActivity(ctx) {
       <div class="ds-stat-card"><div class="ds-stat-card__icon">🌐</div><div class="ds-stat-card__value">${fmt(summary.unique_ips)}</div><div class="ds-stat-card__label">IPs</div></div>
     `;
 
+    if (info || account) {
+      const bal = info?.CurrentBalance ?? account?.CurrentBalance;
+      const avail = balance?.AvailableBalance ?? account?.AvailableBalance;
+      const pending = info?.PendingWagerBalance ?? account?.PendingWagerBalance;
+      const creditLimit = info?.CreditLimit ?? account?.CreditLimit;
+      const wagerLimit = info?.WagerLimit ?? account?.WagerLimit;
+      const freeplay = info?.FreePlayBalance ?? account?.FreePlayBalance;
+      const status = info?.Active === 'Y' ? 'Active' : info?.SuspendAccount === 'Y' ? 'Suspended' : 'Unknown';
+      const sportsbook = info?.SuspendSportsbook === 'Y' ? '🔴 Suspended' : '🟢 Open';
+
+      $('activityBalanceCard').classList.remove('ds-hidden');
+      $('activityBalanceCard').innerHTML = `
+        <h2>Account</h2>
+        <div class="ds-stat-grid ds-stat-grid--compact">
+          <div class="ds-stat-card"><div class="ds-stat-card__icon">💳</div><div class="ds-stat-card__value">${bal != null ? usd(bal) : '—'}</div><div class="ds-stat-card__label">Balance</div></div>
+          <div class="ds-stat-card"><div class="ds-stat-card__icon">🏦</div><div class="ds-stat-card__value">${avail != null ? usd(avail) : '—'}</div><div class="ds-stat-card__label">Available</div></div>
+          <div class="ds-stat-card"><div class="ds-stat-card__icon">⏳</div><div class="ds-stat-card__value">${pending != null ? usd(pending) : '—'}</div><div class="ds-stat-card__label">Pending</div></div>
+          <div class="ds-stat-card"><div class="ds-stat-card__icon">🎯</div><div class="ds-stat-card__value">${creditLimit != null ? usd(creditLimit) : '—'}</div><div class="ds-stat-card__label">Credit Limit</div></div>
+          <div class="ds-stat-card"><div class="ds-stat-card__icon">📏</div><div class="ds-stat-card__value">${wagerLimit != null ? usd(wagerLimit) : '—'}</div><div class="ds-stat-card__label">Wager Limit</div></div>
+          <div class="ds-stat-card"><div class="ds-stat-card__icon">🎁</div><div class="ds-stat-card__value">${freeplay != null ? usd(freeplay) : '—'}</div><div class="ds-stat-card__label">FreePlay</div></div>
+        </div>
+        <div class="ds-mt-sm">
+          <span class="ds-badge ds-badge--${status === 'Active' ? 'success' : 'error'}">${escapeHtml(status)}</span>
+          ${info?.DenyLiveBetting === 'Y' ? '<span class="ds-badge ds-badge--warn">No Live</span>' : '<span class="ds-badge ds-badge--success">Live OK</span>'}
+          ${sportsbook}
+          ${info?.SuspectedBot === 'Y' ? '<span class="ds-badge ds-badge--error">Bot Flag</span>' : ''}
+          ${info?.AllowRoundRobin === 'Y' ? '<span class="ds-badge">Round Robin</span>' : ''}
+        </div>
+      `;
+    } else {
+      $('activityBalanceCard').classList.add('ds-hidden');
+    }
+
+    const hasWebLogs = data.webLogs && data.webLogs.length > 0;
+    const hasWagers = data.wagers && data.wagers.length > 0;
+    if (!hasWebLogs && !hasWagers) {
+      $('activityFreshness').classList.remove('ds-hidden');
+    } else {
+      $('activityFreshness').classList.add('ds-hidden');
+    }
+
     const timelineEvents = buildTimeline(data);
     $('activityTimelineWrap').classList.remove('ds-hidden');
     if (!timelineEvents.length) {
-      $('activityTimeline').innerHTML = renderEmptyState({ icon: '📭', message: 'No activity in this period', hint: `No web logs or wagers for ${selectedLogin} in the last ${activeHours}h` });
+      $('activityTimeline').innerHTML = renderEmptyState({ icon: '📭', message: 'No activity in this period', hint: `No web logs or wagers for ${selectedLogin} in the last ${activeHours}h. Web logs populate after the next ingestion run.` });
       return;
     }
     $('activityTimeline').innerHTML = timelineEvents.map((e) => `
@@ -165,9 +236,24 @@ function buildTimeline(data) {
 export function initActivityView(ctx) {
   $('activitySearchInput').addEventListener('input', () => debouncedSearch(ctx));
   $('activitySearchInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+    const dropdown = $('activityDropdown');
+    const items = dropdown.querySelectorAll('.ds-dropdown__item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      dropdownIndex = Math.min(dropdownIndex + 1, items.length - 1);
+      highlightDropdownItem(dropdown);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      dropdownIndex = Math.max(dropdownIndex - 1, 0);
+      highlightDropdownItem(dropdown);
+    } else if (e.key === 'Enter' && dropdownIndex >= 0 && items[dropdownIndex]) {
+      e.preventDefault();
+      selectCustomer(ctx, items[dropdownIndex].dataset.login);
+    } else if (e.key === 'Enter') {
       const val = ($('activitySearchInput').value || '').trim();
       if (val) selectCustomer(ctx, val);
+    } else if (e.key === 'Escape') {
+      hideDropdown();
     }
   });
   document.addEventListener('click', (e) => {

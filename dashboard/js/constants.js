@@ -93,7 +93,9 @@ export const ENDPOINT_ZONE_MAP = {
   '/customer-activity-search':  'query',
   '/search-customers':   'query',
   '/customer-profile':   'query',
+  '/agent-performance-live': 'query',
   '/weekly-figures':     'query',
+  '/pending-wagers':     'query',
 };
 
 export const REFRESH_INTERVALS = {
@@ -111,7 +113,9 @@ export const REFRESH_INTERVALS = {
   '/players':            30000,
   '/search-customers':   30000,
   '/customer-profile':   30000,
+  '/agent-performance-live': 45000,
   '/weekly-figures':     30000,
+  '/pending-wagers':     15000,
   '/health':             30000,
   '/auth/health':        30000,
   '/diagnostics':        60000,

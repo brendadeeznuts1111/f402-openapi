@@ -102,6 +102,7 @@ export class StatusPoller {
     if (path.startsWith('/ingest')) return 'ingestion';
     if (path.startsWith('/bet-ticker') || path.startsWith('/performance') ||
         path.startsWith('/graded') || path.startsWith('/prop') ||
+        path.startsWith('/pending-wagers') ||
         path.startsWith('/summary') || path.startsWith('/position') ||
         path.startsWith('/authorizations') || path.startsWith('/players'))
       return 'query';

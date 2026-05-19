@@ -264,27 +264,69 @@ const MOCK_RESPONSES = {
     player: { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666' },
     account: { snapshotId: 'snap-1', capturedAt: new Date().toISOString(), data: { balance: 5000 } },
     facets: { getInfoPlayer: { INFO: { customerID: 'C001', status: 'active' } } },
-  },
-  '/customer-activity-search': {
-    records: [
-      { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666' },
-      { customer_id: 'C002', login: 'BM28241', name_first: 'Player One', agent_id: 'TOPDAWG' },
-      { customer_id: 'C003', login: 'BM28559', name_first: 'Player Two', agent_id: 'BILLY666' },
+    live: {
+      status: 'ok',
+      agent_id: 'BILLY666',
+      getInfoPlayer: {
+        ok: true,
+        data: { Login: 'ABC506', CurrentBalance: 500000, PendingWagerCount: 2, Active: 'Y' },
+        balance: { AvailableBalance: 450000 },
+      },
+      getPerformancePlayer: {
+        ok: true,
+        rows: [{ SportType: 'Football', Win: 3, Loss: 1, Net: 20000 }],
+        total: 1,
+      },
+      getReportPlayerAnalysis: {
+        ok: true,
+        rows: [
+          {
+            posted_at: '2026-05-06 00:18:05.250',
+            sport: 'NBA',
+            description: 'Basketball #564 Spurs -9½ -105',
+            risk: 15750,
+            to_win: 15000,
+            win_lose: 15000,
+            wager_status: 'W',
+          },
+        ],
+        total: 1,
+        summary: { wins: 1, losses: 0, pushes: 0 },
+      },
+      analysis_filters: { start_date: '2026-05-05', end_date: '2026-05-19', report_type: 2, line_type: 2 },
+      fetched_at: new Date().toISOString(),
+    },
+    sources: {
+      blocks: [
+        { id: 'player', label: 'Player identity', activeSource: 'seeded', ingestKey: 'getPlayers', schedule: 'Worker */15 cron', seeded: { capturedAt: new Date().toISOString(), snapshotId: null }, live: null },
+        { id: 'getInfoPlayer', label: 'Account & balance (info)', activeSource: 'live', ingestKey: 'getInfoPlayer', schedule: 'Live on profile load', dashboardRefreshMs: 30000, seeded: null, live: { ok: true, fetchedAt: new Date().toISOString() } },
+        { id: 'getPerformancePlayer', label: 'Performance by sport', activeSource: 'live', ingestKey: 'getPerformancePlayer', schedule: 'Live on profile load', dashboardRefreshMs: 30000, seeded: null, live: { ok: true, fetchedAt: new Date().toISOString() } },
+        { id: 'getReportPlayerAnalysis', label: 'Wager analysis', activeSource: 'live', ingestKey: 'getReportPlayerAnalysis', schedule: 'Live on profile load', dashboardRefreshMs: 30000, seeded: null, live: { ok: true, fetchedAt: new Date().toISOString() } },
+      ],
+      schedules: {
+        workerIngestion: 'Disabled on worker (skip) — browser ingest',
+        authRefresh: 'Worker */5 cron',
+        alertEvaluation: 'Worker */2 cron',
+        urlScan: 'Worker every 6 hours',
+        dashboardProfile: '30s while Customers profile open',
+        dailyProfileWarmup: 'Worker 06:00 UTC daily',
+      },
+      facetKeys: ['getInfoPlayer', 'getCryptoInfo', 'getMail', 'getTeaserProfile'],
+    },
+    webLogs: { lastCapturedAt: new Date().toISOString(), count24h: 2 },
+    recentWebLogs: [
+      { operation: 'login', ip_address: '1.2.3.4', access_date_time: new Date().toISOString() },
     ],
   },
-  '/customer-activity': {
-    customer: { customer_id: 'C001', login: 'ABC506', name_first: 'Andruw J', agent_id: 'BILLY666', captured_at: new Date().toISOString() },
-    webLogs: [
-      { id: 'w1', login: 'ABC506', operation: 'Login', data: 'Web login from browser', ip_address: '192.168.1.100', access_date_time: new Date().toISOString(), captured_at: new Date().toISOString() },
-      { id: 'w2', login: 'ABC506', operation: 'ViewDashboard', data: 'Viewed agent dashboard', ip_address: '192.168.1.100', access_date_time: new Date(Date.now() - 300000).toISOString(), captured_at: new Date(Date.now() - 300000).toISOString() },
-      { id: 'w3', login: 'ABC506', operation: 'PlaceWager', data: 'Placed straight wager NFL', ip_address: '10.0.0.5', access_date_time: new Date(Date.now() - 1800000).toISOString(), captured_at: new Date(Date.now() - 1800000).toISOString() },
+  '/customer-profile/seed': {
+    status: 'ok',
+    snapshotId: 'seed-mock',
+    facets: [
+      { facet: 'getInfoPlayer', ok: true },
+      { facet: 'getCryptoInfo', ok: true },
+      { facet: 'getMail', ok: true },
+      { facet: 'getTeaserProfile', ok: true },
     ],
-    wagers: [
-      { id: 'b1', wager_number: 12345, wager_type: 'S', amount_wagered: 10000, to_win_amount: 8500, short_desc: 'NFL - Game', captured_at: new Date().toISOString() },
-      { id: 'b2', wager_number: 12346, wager_type: 'P', amount_wagered: 25000, to_win_amount: 65000, short_desc: 'NBA Parlay', captured_at: new Date(Date.now() - 600000).toISOString() },
-    ],
-    summary: { total_wagers: 2, total_volume: 35000, total_logins: 3, unique_ips: 2 },
-    period: { hours: 24, since: new Date(Date.now() - 86400000).toISOString() },
   },
   '/summary': {
     liveWagers: { total: 1078, volume: 747000, agents: 140, types: 4 },
@@ -296,6 +338,33 @@ const MOCK_RESPONSES = {
     records: [
       { agent_id: 'BILLY666', total_wagers: 342, total_volume: 450000, win_rate: 58.3 },
       { agent_id: 'TOPDAWG', total_wagers: 211, total_volume: 320000, win_rate: 52.1 },
+    ],
+  },
+  '/agent-performance-live': {
+    status: 'ok',
+    source: 'live',
+    type: 'CP',
+    type_label: 'Customer Performance',
+    cached: false,
+    fetched_at: new Date().toISOString(),
+    total: 2,
+    rows: [
+      {
+        customer_id: 'C001',
+        login: 'ABC506 (pw:test)',
+        agent_id: 'BILLY666',
+        wager_count: 12,
+        volume: 50000,
+        net: 1200.5,
+      },
+      {
+        customer_id: 'C002',
+        login: 'BM28241',
+        agent_id: 'BILLY666',
+        wager_count: 8,
+        volume: 32000,
+        net: -450,
+      },
     ],
   },
   '/chart-aggregates': {
@@ -331,6 +400,39 @@ const MOCK_RESPONSES = {
   '/graded-wagers': {
     wagers: [
       { wager_number: 'W123', login: 'player1', amount_wagered: 10000, net_amount: 5000, result: 'W', grade_date_time: new Date().toISOString() },
+    ],
+  },
+  '/pending-wagers': {
+    status: 'ok',
+    source: 'mock',
+    total: 2,
+    wagers: [
+      {
+        ticket_number: 1011970361,
+        login: 'HT5031',
+        agent_login: 'HT',
+        wager_type: 'P',
+        wager_status: 'O',
+        amount_wagered: 25000,
+        to_win_amount: 50802,
+        description: 'Baseball #913 Dodgers -170 - For 1st 5 Innings',
+        accepted_at: '2026-05-19 12:51:08.333',
+        sport_type: 'Baseball',
+        game_date_time: '2026-05-19 21:40:00.000',
+      },
+      {
+        ticket_number: 1011950560,
+        login: 'SLA101',
+        agent_login: 'ALSLAMMA',
+        wager_type: 'P',
+        wager_status: 'O',
+        amount_wagered: 20000,
+        to_win_amount: 410629,
+        description: 'Baseball parlay — 5 picks',
+        accepted_at: '2026-05-19 10:07:48.173',
+        sport_type: 'Baseball',
+        game_date_time: '2026-05-19 19:05:00.000',
+      },
     ],
   },
   '/authorizations': {

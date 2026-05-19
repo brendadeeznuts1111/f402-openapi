@@ -96,13 +96,19 @@ test("runs list returns ingestion run rows", async () => {
 test("run endpoints requires runId", async () => {
   const response = await worker.fetch(authorized("/runs/endpoints"), env(new MemoryD1Database()));
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { status: "failed", message: "runId is required" });
+  const body = await response.json() as { status: string; code?: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.message, /runId/i);
 });
 
 test("run endpoints rejects invalid runId", async () => {
   const response = await worker.fetch(authorized("/runs/endpoints?runId=not-a-run"), env(new MemoryD1Database()));
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { status: "failed", message: "runId must be a valid UUID" });
+  const body = await response.json() as { status: string; code?: string; message: string };
+  assert.equal(body.status, "failed");
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.message, /uuid/i);
 });
 
 test("run endpoints returns snapshots and failures", async () => {

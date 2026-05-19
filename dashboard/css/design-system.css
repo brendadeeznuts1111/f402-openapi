@@ -210,6 +210,8 @@ h3 {
 .ds-dropdown__primary { display: block; font-weight: 600; }
 .ds-dropdown__secondary { display: block; font-size: 0.8em; opacity: 0.7; }
 .ds-dropdown__empty { padding: var(--space-md); text-align: center; color: var(--muted); }
+.ds-dropdown__item--active { background: var(--accent); color: var(--primary-bg); }
+.ds-dropdown__item--active .ds-dropdown__secondary { opacity: 0.9; }
 
 /* ── Focus Styles ── */
 :focus-visible {

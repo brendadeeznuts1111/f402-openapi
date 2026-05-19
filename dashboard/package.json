@@ -14,6 +14,7 @@
     "secrets:preview": "wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard --env=preview",
     "secrets:all": "npm run secrets:production && npm run secrets:preview",
     "secrets:list": "wrangler pages secret list --project-name=fantasy402-dashboard",
-    "verify": "npm run sync:dev-vars:check"
+    "verify": "npm run sync:dev-vars:check",
+    "test": "bun test test/"
   }
 }

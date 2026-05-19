@@ -120,6 +120,15 @@ async function main() {
     await renewTokenInPageIfNeeded(page);
 
     const harvested = await page.evaluate(harvestInPage);
+    const browserCookies = await page.cookies("https://fantasy402.com");
+    for (const cookie of browserCookies) {
+      if (cookie.name === "cf_clearance" && !harvested.cfClearance) {
+        harvested.cfClearance = `cf_clearance=${cookie.value}`;
+      }
+      if (cookie.name === "__cf_bm" && !harvested.cfBm) {
+        harvested.cfBm = `__cf_bm=${cookie.value}`;
+      }
+    }
 
     const refreshBody = buildRefreshPayload(harvested);
     const browserAuth = buildBrowserAuthJson(refreshBody);

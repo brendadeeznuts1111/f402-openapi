@@ -24,8 +24,72 @@ import {
 } from "./customer-id";
 import { ingestPlaneSummary, workerTriggerMode } from "./ingest-plane";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
-import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
-import { ingestCustomerProfileSnapshot, loadCustomerProfile } from "./customer-profile";
+import {
+  localIngestSchema,
+  refreshAuthSchema,
+  wagerQuerySchema,
+  performanceQuerySchema,
+  authorizationsQuerySchema,
+  updateCookiesSchema,
+  chartAggregatesSchema,
+  pendingWagersQuerySchema,
+  customerProfileQuerySchema,
+  customerProfileSeedSchema,
+  agentPerformanceLiveQuerySchema,
+  searchCustomersQuerySchema,
+  customerActivityQuerySchema,
+  customerActivitySearchBodySchema,
+  playersQuerySchema,
+  positionDataQuerySchema,
+  weeklyFiguresQuerySchema,
+  dashboardSummaryQuerySchema,
+  ingestionRunsQuerySchema,
+  runIdQuerySchema,
+  alertEventsQuerySchema,
+  alertEventsSummaryQuerySchema,
+  alertRulesListQuerySchema,
+  uuidQuerySchema,
+  alertLogQuerySchema,
+  archiveListQuerySchema,
+  archiveKeyQuerySchema,
+  scanListQuerySchema,
+  scanSummaryQuerySchema,
+  scanIdQuerySchema,
+  scanCompareQuerySchema,
+  scanDetailQuerySchema,
+  createAlertRuleBodySchema,
+  patchAlertRuleBodySchema,
+  syntheticAlertBodySchema,
+} from "./schemas";
+import { parseBody, parseQuery } from "./validate";
+import {
+  AGENT_PERFORMANCE_TYPES,
+  buildGetAgentPerformanceBody,
+  normalizeAgentPerformanceRows,
+} from "./agent-performance-live";
+import { ingestCustomerProfileSnapshot, loadCustomerProfile, CUSTOMER_PROFILE_FACET_KEYS } from "./customer-profile";
+import { buildCustomerProfileSources } from "./customer-profile-sources";
+import {
+  getProfileLiveCache,
+  profileLiveCacheKeyAnalysis,
+  profileLiveCacheKeyPerf,
+  putProfileLiveCache,
+} from "./customer-profile-live-cache";
+import {
+  buildCustomerFacetBody,
+  CUSTOMER_FACET_PATHS,
+  CUSTOMER_PROFILE_SEED_FACETS,
+} from "./customer-profile-seed";
+import {
+  buildGetInfoPlayerBody,
+  buildGetPerformancePlayerBody,
+  buildGetReportPlayerAnalysisBody,
+  defaultAnalysisDateRange,
+  extractInfoPlayerPayload,
+  formatPerformanceAcc,
+  normalizePerformanceRows,
+  normalizePlayerAnalysisRows,
+} from "./customer-profile-live";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
 
 export interface Env {
@@ -260,6 +324,77 @@ class EndpointAttemptError extends Error {
   }
 }
 
+/** Matches browser Manager/getPending JSON body (see dashboard Pending view). */
+function buildGetPendingBody(
+  env: Env,
+  now: Date,
+  overrides: Partial<Record<string, string | number>> = {},
+): Record<string, string | number> {
+  const agentId = String(overrides.agentID ?? env.FANTASY402_AGENT_ID ?? "").trim().toUpperCase();
+  const customerRaw = overrides.customerID;
+  const customerID =
+    customerRaw != null
+      ? String(customerRaw).trim()
+      : hasEnvValue(env.FANTASY402_CUSTOMER_ID)
+        ? customerIdForEndpoint(env)
+        : "0";
+  return {
+    agentID: agentId,
+    agentOwner: String(overrides.agentOwner ?? agentId),
+    path: String(overrides.path ?? "/qubic/api/Manager/getPending"),
+    RRO: 1,
+    date: String(overrides.date ?? now.toISOString().slice(0, 10)),
+    wagerType: String(overrides.wagerType ?? ""),
+    sort: String(overrides.sort ?? "1"),
+    typeSort: String(overrides.typeSort ?? "2"),
+    week: Number(overrides.week ?? 0),
+    customerID,
+  };
+}
+
+function normalizePendingWagerRows(data: unknown): Array<Record<string, unknown>> {
+  let rows: unknown[] = [];
+  if (Array.isArray(data)) rows = data;
+  else if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.LIST)) rows = obj.LIST;
+    else if (Array.isArray(obj.list)) rows = obj.list;
+    else if (Array.isArray(obj.data)) rows = obj.data;
+  }
+  return rows
+    .filter((row) => row && typeof row === "object")
+    .map((row) => {
+      const r = row as Record<string, unknown>;
+      return {
+        ticket_number: r.TicketNumber ?? r.ticketNumber ?? null,
+        play_number: r.PlayNumber ?? r.playNumber ?? null,
+        login: String(r.Login ?? r.login ?? "").trim(),
+        agent_id: String(r.agentID ?? r.agentId ?? "").trim(),
+        agent_login: String(r.AgentLogin ?? r.agentLogin ?? "").trim(),
+        customer_id: String(r.customerID ?? r.customerId ?? "").trim(),
+        wager_type: String(r.WagerType ?? r.wagerType ?? "").trim(),
+        wager_status: String(r.WagerStatus ?? r.wagerStatus ?? "").trim(),
+        amount_wagered: r.AmountWagered ?? r.amountWagered ?? null,
+        to_win_amount: r.ToWinAmount ?? r.toWinAmount ?? null,
+        description: String(r.Description ?? r.description ?? "").trim(),
+        accepted_at: r.AcceptedDateTime ?? r.acceptedDateTime ?? null,
+        sport_type: String(r.SportType ?? r.sportType ?? "").trim(),
+        sport_sub_type: String(r.SportSubType ?? r.sportSubType ?? "").trim(),
+        game_date_time: r.GameDateTime ?? r.gameDateTime ?? null,
+        team1: String(r.Team1ID ?? r.team1 ?? "").trim(),
+        team2: String(r.Team2ID ?? r.team2 ?? "").trim(),
+        short_name1: String(r.ShortName1 ?? r.shortName1 ?? "").trim(),
+        short_name2: String(r.ShortName2 ?? r.shortName2 ?? "").trim(),
+        parlay_name: String(r.ParlayName ?? r.parlayName ?? "").trim(),
+        placed_on: String(r.PlacedOn ?? r.placedOn ?? "").trim(),
+        wager_count: r.WagerCount ?? r.wagerCount ?? null,
+        total_picks: r.totalPicks ?? r.total_picks ?? null,
+        chosen_team: String(r.ChosenTeamID ?? r.chosenTeam ?? "").trim(),
+        period_description: String(r.PeriodDescription ?? r.periodDescription ?? "").trim(),
+      };
+    });
+}
+
 const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
   getAccountInfoOwner: {
     key: "getAccountInfoOwner",
@@ -445,19 +580,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     key: "getPending",
     path: "/cloud/api/Manager/getPending",
     contentType: "json",
-    requiresCustomerId: true,
-    buildBody: (env, now) => ({
-      RRO: 1,
-      agentID: env.FANTASY402_AGENT_ID,
-      agentOwner: env.FANTASY402_AGENT_ID,
-      customerID: customerIdForEndpoint(env),
-      date: now.toISOString(),
-      path: "",
-      wagerType: "",
-      sort: "",
-      typeSort: "",
-      week: 0,
-    }),
+    buildBody: (env, now) => buildGetPendingBody(env, now),
   },
   Pending: {
     key: "Pending",
@@ -507,7 +630,7 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
     path: "/cloud/api/Manager/getInfoPlayer",
     requiresCustomerId: true,
     buildBody: (env) => ({
-      RRO: 1,
+      RRO: 0,
       agentID: env.FANTASY402_AGENT_ID,
       agentOwner: env.FANTASY402_AGENT_ID,
       customerID: customerIdForEndpoint(env),
@@ -880,9 +1003,12 @@ const ENDPOINTS: Record<EndpointKey, EndpointConfig> = {
   getWebLog: {
     key: "getWebLog",
     path: "/cloud/api/Manager/getWebLog",
-    buildBody: (env) => ({
-      RRO: 1, agentID: env.FANTASY402_AGENT_ID, agentOwner: env.FANTASY402_AGENT_ID, operation: "getWebLog",
-    }),
+    buildBody: (env, now) =>
+      withDateRange(env, now, {
+        agentID: env.FANTASY402_AGENT_ID,
+        agentOwner: env.FANTASY402_AGENT_ID,
+        operation: "getWebLog",
+      }),
   },
   getWeeklyFigureByAgent: {
     key: "getWeeklyFigureByAgent",
@@ -986,6 +1112,10 @@ const worker = {
     }
     if (event.cron === "0 */6 * * *") {
       ctx.waitUntil(runScheduledScan(runtimeEnv));
+      return;
+    }
+    if (event.cron === "0 6 * * *") {
+      ctx.waitUntil(runDailyProfileWarmup(runtimeEnv));
       return;
     }
     if (event.cron === "*/2 * * * *") {
@@ -1195,6 +1325,13 @@ const worker = {
       return queryAgentPerformance(url, env);
     }
 
+    if (url.pathname === "/agent-performance-live" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryAgentPerformanceLive(url, env);
+    }
+
     if (url.pathname === "/authorizations" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
@@ -1214,6 +1351,13 @@ const worker = {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
       return queryPropWagers(url, env);
+    }
+
+    if (url.pathname === "/pending-wagers" && request.method === "GET") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      return queryPendingWagers(url, env);
     }
 
     if (url.pathname === "/position-data" && request.method === "GET") {
@@ -1304,11 +1448,75 @@ const worker = {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
       }
-      const customerId = (url.searchParams.get("customer_id") ?? url.searchParams.get("id") ?? "").trim();
-      if (!customerId) {
-        return json({ status: "failed", message: "customer_id is required" }, 400);
+      const profileQuery = parseQuery(customerProfileQuerySchema, url.searchParams, json);
+      if (!profileQuery.ok) return profileQuery.response;
+      const filters = profileQuery.data;
+      const customerId = filters.customerId;
+      const profile = await loadCustomerProfile(env, customerId);
+      const sourceOpts = { workerTriggerMode: env.FANTASY402_WORKER_TRIGGER_MODE };
+      if (!filters.wantLive) {
+        return json({ ...profile, sources: buildCustomerProfileSources(profile, null, sourceOpts) }, 200);
       }
-      return json(await loadCustomerProfile(env, customerId), 200);
+      const loginHint = (filters.login ?? profile.player?.login ?? customerId).trim();
+      try {
+        const range = defaultAnalysisDateRange();
+        const startDate = (filters.start_date ?? range.startDate).trim();
+        const endDate = (filters.end_date ?? range.endDate).trim();
+        const live = await fetchCustomerProfileLive(env, customerId, loginHint, filters.period, {
+          startDate,
+          endDate,
+          reportType: filters.report_type,
+          lineType: filters.line_type,
+          analysisLimit: filters.analysis_limit,
+        });
+        return json({ ...profile, live, sources: buildCustomerProfileSources(profile, live, sourceOpts) }, 200);
+      } catch (error) {
+        const failedLive = {
+          status: "failed",
+          message: errorMessage(error),
+          hint: "Refresh auth via Endpoints or POST /refresh-auth",
+          fetched_at: new Date().toISOString(),
+        };
+        return json(
+          {
+            ...profile,
+            live: failedLive,
+            sources: buildCustomerProfileSources(profile, failedLive, sourceOpts),
+          },
+          503,
+        );
+      }
+    }
+
+    if (url.pathname === "/customer-profile/seed" && request.method === "POST") {
+      if (!isAuthorized(request, env)) {
+        return json({ status: "failed", message: "Unauthorized" }, 401);
+      }
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ status: "failed", message: "Invalid JSON body" }, 400);
+      }
+      const parsedSeed = parseBody(customerProfileSeedSchema, body, json);
+      if (!parsedSeed.ok) return parsedSeed.response;
+      const input = parsedSeed.data;
+      try {
+        const seedResult = await seedCustomerProfileD1(env, input.customer_id.trim());
+        const profile = await loadCustomerProfile(env, input.customer_id.trim());
+        return json(
+          {
+            ...seedResult,
+            profile,
+            sources: buildCustomerProfileSources(profile, null, {
+              workerTriggerMode: env.FANTASY402_WORKER_TRIGGER_MODE,
+            }),
+          },
+          seedResult.status === "failed" ? 503 : 200,
+        );
+      } catch (error) {
+        return json({ status: "failed", message: errorMessage(error) }, 503);
+      }
     }
 
     if (url.pathname === "/weekly-figures" && request.method === "GET") {
@@ -1328,10 +1536,6 @@ const worker = {
     if (url.pathname === "/customer-activity" && request.method === "GET") {
       if (!isAuthorized(request, env)) {
         return json({ status: "failed", message: "Unauthorized" }, 401);
-      }
-      const login = (url.searchParams.get("login") ?? "").trim();
-      if (!login) {
-        return json({ status: "failed", message: "login is required" }, 400);
       }
       return queryCustomerActivity(url, env);
     }
@@ -1949,10 +2153,8 @@ async function ingestLocalResponses(request: Request, env: Env): Promise<Respons
   } catch {
     return json({ status: "failed", message: "Expected JSON body" }, 400);
   }
-  const parsed = localIngestSchema.safeParse(payload);
-  if (!parsed.success) {
-    return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
-  }
+  const parsed = parseBody(localIngestSchema, payload, json);
+  if (!parsed.ok) return parsed.response;
   const items = parsed.data.results;
 
   const runId = crypto.randomUUID();
@@ -2299,10 +2501,8 @@ async function refreshAuth(request: Request, env: Env): Promise<Response> {
     }
   }
 
-  const parsed = refreshAuthSchema.safeParse(payload);
-  if (!parsed.success) {
-    return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
-  }
+  const parsed = parseBody(refreshAuthSchema, payload, json);
+  if (!parsed.ok) return parsed.response;
 
   const body = parsed.data as Record<string, unknown>;
   applyCookieHeaderAuthAliases(body);
@@ -2430,10 +2630,8 @@ async function updateCookies(request: Request, env: Env): Promise<Response> {
   } catch {
     return json({ status: "failed", message: "Expected JSON body" }, 400);
   }
-  const parsed = updateCookiesSchema.safeParse(payload);
-  if (!parsed.success) {
-    return json({ status: "failed", message: "Invalid payload", issues: parsed.error.issues }, 400);
-  }
+  const parsed = parseBody(updateCookiesSchema, payload, json);
+  if (!parsed.ok) return parsed.response;
 
   const { cf_clearance, __cf_bm } = parsed.data;
 
@@ -3836,7 +4034,9 @@ async function finishRun(
 }
 
 async function listIngestionRuns(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 200);
+  const parsed = parseQuery(ingestionRunsQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { limit } = parsed.data;
   const result = await env.ANALYTICS_DB.prepare(
     `SELECT id, started_at, finished_at, status, endpoints_requested, endpoints_succeeded, endpoints_failed, error_message
      FROM ingestion_runs
@@ -3849,9 +4049,9 @@ async function listIngestionRuns(url: URL, env: Env): Promise<Response> {
 }
 
 async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> {
-  const runId = String(url.searchParams.get("runId") ?? "").trim();
-  if (!runId) return json({ status: "failed", message: "runId is required" }, 400);
-  if (!isUuid(runId)) return json({ status: "failed", message: "runId must be a valid UUID" }, 400);
+  const parsed = parseQuery(runIdQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { runId } = parsed.data;
 
   const snapshots = await env.ANALYTICS_DB.prepare(
     `SELECT id, endpoint_key, path, captured_at, http_status, item_count, attempts,
@@ -3884,7 +4084,9 @@ async function listIngestionRunEndpoints(url: URL, env: Env): Promise<Response> 
 }
 
 async function queryChartAggregates(url: URL, env: Env): Promise<Response> {
-  const { hours } = chartAggregatesSchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(chartAggregatesSchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { hours } = parsed.data;
   const sinceExpr = `datetime('now', '-${hours} hours')`;
 
   const hourly = await env.ANALYTICS_DB.prepare(
@@ -3995,7 +4197,9 @@ async function listUpstreamEndpoints(env: Env): Promise<Response> {
 }
 
 async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
-  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(wagerQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
   const limit = filters.limit;
   const agentId = (filters.agent_id ?? "").trim();
   const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
@@ -4023,8 +4227,97 @@ async function queryBetTickerWagers(url: URL, env: Env): Promise<Response> {
   return json({ limit, total: result.results?.length ?? 0, wagers: result.results ?? [] }, 200);
 }
 
+const AGENT_PERF_LIVE_CACHE_PREFIX = "fantasy402:agent-perf-live:";
+
+async function queryAgentPerformanceLive(url: URL, env: Env): Promise<Response> {
+  const parsed = parseQuery(agentPerformanceLiveQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
+  const agentId = (filters.agent_id ?? env.FANTASY402_AGENT_ID ?? "").trim().toUpperCase();
+  if (!agentId) {
+    return json({ status: "failed", message: "agent_id required (set FANTASY402_AGENT_ID on Worker)" }, 400);
+  }
+
+  const perfType = filters.type;
+  const start = filters.start;
+  const end = filters.end;
+  const body = buildGetAgentPerformanceBody(agentId, {
+    type: perfType,
+    freePlay: filters.free_play,
+    store: filters.store ?? agentId,
+    sport: filters.sport ?? "",
+    subsport: filters.subsport ?? "",
+    period: filters.period,
+    wagerType: filters.wager_type ?? "",
+    betType: filters.bet_type ?? "",
+    tipo: filters.tipo,
+    start,
+    end,
+  });
+
+  const cacheKey = `${AGENT_PERF_LIVE_CACHE_PREFIX}${agentId}:${perfType}:${start}:${end}:${filters.free_play}:${filters.period}`;
+  type Cached = { rows: Array<Record<string, unknown>>; fetchedAt: string };
+  const cached = await getProfileLiveCache<Cached>(env, cacheKey);
+
+  if (cached) {
+    return json(
+      {
+        status: "ok",
+        source: "live",
+        cached: true,
+        agent_id: agentId,
+        type: perfType,
+        type_label: AGENT_PERFORMANCE_TYPES[perfType as keyof typeof AGENT_PERFORMANCE_TYPES] ?? perfType,
+        filters: { start, end, free_play: filters.free_play, period: filters.period },
+        fetched_at: cached.fetchedAt,
+        total: cached.rows.length,
+        rows: cached.rows.slice(0, filters.limit),
+      },
+      200,
+    );
+  }
+
+  const path = "/cloud/api/Manager/getAgentPerformance";
+  const res = await postManagerForm(env, path, body);
+  if (!res.ok) {
+    return json(
+      {
+        status: "failed",
+        message: res.message,
+        upstreamStatus: res.status,
+        bodyPreview: res.bodyPreview,
+        hint: "Refresh auth via Endpoints or POST /refresh-auth",
+      },
+      res.status === 503 ? 503 : 502,
+    );
+  }
+
+  let rows = normalizeAgentPerformanceRows(res.data, perfType);
+  const fetchedAt = new Date().toISOString();
+  if (rows.length > filters.limit) rows = rows.slice(0, filters.limit);
+  await putProfileLiveCache(env, cacheKey, { rows, fetchedAt });
+
+  return json(
+    {
+      status: "ok",
+      source: "live",
+      cached: false,
+      agent_id: agentId,
+      type: perfType,
+      type_label: AGENT_PERFORMANCE_TYPES[perfType as keyof typeof AGENT_PERFORMANCE_TYPES] ?? perfType,
+      filters: { start, end, free_play: filters.free_play, period: filters.period },
+      fetched_at: fetchedAt,
+      total: rows.length,
+      rows,
+    },
+    200,
+  );
+}
+
 async function queryAgentPerformance(url: URL, env: Env): Promise<Response> {
-  const filters = performanceQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(performanceQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
   const agentId = (filters.agent_id ?? "").trim();
   const since = (filters.since ?? new Date(Date.now() - 86400000).toISOString()).trim();
   const limit = filters.limit;
@@ -4047,7 +4340,9 @@ async function queryAgentPerformance(url: URL, env: Env): Promise<Response> {
 }
 
 async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
-  const filters = authorizationsQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(authorizationsQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
   const agentId = (filters.agent_id ?? "").trim();
   const since = (filters.since ?? "").trim();
   const limit = filters.limit;
@@ -4067,10 +4362,9 @@ async function queryAuthorizations(url: URL, env: Env): Promise<Response> {
 }
 
 async function queryPlayers(url: URL, env: Env): Promise<Response> {
-  const customerId = (url.searchParams.get("customer_id") ?? "").trim();
-  const agentId = (url.searchParams.get("agent_id") ?? "").trim();
-  const q = (url.searchParams.get("q") ?? "").trim();
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const parsed = parseQuery(playersQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { customer_id: customerId, agent_id: agentId, q, limit } = parsed.data;
 
   let sql = "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE 1=1";
   const bindings: (string | number)[] = [];
@@ -4091,12 +4385,13 @@ async function queryPlayers(url: URL, env: Env): Promise<Response> {
 }
 
 async function searchCustomers(url: URL, env: Env): Promise<Response> {
-  const q = (url.searchParams.get("q") ?? "").trim();
-  if (!q) {
-    return json({ status: "failed", message: "q is required" }, 400);
+  const parsed = parseQuery(searchCustomersQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  url.searchParams.set("q", parsed.data.q);
+  url.searchParams.set("limit", String(parsed.data.limit));
+  if (parsed.data.agent_id) {
+    url.searchParams.set("agent_id", parsed.data.agent_id);
   }
-  url.searchParams.set("q", q);
-  url.searchParams.set("limit", url.searchParams.get("limit") ?? "25");
   return queryPlayers(url, env);
 }
 
@@ -4105,27 +4400,32 @@ async function queryCustomerActivitySearch(request: Request, env: Env): Promise<
   if (!body) {
     return json({ status: "failed", message: "Invalid JSON body" }, 400);
   }
-  const q = (typeof body.q === "string" ? body.q : "").trim();
-  if (!q) {
-    return json({ status: "failed", message: "q is required" }, 400);
-  }
-  const limit = clampInteger(typeof body.limit === "number" ? body.limit : 20, 1, 100);
+  const parsed = parseBody(customerActivitySearchBodySchema, body, json);
+  if (!parsed.ok) return parsed.response;
+  const { q, limit } = parsed.data;
   const like = `%${q}%`;
   const result = await env.ANALYTICS_DB.prepare(
-    "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login LIKE ? COLLATE NOCASE OR name_first LIKE ? COLLATE NOCASE ORDER BY login ASC LIMIT ?",
-  ).bind(like, like, limit).all();
+    "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login LIKE ? COLLATE NOCASE OR name_first LIKE ? COLLATE NOCASE OR customer_id LIKE ? ORDER BY login ASC LIMIT ?",
+  ).bind(like, like, like, limit).all();
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
 async function queryCustomerActivity(url: URL, env: Env): Promise<Response> {
-  const login = (url.searchParams.get("login") ?? "").trim();
-  const hours = clampInteger(Number(url.searchParams.get("hours") ?? "24"), 1, 168);
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const parsed = parseQuery(customerActivityQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { login, hours, limit } = parsed.data;
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
   const player = await env.ANALYTICS_DB.prepare(
     "SELECT customer_id, login, name_first, agent_id, captured_at FROM player_agents WHERE login = ?",
   ).bind(login).first<{ customer_id: string; login: string; name_first: string; agent_id: string; captured_at: string }>();
+
+  let profile = null;
+  if (player?.customer_id) {
+    try {
+      profile = await loadCustomerProfile(env, player.customer_id);
+    } catch { /* profile data is optional */ }
+  }
 
   const webLogs = await env.ANALYTICS_DB.prepare(
     `SELECT id, login, operation, data, ip_address, access_date_time, captured_at
@@ -4155,6 +4455,7 @@ async function queryCustomerActivity(url: URL, env: Env): Promise<Response> {
 
   return json({
     customer: player ?? null,
+    profile,
     webLogs: webLogs.results ?? [],
     wagers: wagers.results ?? [],
     summary: summary ?? { total_wagers: 0, total_volume: 0, total_logins: 0, unique_ips: 0 },
@@ -4163,8 +4464,10 @@ async function queryCustomerActivity(url: URL, env: Env): Promise<Response> {
 }
 
 async function queryWeeklyFigures(url: URL, env: Env): Promise<Response> {
-  const agentId = (url.searchParams.get("agent_id") ?? "").trim();
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "10"), 1, 50);
+  const parsed = parseQuery(weeklyFiguresQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const agentId = (parsed.data.agent_id ?? "").trim();
+  const { limit } = parsed.data;
 
   let sql = `SELECT agent_id, week, type, figure_date, wager_count, volume, net_amount, big_wagers, captured_at
              FROM weekly_figures WHERE 1=1`;
@@ -4182,8 +4485,441 @@ async function queryWeeklyFigures(url: URL, env: Env): Promise<Response> {
   return json({ limit, total: result.results?.length ?? 0, records: result.results ?? [] }, 200);
 }
 
+const MAX_LIVE_UPSTREAM_BYTES = 8_000_000;
+
+async function postManagerForm(
+  env: Env,
+  path: string,
+  body: Record<string, string | number>,
+): Promise<{ ok: true; data: unknown } | { ok: false; status: number; message: string; bodyPreview: string }> {
+  let sessionCookie: string;
+  try {
+    sessionCookie = await getOrRefreshSession(env);
+  } catch (error) {
+    return {
+      ok: false,
+      status: 503,
+      message: `Fantasy402 session unavailable: ${errorMessage(error)}`,
+      bodyPreview: "",
+    };
+  }
+  const form = new URLSearchParams();
+  for (const [key, value] of Object.entries(body)) {
+    form.set(key, String(value));
+  }
+  const contentType = "application/x-www-form-urlencoded; charset=UTF-8";
+  const headers = await fantasy402ApiHeaders(env, sessionCookie, contentType);
+  const response = await fetchWithTimeout(`${baseUrl(env)}${path}`, {
+    method: "POST",
+    body: form,
+    headers,
+  });
+  if (!response.ok) {
+    const text = await safeReadResponseText(response);
+    return {
+      ok: false,
+      status: response.status,
+      message: `upstream HTTP ${response.status}`,
+      bodyPreview: text.slice(0, 300),
+    };
+  }
+  const text = await safeReadResponseText(response);
+  if (text.length > MAX_LIVE_UPSTREAM_BYTES) {
+    return {
+      ok: false,
+      status: 413,
+      message: "upstream response too large",
+      bodyPreview: `bytes=${text.length}`,
+    };
+  }
+  try {
+    return { ok: true, data: JSON.parse(text) as unknown };
+  } catch {
+    return { ok: false, status: 502, message: "invalid JSON from upstream", bodyPreview: text.slice(0, 300) };
+  }
+}
+
+async function seedCustomerProfileD1(
+  env: Env,
+  customerId: string,
+): Promise<{
+  status: "ok" | "partial" | "failed";
+  snapshotId: string;
+  facets: Array<{ facet: string; ok: boolean; error?: string; upstreamStatus?: number }>;
+}> {
+  const agentId = (env.FANTASY402_AGENT_ID ?? "").trim().toUpperCase();
+  if (!agentId) {
+    return { status: "failed", snapshotId: "", facets: [{ facet: "all", ok: false, error: "FANTASY402_AGENT_ID not set" }] };
+  }
+  const snapshotId = `seed-${crypto.randomUUID()}`;
+  const facets: Array<{ facet: string; ok: boolean; error?: string; upstreamStatus?: number }> = [];
+
+  for (const facet of CUSTOMER_PROFILE_SEED_FACETS) {
+    const path = CUSTOMER_FACET_PATHS[facet];
+    const body = buildCustomerFacetBody(agentId, customerId, facet);
+    const res = await postManagerForm(env, path, body);
+    if (res.ok) {
+      await ingestCustomerProfileSnapshot(env, facet, res.data, snapshotId, customerId);
+      facets.push({ facet, ok: true });
+    } else {
+      facets.push({ facet, ok: false, error: res.message, upstreamStatus: res.status });
+    }
+  }
+
+  const okCount = facets.filter((f) => f.ok).length;
+  const status = okCount === facets.length ? "ok" : okCount > 0 ? "partial" : "failed";
+  return { status, snapshotId, facets };
+}
+
+const DAILY_WARMUP_MAX_CUSTOMERS = 25;
+
+async function runDailyProfileWarmup(env: Env): Promise<void> {
+  const agentId = (env.FANTASY402_AGENT_ID ?? "").trim();
+  if (!agentId) {
+    console.warn("[DailyWarmup] Skipped — FANTASY402_AGENT_ID not set");
+    return;
+  }
+  try {
+    const playersEndpoint = ENDPOINTS.getPlayers;
+    const now = new Date();
+    const playersBody = playersEndpoint.buildBody(env, now);
+    const playersRes = await postManagerForm(env, playersEndpoint.path, playersBody as Record<string, string | number>);
+    if (playersRes.ok) {
+      const snapshotId = `warmup-players-${now.toISOString().slice(0, 10)}`;
+      await storePlayerAgents(env, mapPlayerAgents(playersRes.data, snapshotId));
+      console.info("[DailyWarmup] player_agents refreshed");
+    } else {
+      console.warn("[DailyWarmup] getPlayers failed", playersRes.message);
+    }
+  } catch (error) {
+    console.warn("[DailyWarmup] getPlayers error", errorMessage(error));
+  }
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const active = await env.ANALYTICS_DB.prepare(
+    `SELECT DISTINCT p.customer_id, p.login
+     FROM bet_ticker_wagers b
+     INNER JOIN player_agents p ON p.login = b.login
+     WHERE b.captured_at >= ?
+     ORDER BY b.captured_at DESC
+     LIMIT ?`,
+  )
+    .bind(since, DAILY_WARMUP_MAX_CUSTOMERS)
+    .all<{ customer_id: string; login: string }>();
+
+  const seen = new Set<string>();
+  for (const row of active.results ?? []) {
+    const cid = row.customer_id?.trim();
+    if (!cid || seen.has(cid)) continue;
+    seen.add(cid);
+    try {
+      const result = await seedCustomerProfileD1(env, cid);
+      console.info("[DailyWarmup] seeded profile", { customerId: cid, status: result.status });
+    } catch (error) {
+      console.warn("[DailyWarmup] seed failed", { customerId: cid, error: errorMessage(error) });
+    }
+  }
+}
+
+async function fetchCustomerProfileLive(
+  env: Env,
+  customerId: string,
+  loginHint: string,
+  period: number,
+  analysis: {
+    startDate: string;
+    endDate: string;
+    reportType: number;
+    lineType: number;
+    analysisLimit: number;
+  },
+): Promise<Record<string, unknown>> {
+  const agentId = (env.FANTASY402_AGENT_ID ?? "").trim().toUpperCase();
+  if (!agentId) {
+    return {
+      status: "failed",
+      message: "FANTASY402_AGENT_ID not configured on Worker",
+    };
+  }
+
+  const infoPath = "/cloud/api/Manager/getInfoPlayer";
+  const perfPath = "/cloud/api/Manager/getPerformancePlayer";
+  const analysisPath = "/cloud/api/Manager/getReportPlayerAnalysis";
+  const infoBody = buildGetInfoPlayerBody(agentId, customerId);
+  const acc = formatPerformanceAcc(loginHint);
+  const perfBody = buildGetPerformancePlayerBody(agentId, acc, period);
+  const analysisBody = buildGetReportPlayerAnalysisBody(
+    agentId,
+    loginHint,
+    analysis.startDate,
+    analysis.endDate,
+    analysis.reportType,
+    analysis.lineType,
+  );
+
+  const perfCacheKey = profileLiveCacheKeyPerf(agentId, acc, period);
+  const analysisCacheKey = profileLiveCacheKeyAnalysis(
+    agentId,
+    loginHint,
+    analysis.startDate,
+    analysis.endDate,
+    analysis.reportType,
+    analysis.lineType,
+  );
+
+  type CachedPerf = { raw: unknown; rows: Array<Record<string, unknown>> };
+  type CachedAnalysis = {
+    raw: unknown;
+    rows: Array<Record<string, unknown>>;
+    total: number;
+    summary: { wins: number; losses: number; pushes: number };
+  };
+
+  const [infoRes, cachedPerf, cachedAnalysis] = await Promise.all([
+    postManagerForm(env, infoPath, infoBody),
+    getProfileLiveCache<CachedPerf>(env, perfCacheKey),
+    getProfileLiveCache<CachedAnalysis>(env, analysisCacheKey),
+  ]);
+
+  let perfRes: Awaited<ReturnType<typeof postManagerForm>> | null = null;
+  let analysisRes: Awaited<ReturnType<typeof postManagerForm>> | null = null;
+  if (!cachedPerf) {
+    perfRes = await postManagerForm(env, perfPath, perfBody);
+    if (perfRes.ok) {
+      const rows = normalizePerformanceRows(perfRes.data);
+      await putProfileLiveCache(env, perfCacheKey, { raw: perfRes.data, rows });
+    }
+  }
+  if (!cachedAnalysis) {
+    analysisRes = await postManagerForm(env, analysisPath, analysisBody);
+    if (analysisRes.ok) {
+      let rows = normalizePlayerAnalysisRows(analysisRes.data);
+      if (rows.length > analysis.analysisLimit) rows = rows.slice(0, analysis.analysisLimit);
+      const wins = rows.filter((r) => String(r.wager_status).toUpperCase() === "W").length;
+      const losses = rows.filter((r) => String(r.wager_status).toUpperCase() === "L").length;
+      await putProfileLiveCache(env, analysisCacheKey, {
+        raw: analysisRes.data,
+        rows,
+        total: rows.length,
+        summary: { wins, losses, pushes: rows.length - wins - losses },
+      });
+    }
+  }
+
+  const fetchedAt = new Date().toISOString();
+  const live: Record<string, unknown> = {
+    status: "ok",
+    source: "live",
+    fetched_at: fetchedAt,
+    agent_id: agentId,
+    customer_id: customerId,
+    performance_acc: acc,
+    period,
+    analysis_filters: {
+      start_date: analysis.startDate,
+      end_date: analysis.endDate,
+      report_type: analysis.reportType,
+      line_type: analysis.lineType,
+    },
+  };
+
+  if (infoRes.ok) {
+    const parsed = extractInfoPlayerPayload(infoRes.data);
+    live.getInfoPlayer = {
+      ok: true,
+      raw: infoRes.data,
+      ...parsed,
+    };
+  } else {
+    live.getInfoPlayer = { ok: false, error: infoRes.message, upstreamStatus: infoRes.status, bodyPreview: infoRes.bodyPreview };
+  }
+
+  if (cachedPerf) {
+    live.getPerformancePlayer = {
+      ok: true,
+      raw: cachedPerf.raw,
+      rows: cachedPerf.rows,
+      total: cachedPerf.rows.length,
+      cached: true,
+    };
+  } else if (perfRes?.ok) {
+    const rows = normalizePerformanceRows(perfRes.data);
+    live.getPerformancePlayer = {
+      ok: true,
+      raw: perfRes.data,
+      rows,
+      total: rows.length,
+      cached: false,
+    };
+  } else {
+    live.getPerformancePlayer = {
+      ok: false,
+      error: perfRes?.message ?? "upstream unavailable",
+      upstreamStatus: perfRes?.status,
+      bodyPreview: perfRes?.bodyPreview,
+    };
+  }
+
+  if (cachedAnalysis) {
+    live.getReportPlayerAnalysis = {
+      ok: true,
+      raw: cachedAnalysis.raw,
+      rows: cachedAnalysis.rows,
+      total: cachedAnalysis.total,
+      summary: cachedAnalysis.summary,
+      cached: true,
+    };
+  } else if (analysisRes?.ok) {
+    let rows = normalizePlayerAnalysisRows(analysisRes.data);
+    if (rows.length > analysis.analysisLimit) rows = rows.slice(0, analysis.analysisLimit);
+    const wins = rows.filter((r) => String(r.wager_status).toUpperCase() === "W").length;
+    const losses = rows.filter((r) => String(r.wager_status).toUpperCase() === "L").length;
+    live.getReportPlayerAnalysis = {
+      ok: true,
+      rows,
+      total: rows.length,
+      summary: { wins, losses, pushes: rows.length - wins - losses },
+      cached: false,
+    };
+  } else {
+    live.getReportPlayerAnalysis = {
+      ok: false,
+      error: analysisRes?.message ?? "upstream unavailable",
+      upstreamStatus: analysisRes?.status,
+      bodyPreview: analysisRes?.bodyPreview,
+    };
+  }
+
+  const results = [
+    infoRes,
+    cachedPerf ? { ok: true as const } : perfRes ?? { ok: false as const },
+    cachedAnalysis ? { ok: true as const } : analysisRes ?? { ok: false as const },
+  ];
+  const okCount = results.filter((r) => r.ok).length;
+  if (okCount === 0) {
+    live.status = "failed";
+    live.message = "All live customer profile upstream calls failed";
+  } else if (okCount < results.length) {
+    live.status = "partial";
+  }
+
+  return live;
+}
+
+async function queryPendingWagers(url: URL, env: Env): Promise<Response> {
+  const parsed = parseQuery(pendingWagersQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
+  const now = new Date();
+  const agentId = (filters.agent_id ?? env.FANTASY402_AGENT_ID ?? "").trim().toUpperCase();
+  if (!agentId) {
+    return json({ status: "failed", message: "agent_id required (set FANTASY402_AGENT_ID on Worker)" }, 400);
+  }
+
+  const body = buildGetPendingBody(env, now, {
+    agentID: agentId,
+    agentOwner: agentId,
+    customerID: filters.customer_id ?? "0",
+    date: filters.date,
+    wagerType: filters.wager_type ?? "",
+    sort: filters.sort ?? "1",
+    typeSort: filters.type_sort ?? "2",
+    week: filters.week ?? 0,
+  });
+
+  let sessionCookie: string;
+  try {
+    sessionCookie = await getOrRefreshSession(env);
+  } catch (error) {
+    return json(
+      {
+        status: "failed",
+        message: `Fantasy402 session unavailable: ${errorMessage(error)}`,
+        hint: "Refresh auth via Endpoints or POST /refresh-auth",
+      },
+      503,
+    );
+  }
+
+  const endpoint = ENDPOINTS.getPending;
+  const encoded = encodeRequestBody(endpoint, body);
+  const headers = await fantasy402ApiHeaders(env, sessionCookie, encoded.contentType);
+
+  const response = await fetchWithTimeout(`${baseUrl(env)}${endpoint.path}`, {
+    method: "POST",
+    body: encoded.body,
+    headers,
+  });
+
+  if (!response.ok) {
+    const text = await safeReadResponseText(response);
+    return json(
+      {
+        status: "failed",
+        message: `getPending upstream HTTP ${response.status}`,
+        upstreamStatus: response.status,
+        bodyPreview: text.slice(0, 300),
+        request: { agentID: body.agentID, date: body.date, customerID: body.customerID },
+      },
+      response.status >= 500 ? 502 : 400,
+    );
+  }
+
+  const text = await safeReadResponseText(response);
+  if (text.length > MAX_LIVE_UPSTREAM_BYTES) {
+    return json(
+      {
+        status: "failed",
+        message: "getPending response too large",
+        hint: "Filter by login or a specific customer_id instead of 0 (all players)",
+        bytes: text.length,
+      },
+      413,
+    );
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text) as unknown;
+  } catch (error) {
+    return json({ status: "failed", message: `getPending invalid JSON: ${errorMessage(error)}` }, 502);
+  }
+  let wagers = normalizePendingWagerRows(raw);
+  const loginFilter = (filters.login ?? "").trim().toLowerCase();
+  const sportFilter = (filters.sport ?? "").trim().toLowerCase();
+  if (loginFilter) {
+    wagers = wagers.filter((row) => String(row.login ?? "").toLowerCase().includes(loginFilter));
+  }
+  if (sportFilter) {
+    wagers = wagers.filter((row) => String(row.sport_type ?? "").toLowerCase().includes(sportFilter));
+  }
+  const limit = filters.limit;
+  if (wagers.length > limit) wagers = wagers.slice(0, limit);
+
+  return json(
+    {
+      status: "ok",
+      source: "live",
+      upstream: `${baseUrl(env)}${endpoint.path}`,
+      filters: {
+        date: body.date,
+        agent_id: agentId,
+        customer_id: body.customerID,
+        wager_type: body.wagerType,
+        sort: body.sort,
+        type_sort: body.typeSort,
+        week: body.week,
+      },
+      total: wagers.length,
+      wagers,
+    },
+    200,
+  );
+}
+
 async function queryGradedWagers(url: URL, env: Env): Promise<Response> {
-  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(wagerQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
   const limit = filters.limit;
   const agentId = (filters.agent_id ?? "").trim();
   const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
@@ -4211,7 +4947,9 @@ async function queryGradedWagers(url: URL, env: Env): Promise<Response> {
 }
 
 async function queryPropWagers(url: URL, env: Env): Promise<Response> {
-  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(wagerQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
   const limit = filters.limit;
   const agentId = (filters.agent_id ?? "").trim();
   const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
@@ -4239,9 +4977,9 @@ async function queryPropWagers(url: URL, env: Env): Promise<Response> {
 }
 
 async function queryPositionData(url: URL, env: Env): Promise<Response> {
-  const filters = paginationSchema.parse(Object.fromEntries(url.searchParams));
-  const limit = filters.limit;
-  const sportId = Number(url.searchParams.get("sport_id") ?? "0");
+  const parsed = parseQuery(positionDataQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { limit, sport_id: sportId } = parsed.data;
 
   let sql = `SELECT id, sport_id, sport_name, total_wagered, total_to_win, wager_count, captured_at
              FROM agent_position_data WHERE 1=1`;
@@ -4257,8 +4995,9 @@ async function queryPositionData(url: URL, env: Env): Promise<Response> {
 }
 
 async function getDashboardSummary(url: URL, env: Env): Promise<Response> {
-  const mode = url.searchParams.get("mode") === "calendar" ? "calendar" : "rolling";
-  const days = clampInteger(Number(url.searchParams.get("days") ?? "1"), 1, 90);
+  const parsed = parseQuery(dashboardSummaryQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { mode, days } = parsed.data;
   const today = new Date().toISOString().slice(0, 10);
   const since =
     mode === "calendar"
@@ -4321,9 +5060,9 @@ async function getDashboardSummary(url: URL, env: Env): Promise<Response> {
 }
 
 async function listAlertEvents(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 100);
-  const severity = cleanAlertSeverity(url.searchParams.get("severity"));
-  const type = cleanAlertType(url.searchParams.get("type"));
+  const parsed = parseQuery(alertEventsQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { limit, severity, type } = parsed.data;
   const where: string[] = [];
   const bindings: string[] = [];
   if (severity) {
@@ -4352,9 +5091,9 @@ async function listAlertEvents(url: URL, env: Env): Promise<Response> {
 }
 
 async function summarizeAlertEvents(url: URL, env: Env): Promise<Response> {
-  const days = clampInteger(Number(url.searchParams.get("days") ?? "7"), 1, 90);
-  const severity = cleanAlertSeverity(url.searchParams.get("severity"));
-  const type = cleanAlertType(url.searchParams.get("type"));
+  const parsed = parseQuery(alertEventsSummaryQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { days, severity, type } = parsed.data;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const where = ["created_at >= ?"];
   const bindings: string[] = [since];
@@ -4425,9 +5164,10 @@ async function summarizeAlertEvents(url: URL, env: Env): Promise<Response> {
 }
 
 async function createSyntheticAlert(request: Request, env: Env): Promise<Response> {
-  const body = await safeJson(request);
-  const severity = cleanAlertSeverity(typeof body?.severity === "string" ? body.severity : null) ?? "warning";
-  const message = cleanAlertMessage(typeof body?.message === "string" ? body.message : null) ?? "Synthetic alert test";
+  const raw = await safeJson(request);
+  const parsed = parseBody(syntheticAlertBodySchema, raw ?? {}, json);
+  if (!parsed.ok) return parsed.response;
+  const { severity, message } = parsed.data;
   const event = await sendFailureAlert(env, {
     severity,
     type: "synthetic-test",
@@ -4560,40 +5300,35 @@ function cleanAgentId(value: string | null): string | null {
 }
 
 async function createAlertRule(request: Request, env: Env): Promise<Response> {
-  const body = await safeJson(request);
-  if (!body) {
+  const raw = await safeJson(request);
+  if (!raw) {
     return json({ status: "failed", message: "Invalid JSON body" }, 400);
   }
-
-  const agentId = cleanAgentId(typeof body.agent_id === "string" ? body.agent_id : null) ?? "*";
-  const metric = cleanAlertRuleMetric(typeof body.metric === "string" ? body.metric : null);
-  const operator = cleanAlertRuleOperator(typeof body.operator === "string" ? body.operator : null);
-  const threshold = typeof body.threshold === "number" && Number.isFinite(body.threshold) && body.threshold >= 0 ? Math.trunc(body.threshold) : null;
-  const severity = cleanAlertSeverity(typeof body.severity === "string" ? body.severity : null) ?? "warning";
-  const enabled = typeof body.enabled === "boolean" ? (body.enabled ? 1 : 0) : 1;
-
-  if (!metric) {
-    return json({ status: "failed", message: `Invalid metric. Must be one of: ${[...ALERT_RULE_METRICS].join(", ")}` }, 400);
-  }
-  if (!operator) {
-    return json({ status: "failed", message: `Invalid operator. Must be one of: ${[...ALERT_RULE_OPERATORS].join(", ")}` }, 400);
-  }
-  if (threshold === null) {
-    return json({ status: "failed", message: "Invalid threshold. Must be a non-negative integer." }, 400);
-  }
+  const parsed = parseBody(createAlertRuleBodySchema, raw, json);
+  if (!parsed.ok) return parsed.response;
+  const { agent_id: agentId, metric, operator, threshold, severity, enabled } = parsed.data;
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   await env.ANALYTICS_DB.prepare(
     `INSERT INTO alert_rules (id, agent_id, metric, operator, threshold, severity, enabled, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(id, agentId, metric, operator, threshold, severity, enabled, now, now).run();
+  ).bind(id, agentId, metric, operator, threshold, severity, enabled ? 1 : 0, now, now).run();
 
-  return json({ status: "created", rule: { id, agent_id: agentId, metric, operator, threshold, severity, enabled, created_at: now, updated_at: now } }, 201);
+  const enabledFlag = enabled ? 1 : 0;
+  return json(
+    {
+      status: "created",
+      rule: { id, agent_id: agentId, metric, operator, threshold, severity, enabled: enabledFlag, created_at: now, updated_at: now },
+    },
+    201,
+  );
 }
 
 async function listAlertRules(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
+  const parsed = parseQuery(alertRulesListQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { limit } = parsed.data;
   const result = await env.ANALYTICS_DB.prepare(
     `SELECT id, agent_id, metric, operator, threshold, severity, enabled, created_at, updated_at
      FROM alert_rules
@@ -4605,10 +5340,9 @@ async function listAlertRules(url: URL, env: Env): Promise<Response> {
 }
 
 async function deleteAlertRule(url: URL, env: Env): Promise<Response> {
-  const id = cleanAlertRuleId(url.searchParams.get("id"));
-  if (!id) {
-    return json({ status: "failed", message: "Missing or invalid ?id= parameter" }, 400);
-  }
+  const parsed = parseQuery(uuidQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { id } = parsed.data;
 
   const result = await env.ANALYTICS_DB.prepare("DELETE FROM alert_rules WHERE id = ?").bind(id).run();
   if (result.meta.changes === 0) {
@@ -4619,15 +5353,17 @@ async function deleteAlertRule(url: URL, env: Env): Promise<Response> {
 }
 
 async function patchAlertRule(request: Request, url: URL, env: Env): Promise<Response> {
-  const id = cleanAlertRuleId(url.searchParams.get("id"));
-  if (!id) {
-    return json({ status: "failed", message: "Missing or invalid ?id= parameter" }, 400);
-  }
+  const idParsed = parseQuery(uuidQuerySchema, url.searchParams, json);
+  if (!idParsed.ok) return idParsed.response;
+  const { id } = idParsed.data;
 
-  const body = await safeJson(request);
-  if (!body) {
+  const raw = await safeJson(request);
+  if (!raw) {
     return json({ status: "failed", message: "Invalid JSON body" }, 400);
   }
+  const bodyParsed = parseBody(patchAlertRuleBodySchema, raw, json);
+  if (!bodyParsed.ok) return bodyParsed.response;
+  const body = bodyParsed.data;
 
   const updates: string[] = [];
   const bindings: (string | number)[] = [];
@@ -4636,20 +5372,13 @@ async function patchAlertRule(request: Request, url: URL, env: Env): Promise<Res
     updates.push("enabled = ?");
     bindings.push(body.enabled ? 1 : 0);
   }
-  if (typeof body.severity === "string") {
-    const sev = cleanAlertSeverity(body.severity);
-    if (sev) {
-      updates.push("severity = ?");
-      bindings.push(sev);
-    }
+  if (body.severity) {
+    updates.push("severity = ?");
+    bindings.push(body.severity);
   }
-  if (typeof body.threshold === "number" && Number.isFinite(body.threshold) && body.threshold >= 0) {
+  if (typeof body.threshold === "number") {
     updates.push("threshold = ?");
-    bindings.push(Math.trunc(body.threshold));
-  }
-
-  if (updates.length === 0) {
-    return json({ status: "failed", message: "No valid fields to update. Supported: enabled, severity, threshold" }, 400);
+    bindings.push(body.threshold);
   }
 
   const now = new Date().toISOString();
@@ -4669,11 +5398,9 @@ async function patchAlertRule(request: Request, url: URL, env: Env): Promise<Res
 }
 
 async function listAlertLog(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 200);
-  const ruleId = cleanAlertRuleId(url.searchParams.get("rule_id"));
-  const agentId = cleanAgentId(url.searchParams.get("agent_id"));
-  const metric = cleanAlertRuleMetric(url.searchParams.get("metric"));
-  const severity = cleanAlertSeverity(url.searchParams.get("severity"));
+  const parsed = parseQuery(alertLogQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { limit, rule_id: ruleId, agent_id: agentId, metric, severity } = parsed.data;
 
   const where: string[] = [];
   const bindings: (string | number)[] = [];
@@ -4828,7 +5555,9 @@ async function evaluateSingleRule(
 }
 
 async function liveWagersStream(url: URL, env: Env, ctx?: ExecutionContext): Promise<Response> {
-  const filters = wagerQuerySchema.parse(Object.fromEntries(url.searchParams));
+  const parsed = parseQuery(wagerQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const filters = parsed.data;
   const since = (filters.since ?? new Date(Date.now() - 300_000).toISOString()).trim();
   const wagerType = (filters.wager_type ?? "").trim().toUpperCase();
   const minAmount = filters.min_amount ?? 0;
@@ -5179,10 +5908,19 @@ async function putArchiveObject(
 }
 
 async function listArchiveObjects(url: URL, env: Env): Promise<Response> {
-  const filters = archiveFilters(url);
+  const parsed = parseQuery(archiveListQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const query = parsed.data;
+  const filters = {
+    prefix: query.prefix
+      ? normalizeArchivePrefix(query.prefix)
+      : archivePrefix(query.endpoint ?? null, query.date ?? null),
+    endpoint: query.endpoint ?? null,
+    date: query.date ?? null,
+    archiveType: query.archiveType ?? null,
+  };
+  const { limit, cursor } = query;
   const prefix = filters.prefix;
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "50"), 1, 1000);
-  const cursor = url.searchParams.get("cursor") ?? undefined;
   const listed = await env.RAW_ARCHIVE.list(cursor ? { prefix, limit, cursor } : { prefix, limit });
   const objects = listed.objects
     .filter((object) => matchesArchiveFilters(object, filters))
@@ -5236,9 +5974,9 @@ function matchesArchiveFilters(object: R2Object, filters: ArchiveFilters): boole
 }
 
 async function getArchiveObject(url: URL, env: Env): Promise<Response> {
-  const key = url.searchParams.get("key");
-  if (!key) return json({ status: "failed", message: "Missing key" }, 400);
-  if (!key.startsWith(`${R2_ARCHIVE_PREFIX}/`)) return json({ status: "failed", message: "Invalid key prefix" }, 400);
+  const parsed = parseQuery(archiveKeyQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { key } = parsed.data;
 
   const object = await env.RAW_ARCHIVE.get(key);
   if (!object) return json({ status: "failed", message: "Archive object not found" }, 404);
@@ -5256,8 +5994,15 @@ async function getArchiveObject(url: URL, env: Env): Promise<Response> {
 }
 
 async function listScanVerdicts(url: URL, env: Env): Promise<Response> {
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 100);
-  const filters = scanListFilters(url);
+  const parsed = parseQuery(scanListQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { limit, malicious, urlContains, since, until } = parsed.data;
+  const filters = {
+    malicious: malicious ?? null,
+    urlContains: urlContains ?? null,
+    since: since ?? null,
+    until: until ?? null,
+  };
   const where: string[] = [];
   const bindings: Array<string | number> = [];
   if (filters.malicious !== null) {
@@ -5292,8 +6037,9 @@ async function listScanVerdicts(url: URL, env: Env): Promise<Response> {
 }
 
 async function summarizeScanVerdicts(url: URL, env: Env): Promise<Response> {
-  const days = clampInteger(Number(url.searchParams.get("days") ?? "7"), 1, 90);
-  const tlsWarningDays = clampInteger(Number(url.searchParams.get("tlsWarningDays") ?? "7"), 1, 90);
+  const parsed = parseQuery(scanSummaryQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { days, tlsWarningDays } = parsed.data;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const query = await env.ANALYTICS_DB.prepare(
     `SELECT scan_id, timestamp, url, malicious, tls_valid_days, agent_readiness_level,
@@ -5341,14 +6087,12 @@ async function summarizeScanVerdicts(url: URL, env: Env): Promise<Response> {
 }
 
 async function getScanDetail(url: URL, env: Env): Promise<Response> {
-  const scanId = url.searchParams.get("scanId");
-  if (!scanId) return json({ status: "failed", message: "Missing scanId" }, 400);
-  if (!isUuid(scanId)) return json({ status: "failed", message: "Invalid scanId" }, 400);
+  const parsed = parseQuery(scanDetailQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { scanId, includeRaw } = parsed.data;
 
   const result = await getScanVerdict(scanId, env);
   if (!result) return json({ status: "failed", message: "Scan verdict not found" }, 404);
-
-  const includeRaw = url.searchParams.get("includeRaw") === "true";
   const scanR2Key = typeof result.scan_r2_key === "string" ? result.scan_r2_key : null;
   const archive = scanR2Key ? await scanArchiveSummary(scanR2Key, env, includeRaw) : null;
   return json({ verdict: result, archive }, 200);
@@ -5377,9 +6121,9 @@ async function getScanHar(url: URL, env: Env): Promise<Response> {
 }
 
 async function getScanNetworkSummary(url: URL, env: Env): Promise<Response> {
-  const scanId = url.searchParams.get("scanId");
-  if (!scanId) return json({ status: "failed", message: "Missing scanId" }, 400);
-  if (!isUuid(scanId)) return json({ status: "failed", message: "Invalid scanId" }, 400);
+  const parsed = parseQuery(scanIdQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { scanId } = parsed.data;
 
   const persisted = await getPersistedNetworkSummary(scanId, env);
   if (persisted) {
@@ -5401,10 +6145,9 @@ async function getScanNetworkSummary(url: URL, env: Env): Promise<Response> {
 }
 
 async function diffScanNetworkSummaries(url: URL, env: Env): Promise<Response> {
-  const baseScanId = url.searchParams.get("baseScanId");
-  const compareScanId = url.searchParams.get("compareScanId");
-  if (!baseScanId || !compareScanId) return json({ status: "failed", message: "Missing baseScanId or compareScanId" }, 400);
-  if (!isUuid(baseScanId) || !isUuid(compareScanId)) return json({ status: "failed", message: "Invalid scan ID" }, 400);
+  const parsed = parseQuery(scanCompareQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { baseScanId, compareScanId } = parsed.data;
 
   const [base, compare] = await Promise.all([
     getNetworkSummaryForComparison(baseScanId, env),
@@ -5539,9 +6282,9 @@ async function streamScanArtifact(
     notFoundMessage: string;
   },
 ): Promise<Response> {
-  const scanId = url.searchParams.get("scanId");
-  if (!scanId) return json({ status: "failed", message: "Missing scanId" }, 400);
-  if (!isUuid(scanId)) return json({ status: "failed", message: "Invalid scanId" }, 400);
+  const parsed = parseQuery(scanIdQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { scanId } = parsed.data;
 
   const verdict = await getScanVerdict(scanId, env);
   if (!verdict) return json({ status: "failed", message: "Scan verdict not found" }, 404);
@@ -5569,9 +6312,9 @@ async function streamScanArtifact(
 }
 
 async function exportScanEvidence(url: URL, env: Env): Promise<Response> {
-  const scanId = url.searchParams.get("scanId");
-  if (!scanId) return json({ status: "failed", message: "Missing scanId" }, 400);
-  if (!isUuid(scanId)) return json({ status: "failed", message: "Invalid scanId" }, 400);
+  const parsed = parseQuery(scanIdQuerySchema, url.searchParams, json);
+  if (!parsed.ok) return parsed.response;
+  const { scanId } = parsed.data;
 
   const verdict = await getScanVerdict(scanId, env);
   if (!verdict) return json({ status: "failed", message: "Scan verdict not found" }, 404);
@@ -6812,6 +7555,7 @@ const WORKER_API_ZONE: Record<string, string> = {
   '/performance': 'query',
   '/graded-wagers': 'query',
   '/prop-wagers': 'query',
+  '/pending-wagers': 'query',
   '/position-data': 'query',
   '/authorizations': 'query',
   '/players': 'query',
@@ -6853,11 +7597,14 @@ const WORKER_API_ROUTES: WorkerEndpointEntry[] = [
   { path: '/performance', method: 'GET', description: 'Agent performance metrics', refreshMs: 15000 },
   { path: '/graded-wagers', method: 'GET', description: 'Graded wager results', refreshMs: 10000 },
   { path: '/prop-wagers', method: 'GET', description: 'Prop bet wagers', refreshMs: 15000 },
+  { path: '/pending-wagers', method: 'GET', description: 'Live pending wagers (Manager/getPending)', refreshMs: 15000 },
   { path: '/position-data', method: 'GET', description: 'Sport-level position data', refreshMs: 30000 },
   { path: '/authorizations', method: 'GET', description: 'Agent authorization permissions', refreshMs: 30000 },
   { path: '/players', method: 'GET', description: 'Player list', refreshMs: 30000 },
   { path: '/search-customers', method: 'GET', description: 'Search player_agents by login, name, or customer id', refreshMs: 30000 },
-  { path: '/customer-profile', method: 'GET', description: 'Customer profile facets from D1 (getInfoPlayer, crypto, mail, teaser)', refreshMs: 30000 },
+  { path: '/customer-profile', method: 'GET', description: 'Customer profile (D1 seeded facets + live Manager calls; includes sources catalog)', refreshMs: 30000 },
+  { path: '/customer-profile/seed', method: 'POST', description: 'Seed customer_profile_facets from Manager (getInfoPlayer, crypto, mail, teaser)', refreshMs: 'manual' },
+  { path: '/agent-performance-live', method: 'GET', description: 'Live Manager/getAgentPerformance (CP, CPS, CPV, G)', refreshMs: 30000 },
   { path: '/weekly-figures', method: 'GET', description: 'Agent weekly figure lite snapshots', refreshMs: 30000 },
   { path: '/customer-activity', method: 'GET', description: 'Customer web logs + wagers for a login', refreshMs: 30000 },
   { path: '/customer-activity-search', method: 'POST', description: 'Search players for activity monitor', refreshMs: 30000 },

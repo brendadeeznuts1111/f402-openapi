@@ -106,7 +106,9 @@ export async function loadCustomerProfile(env: CustomerProfileEnv, customerId: s
     .all<{ facet: string; raw_snapshot_id: string; captured_at: string; payload_json: string }>();
 
   const facetMap: Record<string, unknown> = {};
+  const seededFacets: Record<string, { capturedAt: string; snapshotId: string }> = {};
   for (const row of facets.results ?? []) {
+    seededFacets[row.facet] = { capturedAt: row.captured_at, snapshotId: row.raw_snapshot_id };
     try {
       facetMap[row.facet] = JSON.parse(row.payload_json);
     } catch {
@@ -123,6 +125,35 @@ export async function loadCustomerProfile(env: CustomerProfileEnv, customerId: s
     }
   }
 
+  let webLogs: { lastCapturedAt: string | null; count24h: number } | null = null;
+  let recentWebLogs: Array<{
+    operation: string | null;
+    ip_address: string | null;
+    access_date_time: string;
+  }> = [];
+  const login = player?.login?.trim();
+  if (login) {
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const row = await env.ANALYTICS_DB.prepare(
+      `SELECT MAX(captured_at) AS last_captured, COUNT(*) AS cnt
+       FROM web_logs WHERE login = ? AND access_date_time >= ?`,
+    )
+      .bind(login, since24h)
+      .first<{ last_captured: string | null; cnt: number }>();
+    webLogs = {
+      lastCapturedAt: row?.last_captured ?? null,
+      count24h: Number(row?.cnt ?? 0),
+    };
+    const recent = await env.ANALYTICS_DB.prepare(
+      `SELECT operation, ip_address, access_date_time
+       FROM web_logs WHERE login = ? AND access_date_time >= ?
+       ORDER BY access_date_time DESC LIMIT 5`,
+    )
+      .bind(login, since24h)
+      .all<{ operation: string | null; ip_address: string | null; access_date_time: string }>();
+    recentWebLogs = recent.results ?? [];
+  }
+
   return {
     customerId,
     player: player ?? null,
@@ -130,6 +161,9 @@ export async function loadCustomerProfile(env: CustomerProfileEnv, customerId: s
       ? { snapshotId: account.raw_snapshot_id, capturedAt: account.captured_at, data: accountPayload }
       : null,
     facets: facetMap,
+    seededFacets,
+    webLogs,
+    recentWebLogs,
   };
 }
 

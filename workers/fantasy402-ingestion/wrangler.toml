@@ -70,7 +70,7 @@ tag = "v1"
 new_sqlite_classes = ["LiveWagerBroadcaster"]
 
 [triggers]
-crons = ["*/2 * * * *", "*/5 * * * *", "*/15 * * * *", "0 */6 * * *"]
+crons = ["*/2 * * * *", "*/5 * * * *", "*/15 * * * *", "0 */6 * * *", "0 6 * * *"]
 
 [vars]
 ENVIRONMENT = "production"

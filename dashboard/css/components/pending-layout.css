@@ -1,0 +1,5 @@
+/* Pending wagers view — summary row below filter bar */
+
+.ds-pending-summary {
+  display: contents;
+}

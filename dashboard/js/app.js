@@ -77,6 +77,12 @@ import { loadDataView, setDataTab } from './views/data.js';
 import { loadAlertsView, onAlertsTabChange, createAlertRule, triggerTestAlert } from './views/alerts.js';
 import { loadActivityView, initActivityView } from './views/customer-activity.js';
 import { loadCustomersView } from './views/customers.js';
+import {
+  initPendingView,
+  loadPendingWagersView,
+  registerPendingAutoRefresh,
+  unregisterPendingAutoRefresh,
+} from './views/pending-wagers.js';
 import { maybeAutoIngest } from './ingestion-automation.js';
 
 const store = new DataStore();
@@ -210,6 +216,7 @@ function renderSidebarStatus(status) {
 
 function switchView(name) {
   currentView = name;
+  unregisterPendingAutoRefresh();
   destroyAllCharts();
   document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
     const isActive = item.dataset.view === name;
@@ -250,6 +257,10 @@ function switchView(name) {
   } else if (name === 'customers') {
     ticker.stopSSE();
     loadCustomersView(ctx);
+  } else if (name === 'pending') {
+    ticker.stopSSE();
+    registerPendingAutoRefresh(ctx);
+    loadPendingWagersView(ctx);
   }
 }
 
@@ -312,6 +323,7 @@ initChartTabKeyboard();
 initDataTabKeyboard();
 initAlertsTabKeyboard();
 initActivityView(ctx);
+initPendingView(ctx);
 
 
 
@@ -437,8 +449,15 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     AutoRefreshManager.pause();
   } else {
-    if (currentView === 'overview') loadOverview(ctx);
-    registerOverviewRefresh();
+    if (currentView === 'overview') {
+      loadOverview(ctx);
+      registerOverviewRefresh();
+    } else if (currentView === 'pending') {
+      registerPendingAutoRefresh(ctx);
+      loadPendingWagersView(ctx);
+    } else {
+      registerOverviewRefresh();
+    }
   }
 });
 

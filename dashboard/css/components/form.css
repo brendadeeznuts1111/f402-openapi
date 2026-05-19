@@ -1,0 +1,72 @@
+/* dashboard/css/components/form.ds-css */
+
+.ds-form-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: end;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.ds-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ds-form-group label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.ds-form-group input,
+.ds-form-group select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.ds-form-group input:focus,
+.ds-form-group select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+/* Standalone .ds-form-input — same styling, usable outside .ds-form-group */
+.ds-form-input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+
+.ds-form-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+/* Light theme override for .ds-form-input */
+[data-theme="light"] .ds-form-input {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.ds-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.ds-rule-row:last-child { border-bottom: none; }

@@ -1,0 +1,28 @@
+/* dashboard/css/components/tabs.ds-css */
+
+.ds-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.ds-tab {
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.ds-tab:hover { color: var(--text); }
+
+.ds-tab.ds-active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+.ds-tab-content { display: none; }
+.ds-tab-content.ds-active { display: block; }

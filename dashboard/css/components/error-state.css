@@ -1,0 +1,18 @@
+/* dashboard/css/components/error-state.ds-css */
+
+.ds-error-state {
+  border: 1px solid var(--error);
+  border-left: 3px solid var(--error);
+  background: rgba(255, 68, 68, 0.05);
+  padding: var(--space-md);
+  color: var(--error);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  border-radius: 4px;
+  margin: var(--space-sm) 0;
+}
+
+.ds-error-state--query { border-left-color: var(--success); }
+.ds-error-state--auth  { border-left-color: var(--warning); }
+.ds-error-state--network { border-left-color: var(--info); }
+.ds-error-state--do    { border-left-color: #DA70D6; }

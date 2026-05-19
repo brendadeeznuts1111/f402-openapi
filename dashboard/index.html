@@ -3,140 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Fantasy402 Live Monitor — real-time wager ingestion dashboard with SSE streaming">
 <title>Fantasy402 Dashboard</title>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-:root { --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --purple: #a855f7; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 1.5rem; }
-h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
-h1 span { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
-h2 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
-.grid { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
-.summary-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; }
-.card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
-.card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
-.positive { color: var(--green); }
-.negative { color: var(--red); }
-.main-grid { grid-template-columns: 1fr 1fr; }
-@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-.full-grid { grid-template-columns: 1fr; }
-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; user-select: none; }
-th:hover { color: var(--text); }
-td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
-tr:last-child td { border-bottom: none; }
-tr:hover { background: rgba(255,255,255,0.03); }
-.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
-.badge-s { background: #1e3a5f; color: var(--blue); }
-.badge-p { background: #3b1f5e; color: var(--purple); }
-.badge-m { background: #1a3d2e; color: var(--green); }
-.badge-l { background: #3d2e1a; color: var(--amber); }
-.badge-warning { background: #3d2e1a; color: var(--amber); }
-.badge-critical { background: #3d1a1a; color: var(--red); }
-.badge-info { background: #1a2d3d; color: var(--blue); }
-.alert-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem; }
-.alert-toast div { background: var(--card); border: 1px solid var(--red); border-radius: 0.5rem; padding: 0.75rem 1rem; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); animation: slideIn 0.3s ease; max-width: 360px; }
-.alert-toast .dismiss { cursor: pointer; margin-left: 0.5rem; opacity: 0.5; }
-.alert-toast .dismiss:hover { opacity: 1; }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-.loading { color: var(--muted); font-style: italic; font-size: 0.85rem; padding: 1rem 0; }
-.error { color: var(--red); font-size: 0.85rem; padding: 0.5rem 0; }
-.ticker-item { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; }
-.ticker-item:last-child { border-bottom: none; }
-.ticker-item .login { font-weight: 600; min-width: 80px; }
-.ticker-item .amount { font-weight: 700; }
-.ticker-item .time { color: var(--muted); font-size: 0.75rem; }
-.ticker-container { max-height: 400px; overflow-y: auto; }
-.ticker-container::-webkit-scrollbar { width: 4px; }
-.ticker-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.filters { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-.filters select, .filters input, .filters button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.8rem; }
-.filters select:focus, .filters input:focus { outline: none; border-color: var(--blue); }
-.filters label { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; }
-.conn-status { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 0.5rem; }
-.conn-connected { background: var(--green); }
-.conn-error { background: var(--red); }
-.conn-polling { background: var(--amber); }
-
-.tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
-.tab { padding: 0.6rem 1.2rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-size: 0.85rem; font-weight: 600; user-select: none; }
-.tab:hover { color: var(--text); }
-.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
-.tab-content { display: none; }
-.tab-content.active { display: block; }
-.btn { background: var(--blue); color: #fff; border: none; border-radius: 0.25rem; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; }
-.btn:hover { opacity: 0.85; }
-.btn-sm { padding: 0.2rem 0.5rem; font-size: 0.7rem; }
-.btn-danger { background: var(--red); }
-.btn-amber { background: var(--amber); color: #000; }
-.rule-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; flex-wrap: wrap; }
-.rule-row:last-child { border-bottom: none; }
-.form-row { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.2rem; }
-.form-group label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
-.form-group input, .form-group select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.8rem; }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--blue); }
-</style>
+<link rel="stylesheet" href="css/design-system.css">
+<link rel="stylesheet" href="css/components/card.css">
+<link rel="stylesheet" href="css/components/table.css">
+<link rel="stylesheet" href="css/components/badge.css">
+<link rel="stylesheet" href="css/components/button.css">
+<link rel="stylesheet" href="css/components/toast.css">
+<link rel="stylesheet" href="css/components/conn-status.css">
+<link rel="stylesheet" href="css/components/skeleton.css">
+<link rel="stylesheet" href="css/components/filters.css">
+<link rel="stylesheet" href="css/components/error-state.css">
+<link rel="stylesheet" href="css/components/tabs.css">
+<link rel="stylesheet" href="css/components/form.css">
+<link rel="stylesheet" href="css/components/ticker.css">
+<link rel="stylesheet" href="css/components/modal.css">
+<link rel="stylesheet" href="css/components/chart.css">
+<link rel="stylesheet" href="css/components/dropdown.css">
+<link rel="stylesheet" href="css/components/tooltip.css">
 </head>
 <body>
 
 <h1>
-  <span class="conn-status conn-polling" id="connStatus"></span>
+  <span class="ds-conn-status ds-conn-polling" id="connStatus"></span>
   Fantasy402 Live Monitor
-  <span id="lastUpdate"></span>
+  <span class="ds-last-update" id="lastUpdate"></span>
+  <button class="ds-theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle light/dark theme">🌙</button>
 </h1>
 
-<div class="tabs">
-  <div class="tab active" data-tab="monitor" onclick="switchTab('monitor')">Monitor</div>
-  <div class="tab" data-tab="alerts" onclick="switchTab('alerts')">Alerts</div>
+<div class="ds-tabs" role="tablist">
+  <button class="ds-tab ds-active" data-tab="monitor" onclick="switchTab('monitor')" role="tab" aria-selected="true" aria-controls="tab-monitor" id="tab-btn-monitor">Monitor</button>
+  <button class="ds-tab" data-tab="alerts" onclick="switchTab('alerts')" role="tab" aria-selected="false" aria-controls="tab-alerts" id="tab-btn-alerts">Alerts</button>
 </div>
 
-<div class="tab-content active" id="tab-monitor">
-  <div class="grid summary-grid" id="summaryCards"></div>
+<div class="ds-tab-content ds-active" id="tab-monitor">
+  <div class="ds-grid ds-summary-grid" id="summaryCards"></div>
 
-  <div class="grid main-grid">
-    <div class="card">
+  <div class="ds-grid ds-main-grid">
+    <div class="ds-card">
       <h2>Live Wager Ticker</h2>
-      <div class="filters">
+      <div class="ds-filters ds-filters-bar">
         <label>Type <select id="tickerType"><option value="">All</option><option value="S">Straight</option><option value="P">Parlay</option><option value="M">Moneyline</option><option value="L">Live</option></select></label>
-        <label>Min $ <input type="number" id="tickerMin" value="0" style="width:70px"></label>
+        <label>Min $ <input type="number" id="tickerMin" value="0" class="ds-input-narrow"></label>
       </div>
-      <div class="ticker-container" id="tickerFeed"><div class="loading">Waiting for data...</div></div>
+      <div class="ds-ticker-container" id="tickerFeed">
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>Top Agents <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:0.75rem;color:var(--muted)">by volume</span></h2>
-      <div id="agentTable"><div class="loading">Loading...</div></div>
+    <div class="ds-card">
+      <h2>Top Agents <span class="ds-subtitle">by volume</span></h2>
+      <div id="agentTable">
+        <div class="ds-skeleton ds-skeleton-row"></div>
+        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+        <div class="ds-skeleton ds-skeleton-row"></div>
+      </div>
     </div>
   </div>
 
-  <div class="grid full-grid" style="margin-top:0">
-    <div class="card">
+  <div class="ds-grid ds-full-grid ds-mt-0">
+    <div class="ds-card">
       <h2>Graded Wagers</h2>
-      <div class="filters">
+      <div class="ds-filters ds-filters-bar">
         <label>Result <select id="gradedResult"><option value="">All</option><option value="W">Win</option><option value="L">Loss</option><option value="P">Push</option></select></label>
-        <label>Agent <input type="text" id="gradedAgent" placeholder="agent id" style="width:100px"></label>
+        <label>Agent <input type="text" id="gradedAgent" placeholder="agent id" class="ds-input-medium"></label>
       </div>
-      <div id="gradedFeed"><div class="loading">Loading...</div></div>
+      <div id="gradedFeed">
+        <div class="ds-skeleton ds-skeleton-row"></div>
+        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+        <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+        <div class="ds-skeleton ds-skeleton-row"></div>
+      </div>
     </div>
   </div>
 
-  <div class="grid full-grid" style="margin-top:0">
-    <div class="card">
+  <div class="ds-grid ds-full-grid ds-mt-0">
+    <div class="ds-card">
       <h2>Authorization Status</h2>
-      <div id="authGrid"><div class="loading">Loading...</div></div>
+      <div id="authGrid">
+        <div class="ds-skeleton ds-skeleton-card"></div>
+        <div class="ds-skeleton ds-skeleton-card"></div>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="tab-content" id="tab-alerts">
-  <div class="card" style="margin-bottom:1rem">
+<div class="ds-tab-content" id="tab-alerts">
+  <div class="ds-card ds-mb-1">
     <h2>Alert Rules</h2>
-    <div class="form-row" id="ruleForm">
-      <div class="form-group">
+    <div class="ds-form-row" id="ruleForm">
+      <div class="ds-form-group">
         <label>Metric</label>
         <select id="ruleMetric">
           <option value="wager_amount">Max Wager</option>
@@ -147,7 +109,7 @@ tr:hover { background: rgba(255,255,255,0.03); }
           <option value="win_rate">Win Rate (%)</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="ds-form-group">
         <label>Operator</label>
         <select id="ruleOperator">
           <option value="gt">&gt;</option>
@@ -156,11 +118,11 @@ tr:hover { background: rgba(255,255,255,0.03); }
           <option value="lte">&le;</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="ds-form-group">
         <label>Threshold (cents)</label>
         <input type="number" id="ruleThreshold" value="50000" min="0">
       </div>
-      <div class="form-group">
+      <div class="ds-form-group">
         <label>Severity</label>
         <select id="ruleSeverity">
           <option value="info">Info</option>
@@ -168,31 +130,43 @@ tr:hover { background: rgba(255,255,255,0.03); }
           <option value="critical">Critical</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="ds-form-group">
         <label>Agent ID (* = all)</label>
-        <input type="text" id="ruleAgent" value="*" style="width:80px">
+        <input type="text" id="ruleAgent" value="*" class="ds-input-short">
       </div>
-      <div class="form-group">
+      <div class="ds-form-group">
         <label>&nbsp;</label>
-        <button class="btn" onclick="createAlertRule()">Add Rule</button>
+        <button class="ds-btn" onclick="createAlertRule()">Add Rule</button>
       </div>
     </div>
-    <div id="alertRulesList"><div class="loading">Loading...</div></div>
+    <div id="alertRulesList">
+      <div class="ds-skeleton ds-skeleton-row"></div>
+      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+    </div>
   </div>
 
-  <div class="card">
+  <div class="ds-card">
     <h2>Alert Log</h2>
-    <div class="filters">
+    <div class="ds-filters ds-filters-bar">
       <label>Severity <select id="logSeverity" onchange="loadAlertLog()"><option value="">All</option><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option></select></label>
-      <label>Agent <input type="text" id="logAgent" placeholder="agent id" style="width:100px" oninput="loadAlertLog()"></label>
+        <label>Agent <input type="text" id="logAgent" placeholder="agent id" class="ds-input-medium" oninput="loadAlertLog()"></label>
     </div>
-    <div id="alertLogFeed"><div class="loading">Loading...</div></div>
+    <div id="alertLogFeed">
+      <div class="ds-skeleton ds-skeleton-row"></div>
+      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--medium"></div>
+      <div class="ds-skeleton ds-skeleton-row ds-skeleton-row--short"></div>
+    </div>
   </div>
 </div>
 
-<div class="alert-toast" id="alertContainer"></div>
+<div class="ds-toast" id="alertContainer"></div>
 
+<script src="js/constants.js"></script>
+<script src="js/utils.js"></script>
 <script>
+function $(id) { return document.getElementById(id); }
+
 const API = "/api";
 let tickerSince = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 let tickerTimer = null;
@@ -200,38 +174,90 @@ let sseSource = null;
 const MAX_TICKER_ITEMS = 100;
 let tickerItems = [];
 
-function $(id) { return document.getElementById(id); }
+// ── Theme ──
+function initTheme() {
+  const saved = localStorage.getItem("f402-theme");
+  const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+  const theme = saved || (prefersLight ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", theme);
+  $("themeToggle").textContent = theme === "light" ? "☀️" : "🌙";
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = current === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("f402-theme", next);
+  $("themeToggle").textContent = next === "light" ? "☀️" : "🌙";
+}
+initTheme();
+
+// ── Request Deduplication & Caching ──
+const apiCache = new Map();
+const inFlight = new Map();
+
+function getCacheTTL(path) {
+  const interval = getRefreshInterval(path);
+  return interval === "realtime" ? 2000 : Math.max(interval * 0.8, 2000);
+}
+
+async function fetchWithDedupe(path, options = {}) {
+  const key = path + (options.body || "");
+  const isRead = !options.method || options.method === "GET";
+  const now = Date.now();
+
+  // Reuse in-flight promise
+  if (inFlight.has(key)) {
+    return inFlight.get(key);
+  }
+
+  // Return cached response if still fresh (GET only)
+  if (isRead && apiCache.has(path)) {
+    const cached = apiCache.get(path);
+    if (now - cached.ts < cached.ttl) {
+      return Promise.resolve(cached.data);
+    }
+  }
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(`${API}${path}`, options);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (isRead) {
+        apiCache.set(path, { data, ts: now, ttl: getCacheTTL(path) });
+      }
+      return data;
+    } finally {
+      inFlight.delete(key);
+    }
+  })();
+
+  inFlight.set(key, promise);
+  return promise;
+}
 
 async function api(path) {
-  const res = await fetch(`${API}${path}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return fetchWithDedupe(path);
 }
 
 async function apiPost(path, body) {
-  const res = await fetch(`${API}${path}`, {
+  return fetchWithDedupe(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 async function apiPatch(path, body) {
-  const res = await fetch(`${API}${path}`, {
+  return fetchWithDedupe(path, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 async function apiDelete(path) {
-  const res = await fetch(`${API}${path}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return fetchWithDedupe(path, { method: "DELETE" });
 }
 
 function fmt(n) {
@@ -246,7 +272,7 @@ function usd(n) {
 
 function tag(wt) {
   const map = { S: "straight", P: "parlay", M: "moneyline", L: "live" };
-  return `<span class="badge badge-${wt.toLowerCase()}">${map[wt] || wt}</span>`;
+  return `<span class="ds-badge ds-badge-${wt.toLowerCase()}">${map[wt] || wt}</span>`;
 }
 
 function ago(iso) {
@@ -259,7 +285,7 @@ function ago(iso) {
 
 function updateConn(status) {
   const el = $("connStatus");
-  el.className = "conn-status conn-" + status;
+  el.className = "ds-conn-status ds-conn-" + status;
 }
 
 function matchesTickerFilters(w) {
@@ -274,15 +300,23 @@ function renderTicker() {
   const feed = $("tickerFeed");
   const filtered = tickerItems.filter(matchesTickerFilters);
   if (!filtered.length) {
-    feed.innerHTML = '<div class="loading">Waiting for wagers...</div>';
+    if (tickerItems.length === 0) {
+      feed.innerHTML = `
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+        <div class="ds-skeleton ds-skeleton-ticker"></div>
+      `;
+    } else {
+      feed.innerHTML = '<div class="ds-loading">No wagers match filters</div>';
+    }
     return;
   }
   const items = filtered.map(w => `
-    <div class="ticker-item">
-      <span class="login">${w.login || "?"}</span>
+    <div class="ds-ticker-item">
+      <span class="ds-login">${w.login || "?"}</span>
       <span>${tag(w.wager_type)}</span>
-      <span class="amount">${usd(w.amount_wagered)}</span>
-      <span class="time">${ago(w.captured_at)}</span>
+      <span class="ds-amount">${usd(w.amount_wagered)}</span>
+      <span class="ds-time">${ago(w.captured_at)}</span>
     </div>
   `).join("");
   feed.innerHTML = items;
@@ -379,10 +413,15 @@ function startPollingFallback() {
 }
 
 function switchTab(name) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
-  document.querySelector(`.tab[data-tab="${name}"]`).classList.add("active");
-  document.getElementById(`tab-${name}`).classList.add("active");
+  document.querySelectorAll(".ds-tab").forEach(t => {
+    t.classList.remove("ds-active");
+    t.setAttribute("aria-selected", "false");
+  });
+  document.querySelectorAll(".ds-tab-content").forEach(t => t.classList.remove("ds-active"));
+  const activeTab = document.querySelector(`.ds-tab[data-tab="${name}"]`);
+  activeTab.classList.add("ds-active");
+  activeTab.setAttribute("aria-selected", "true");
+  document.getElementById(`tab-${name}`).classList.add("ds-active");
 
   if (name === "monitor") {
     clearInterval(tickerTimer);
@@ -406,19 +445,19 @@ async function loadAlerts() {
 async function loadAlertRules() {
   try {
     const d = await api("/alert-rules?limit=100");
-    if (!d.rules?.length) { $("alertRulesList").innerHTML = '<div class="loading">No alert rules configured</div>'; return; }
+    if (!d.rules?.length) { $("alertRulesList").innerHTML = '<div class="ds-loading">No alert rules configured</div>'; return; }
     $("alertRulesList").innerHTML = d.rules.map(r => `
-      <div class="rule-row">
-        <span class="badge badge-${r.severity}">${r.severity}</span>
+      <div class="ds-rule-row">
+        <span class="ds-badge ds-badge-${r.severity}">${r.severity}</span>
         <span><strong>${r.metric}</strong> ${r.operator} ${fmt(r.threshold)}</span>
-        <span style="color:var(--muted)">agent: ${r.agent_id}</span>
-        <span style="color:var(--muted);font-size:0.7rem">${r.enabled ? '✅ enabled' : '⏸ disabled'}</span>
-        <button class="btn btn-sm ${r.enabled ? 'btn-amber' : 'btn'}" onclick="toggleAlertRule('${r.id}', ${!r.enabled})">${r.enabled ? 'Disable' : 'Enable'}</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteAlertRule('${r.id}')">Delete</button>
+        <span class="ds-subtitle">agent: ${r.agent_id}</span>
+        <span class="ds-rule-meta">${r.enabled ? '✅ enabled' : '⏸ disabled'}</span>
+        <button class="ds-btn ds-btn-sm ${r.enabled ? 'ds-btn-amber' : 'ds-btn'}" onclick="toggleAlertRule('${r.id}', ${!r.enabled})">${r.enabled ? 'Disable' : 'Enable'}</button>
+        <button class="ds-btn ds-btn-sm ds-btn-danger" onclick="deleteAlertRule('${r.id}')">Delete</button>
       </div>
     `).join("");
   } catch (e) {
-    $("alertRulesList").innerHTML = `<div class="error">${e.message}</div>`;
+    $("alertRulesList").innerHTML = renderErrorState(e.message, "/alert-rules");
   }
 }
 
@@ -430,19 +469,19 @@ async function loadAlertLog() {
     if (severity) path += `&severity=${severity}`;
     if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
     const d = await api(path);
-    if (!d.entries?.length) { $("alertLogFeed").innerHTML = '<div class="loading">No alert breaches</div>'; return; }
-    $("alertLogFeed").innerHTML = `<table style="font-size:0.8rem"><thead><tr><th>Time</th><th>Severity</th><th>Agent</th><th>Rule</th><th>Actual</th><th>Threshold</th></tr></thead><tbody>${
+    if (!d.entries?.length) { $("alertLogFeed").innerHTML = '<div class="ds-loading">No alert breaches</div>'; return; }
+    $("alertLogFeed").innerHTML = `<table class="ds-table-sm"><thead><tr><th>Time</th><th>Severity</th><th>Agent</th><th>Rule</th><th>Actual</th><th>Threshold</th></tr></thead><tbody>${
       d.entries.map(e => `<tr>
-        <td class="time">${ago(e.created_at)}</td>
+        <td class="ds-time">${ago(e.created_at)}</td>
         <td>${severityBadge(e.severity)}</td>
         <td><strong>${e.agent_id}</strong></td>
-        <td style="font-size:0.75rem">${e.metric} ${e.operator}</td>
-        <td class="${Number(e.actual_value) > Number(e.threshold) ? 'negative' : 'positive'}">${fmt(e.actual_value)}</td>
+        <td class="ds-cell-sm">${e.metric} ${e.operator}</td>
+        <td class="${Number(e.actual_value) > Number(e.threshold) ? 'ds-negative' : 'ds-positive'}">${fmt(e.actual_value)}</td>
         <td>${fmt(e.threshold)}</td>
       </tr>`).join("")
     }</tbody></table>`;
   } catch (e) {
-    $("alertLogFeed").innerHTML = `<div class="error">${e.message}</div>`;
+    $("alertLogFeed").innerHTML = renderErrorState(e.message, "/alert-log");
   }
 }
 
@@ -455,11 +494,11 @@ async function createAlertRule() {
   try {
     const result = await apiPost("/alert-rules", { metric, operator, threshold, severity, agent_id: agentId });
     if (result.status === "created") {
-      showAlert(`Alert rule created: ${metric} ${operator} ${threshold}`);
+      showAlert(`Alert rule created: ${metric} ${operator} ${threshold}`, "info");
       await loadAlertRules();
     }
   } catch (e) {
-    showAlert(`Failed: ${e.message}`);
+    showAlert(`Failed: ${e.message}`, "error");
   }
 }
 
@@ -468,7 +507,7 @@ async function toggleAlertRule(id, enabled) {
     await apiPatch(`/alert-rules?id=${id}`, { enabled });
     await loadAlertRules();
   } catch (e) {
-    showAlert(`Failed to toggle: ${e.message}`);
+    showAlert(`Failed to toggle: ${e.message}`, "error");
   }
 }
 
@@ -477,12 +516,12 @@ async function deleteAlertRule(id) {
     await apiDelete(`/alert-rules?id=${id}`);
     await loadAlertRules();
   } catch (e) {
-    showAlert(`Failed to delete: ${e.message}`);
+    showAlert(`Failed to delete: ${e.message}`, "error");
   }
 }
 
 function severityBadge(sev) {
-  return `<span class="badge badge-${sev}">${sev}</span>`;
+  return `<span class="ds-badge ds-badge-${sev}">${sev}</span>`;
 }
 
 // ── Summary cards ──
@@ -490,13 +529,13 @@ async function loadSummary() {
   try {
     const d = await api("/summary");
     $("summaryCards").innerHTML = `
-      <div class="card"><div class="label">Live Wagers Today</div><div class="value">${fmt(d.liveWagers.total)}</div><div class="sub">${usd(d.liveWagers.volume)} volume · ${d.liveWagers.agents} agents</div></div>
-      <div class="card"><div class="label">Graded Wagers Today</div><div class="value">${fmt(d.gradedWagers.total)}</div><div class="sub">PNL: <span class="${d.gradedWagers.pnl >= 0 ? 'positive' : 'negative'}">${usd(d.gradedWagers.pnl)}</span></div></div>
-      <div class="card"><div class="label">Top Agents</div><div class="value" style="font-size:1rem">${d.topAgents.map(a => a.agent_id).join(", ") || "none"}</div><div class="sub">${d.topAgents.length} agents with activity today</div></div>
-      <div class="card"><div class="label">Top Sport</div><div class="value" style="font-size:1rem">${d.topSports[0]?.sport_name || "N/A"}</div><div class="sub">${usd(d.topSports[0]?.volume)} volume</div></div>
+      <div class="ds-card"><div class="ds-label">Live Wagers Today</div><div class="ds-value">${fmt(d.liveWagers.total)}</div><div class="ds-sub">${usd(d.liveWagers.volume)} volume · ${d.liveWagers.agents} agents</div></div>
+      <div class="ds-card"><div class="ds-label">Graded Wagers Today</div><div class="ds-value">${fmt(d.gradedWagers.total)}</div><div class="ds-sub">PNL: <span class="${d.gradedWagers.pnl >= 0 ? 'ds-positive' : 'ds-negative'}">${usd(d.gradedWagers.pnl)}</span></div></div>
+      <div class="ds-card"><div class="ds-label">Top Agents</div><div class="ds-value ds-text-md">${d.topAgents.map(a => a.agent_id).join(", ") || "none"}</div><div class="ds-sub">${d.topAgents.length} agents with activity today</div></div>
+      <div class="ds-card"><div class="ds-label">Top Sport</div><div class="ds-value ds-text-md">${d.topSports[0]?.sport_name || "N/A"}</div><div class="ds-sub">${usd(d.topSports[0]?.volume)} volume</div></div>
     `;
   } catch (e) {
-    $("summaryCards").innerHTML = `<div class="card"><div class="label">Error</div><div class="value" style="font-size:0.9rem;color:var(--red)">${e.message}</div></div>`;
+    $("summaryCards").innerHTML = renderErrorState(e.message, "/summary");
   }
 }
 
@@ -504,18 +543,18 @@ async function loadSummary() {
 async function loadAgents() {
   try {
     const d = await api("/performance?limit=20");
-    if (!d.records?.length) { $("agentTable").innerHTML = '<div class="loading">No agent data</div>'; return; }
+    if (!d.records?.length) { $("agentTable").innerHTML = '<div class="ds-loading">No agent data</div>'; return; }
     const rows = d.records.map(a => `
       <tr>
         <td><strong>${a.agent_id}</strong></td>
         <td>${fmt(a.total_wagers)}</td>
         <td>${usd(a.total_volume)}</td>
-        <td class="${a.win_rate >= 50 ? 'positive' : 'negative'}">${a.win_rate?.toFixed(1) ?? "-"}%</td>
+        <td class="${a.win_rate >= 50 ? 'ds-positive' : 'ds-negative'}">${a.win_rate?.toFixed(1) ?? "-"}%</td>
       </tr>
     `).join("");
     $("agentTable").innerHTML = `<table><thead><tr><th>Agent</th><th>Wagers</th><th>Volume</th><th>Win%</th></tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
-    $("agentTable").innerHTML = `<div class="error">${e.message}</div>`;
+    $("agentTable").innerHTML = renderErrorState(e.message, "/performance");
   }
 }
 
@@ -528,20 +567,20 @@ async function loadGraded() {
     if (result) path += `&wager_type=${result}`;
     if (agent) path += `&agent_id=${encodeURIComponent(agent)}`;
     const d = await api(path);
-    if (!d.wagers?.length) { $("gradedFeed").innerHTML = '<div class="loading">No graded wagers found</div>'; return; }
+    if (!d.wagers?.length) { $("gradedFeed").innerHTML = '<div class="ds-loading">No graded wagers found</div>'; return; }
     const rows = d.wagers.map(w => `
       <tr>
         <td>${w.wager_number}</td>
         <td>${w.login}</td>
         <td>${usd(w.amount_wagered)}</td>
-        <td class="${w.net_amount >= 0 ? 'positive' : 'negative'}">${usd(w.net_amount ?? 0)}</td>
-        <td><span class="badge badge-${(w.result || 'x').toLowerCase()}">${w.result || "?"}</span></td>
-        <td class="time">${ago(w.grade_date_time || w.captured_at)}</td>
+        <td class="${w.net_amount >= 0 ? 'ds-positive' : 'ds-negative'}">${usd(w.net_amount ?? 0)}</td>
+        <td><span class="ds-badge ds-badge-${(w.result || 'x').toLowerCase()}">${w.result || "?"}</span></td>
+        <td class="ds-time">${ago(w.grade_date_time || w.captured_at)}</td>
       </tr>
     `).join("");
-    $("gradedFeed").innerHTML = `<table style="font-size:0.8rem"><thead><tr><th>#</th><th>Login</th><th>Amount</th><th>Net</th><th>Result</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
+    $("gradedFeed").innerHTML = `<table class="ds-table-sm"><thead><tr><th>#</th><th>Login</th><th>Amount</th><th>Net</th><th>Result</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
-    $("gradedFeed").innerHTML = `<div class="error">${e.message}</div>`;
+    $("gradedFeed").innerHTML = renderErrorState(e.message, "/graded-wagers");
   }
 }
 
@@ -549,17 +588,17 @@ async function loadGraded() {
 async function loadAuth() {
   try {
     const d = await api("/authorizations?limit=50");
-    if (!d.records?.length) { $("authGrid").innerHTML = '<div class="loading">No authorization data</div>'; return; }
+    if (!d.records?.length) { $("authGrid").innerHTML = '<div class="ds-loading">No authorization data</div>'; return; }
     const cards = d.records.map(a => `
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:0.375rem;padding:0.75rem;display:inline-block;margin:0.25rem;min-width:160px">
-        <div style="font-weight:700;font-size:0.85rem">${a.agent_id}</div>
-        <div style="font-size:0.75rem;color:var(--muted)">Master: ${a.master_agent_id || "-"}</div>
-        <div style="font-size:0.75rem;color:var(--muted)">Comm: ${a.commission_type || "-"}</div>
+      <div class="ds-auth-card">
+        <div class="ds-auth-card__title">${a.agent_id}</div>
+        <div class="ds-auth-card__meta">Master: ${a.master_agent_id || "-"}</div>
+        <div class="ds-auth-card__meta">Comm: ${a.commission_type || "-"}</div>
       </div>
     `).join("");
-    $("authGrid").innerHTML = cards || '<div class="loading">No agents authorized</div>';
+    $("authGrid").innerHTML = cards || '<div class="ds-loading">No agents authorized</div>';
   } catch (e) {
-    $("authGrid").innerHTML = `<div class="error">${e.message}</div>`;
+    $("authGrid").innerHTML = renderErrorState(e.message, "/authorizations");
   }
 }
 
@@ -573,20 +612,27 @@ const ALERT_THRESHOLDS = {
 function checkThresholds(wagers) {
   for (const w of wagers) {
     if (w.amount_wagered > ALERT_THRESHOLDS.maxWager) {
-      showAlert(`Large wager: ${w.login || w.customer_id} wagered ${usd(w.amount_wagered)}`);
+      showAlert(`Large wager: ${w.login || w.customer_id} wagered ${usd(w.amount_wagered)}`, "warn");
     }
   }
 }
 
-function showAlert(msg) {
+function showAlert(msg, severity = "warn") {
   const container = $("alertContainer");
   const el = document.createElement("div");
-  el.innerHTML = `${msg} <span class="dismiss" onclick="this.parentElement.remove()">✕</span>`;
+  el.className = `ds-toast-item ds-toast-item--${severity}`;
+  el.innerHTML = `${msg} <span class="ds-dismiss" onclick="this.parentElement.remove()">✕</span>`;
   container.appendChild(el);
   setTimeout(() => el.remove(), 8000);
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification("Fantasy402 Alert", { body: msg });
   }
+}
+
+function renderErrorState(msg, endpoint = "") {
+  const zone = getZone(endpoint);
+  const zoneClass = zone !== "worker" ? `ds-error-state--${zone}` : "";
+  return `<div class="ds-error-state ${zoneClass}">${msg}</div>`;
 }
 
 function requestNotificationPermission() {
@@ -607,11 +653,26 @@ async function init() {
   $("lastUpdate").textContent = new Date().toLocaleTimeString();
   await Promise.all([loadSummary(), loadAgents(), loadGraded(), loadAuth()]);
   connectSSE();
-  setInterval(loadSummary, 15000);
-  setInterval(loadAgents, 15000);
-  setInterval(loadGraded, 10000);
-  setInterval(loadAuth, 30000);
+  AutoRefreshManager.register("summary", loadSummary, getRefreshInterval('/summary'));
+  AutoRefreshManager.register("agents", loadAgents, getRefreshInterval('/performance'));
+  AutoRefreshManager.register("graded", loadGraded, getRefreshInterval('/graded-wagers'));
+  AutoRefreshManager.register("auth", loadAuth, getRefreshInterval('/authorizations'));
 }
+
+// Pause/resume intervals when tab hidden/visible to save Worker load
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    // Tab hidden: pause all polling intervals (SSE stays alive)
+    AutoRefreshManager.pause();
+  } else {
+    // Tab visible: immediately refresh and re-register intervals
+    loadSummary(); loadAgents(); loadGraded(); loadAuth();
+    AutoRefreshManager.register("summary", loadSummary, getRefreshInterval('/summary'));
+    AutoRefreshManager.register("agents", loadAgents, getRefreshInterval('/performance'));
+    AutoRefreshManager.register("graded", loadGraded, getRefreshInterval('/graded-wagers'));
+    AutoRefreshManager.register("auth", loadAuth, getRefreshInterval('/authorizations'));
+  }
+});
 
 init();
 </script>

@@ -1,0 +1,82 @@
+/* dashboard/css/components/modal.ds-css */
+/* Modal overlay + content. Requires .ds-modal, .ds-modal--open, .ds-modal__backdrop, .ds-modal__content */
+
+.ds-modal {
+  display: none;
+}
+
+.ds-modal--open {
+  display: block;
+}
+
+.ds-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: var(--z-modal-backdrop);
+}
+
+.ds-modal__content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-ds);
+  border-radius: 4px;
+  padding: var(--space-lg);
+  min-width: 320px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: var(--z-modal);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.ds-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-ds);
+}
+
+.ds-modal__title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--primary-text);
+  font-family: var(--font-sans);
+}
+
+.ds-modal__close {
+  background: none;
+  border: none;
+  color: var(--secondary-text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.ds-modal__close:hover { color: var(--primary-text); }
+
+.ds-modal__body {
+  font-size: var(--text-sm);
+  color: var(--primary-text);
+  font-family: var(--font-mono);
+}
+
+.ds-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-ds);
+}
+
+/* Prevent body scroll when modal is open */
+body.ds-modal-open {
+  overflow: hidden;
+}

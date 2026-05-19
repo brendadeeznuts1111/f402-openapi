@@ -132,6 +132,8 @@ flowchart TB
 | 🟪 Durable Object | `48;5;53` / `38;5;213` | bg:`#1E0E2D` fg:`#DA70D6` | SSE, hibernation, broadcast |
 | 🟫 Data Layer | `48;5;94` / `38;5;180` | bg:`#2D1E0E` fg:`#CD853F` | D1, R2, KV stores |
 | ⬆️ Upstream | `48;5;17` / `38;5;64` | bg:`#0E0E2D` fg:`#6B8E23` | Fantasy402 API |
+| 🍪 Cookie Automation | `48;5;52` / `38;5;196` | bg:`#2D0E0E` fg:`#FF4444` | Puppeteer, Cloudflare challenge |
+| 🌐 Networking/Scanner | `48;5;17` / `38;5;39` | bg:`#0E1E3A` fg:`#00BFFF` | URL scanner, security analysis |
 
 ## 3. Full Wiring Matrix (v2.0)
 
@@ -292,6 +294,40 @@ Same structure as `bet_ticker_wagers` for prop bet events.
 - **Single HTML file** (`dashboard/index.html`) — zero build step.
 - **No frameworks** — Vanilla JS, CSS Grid, Custom Properties.
 - **Deployed on Cloudflare Pages** with a **Pages Function** (`_worker.js`) as API proxy.
+- **Design System** — Extracted into `css/design-system.css` + `css/components/*.css` (17 component stylesheets). Loaded via `<link>` tags.
+- **Naming Convention** — BEM (Block__Element--Modifier), e.g. `.ds-modal__content`, `.ds-badge--error`. No `ds-` prefix — all classes are design-system native and scoped by component file.
+- **Shared Constants** — `js/constants.js` holds canonical `ZONE_COLORS`, `ENDPOINT_ZONE_MAP`, and `REFRESH_INTERVALS`. Single source of truth for both Worker and Dashboard.
+
+### 6.1.1 File Structure
+
+```
+dashboard/
+├── index.html                 # Main entry (zero build step)
+├── _worker.js                 # Pages Function proxy (injects Bearer token)
+├── wrangler.toml              # Pages deployment config
+├── css/
+│   ├── design-system.css      # Tokens, reset, utilities, animations, theme
+│   └── components/
+│       ├── card.css           # Card component
+│       ├── table.css          # Table component
+│       ├── badge.css          # Badge component
+│       ├── button.css         # Button component
+│       ├── toast.css          # Toast notifications
+│       ├── conn-status.css    # Connection status indicator
+│       ├── skeleton.css       # Skeleton loaders
+│       ├── filters.css        # Filter bar
+│       ├── error-state.css    # Zone-colored inline errors
+│       ├── tabs.css           # Tab navigation
+│       ├── form.css           # Form inputs + rule rows
+│       ├── ticker.css         # Ticker item layout
+│       ├── modal.css          # Modal overlay + focus trap
+│       ├── chart.css          # Chart container foundation
+│       ├── dropdown.css       # Dropdown menus
+│       └── tooltip.css        # Tooltip on hover
+└── js/
+    ├── constants.js           # ZONE_COLORS, ENDPOINT_ZONE_MAP, REFRESH_INTERVALS
+    └── utils.js               # DateFormatter, NumberFormatter, Exporter, LazyLoader, ModalFactory
+```
 
 ### 6.2 Dashboard Components
 
@@ -308,6 +344,13 @@ Same structure as `bet_ticker_wagers` for prop bet events.
 | **AlertRulesList** | Alerts | Existing rules with toggle/delete | `GET /alert-rules`, `DELETE /alert-rules`, `PATCH /alert-rules` |
 | **AlertLogViewer** | Alerts | Breach history, filterable | `GET /alert-log` |
 | **Toast Container** | — | Threshold alert toasts + browser notifications | Client-side `checkThresholds()` |
+| **Skeleton Loader** | — | Shimmer-animated placeholder for cards/tables/ticker | CSS `skeleton` class |
+| **ErrorState** | — | Zone-colored inline error display | `renderErrorState(msg, endpoint)` |
+| **ThemeToggle** | — | Light/dark mode switcher with `localStorage` persistence | `[data-theme="light"]` override |
+| **Modal** | — | Overlay dialog with focus trapping, Escape to close, body scroll lock | `ModalFactory.create/open/close/destroy` |
+| **ChartContainer** | — | Responsive canvas wrapper for future chart libraries | `.ds-chart-container` + `.ds-chart-canvas` |
+| **Dropdown** | — | Action menu with click-outside-to-close | `.ds-dropdown` + `.ds-dropdown__menu` |
+| **Tooltip** | — | Hover tooltip via `[data-tooltip]` attribute | CSS `::after` pseudo-element |
 
 ### 6.3 Real‑time Ticker Flow
 1. On page load, `connectSSE()` creates an `EventSource` to `/api/live-wagers`.
@@ -319,19 +362,66 @@ Same structure as `bet_ticker_wagers` for prop bet events.
 7. On `EventSource` error, connection status indicator turns red; fallback continues.
 
 ### 6.4 Data Refresh (Static Queries)
-- `loadSummary()` — every 15s
-- `loadAgents()` — every 15s
-- `loadGraded()` — every 10s
-- `loadAuth()` — every 30s
+- `loadSummary()` — every 15s (`getRefreshInterval('/summary')`)
+- `loadAgents()` — every 15s (`getRefreshInterval('/performance')`)
+- `loadGraded()` — every 10s (`getRefreshInterval('/graded-wagers')`)
+- `loadAuth()` — every 30s (`getRefreshInterval('/authorizations')`)
 
-All use `fetch(API + path)` and render directly into DOM.
+**Tab visibility optimization:** When `document.hidden` becomes `true`, all polling `setInterval` timers are cleared. When the tab becomes visible again, data is immediately refreshed and timers restart. SSE connection remains alive in the background. This reduces Worker load when the dashboard is not actively viewed.
+
+All requests go through `fetchWithDedupe(path, options)`:
+- **In-flight deduplication** — concurrent identical requests reuse the same promise.
+- **Response caching** — GET responses cached with TTL = `0.8 × refreshInterval` (or 2s for realtime). Mutations bypass cache but still dedupe.
+- **Cache invalidation** — automatic expiry based on endpoint's configured refresh interval from `constants.js`.
+
+### 6.4.1 Zone Color Deterministic Mapping
+Every component derives its accent color from its endpoint's zone via `getZoneColor(endpoint)` in `constants.js`:
+
+| Endpoint Prefix | Zone | Accent Color |
+|-----------------|------|--------------|
+| `/ingest` | Ingestion | `#FF6B35` |
+| `/bet-ticker`, `/performance`, `/graded`, `/authorizations` | Query | `#00FF88` |
+| `/alert-rules`, `/alert-log`, `/health`, `/diagnostics`, `/runs` | Auth | `#FFD700` |
+| `/live-wagers`, `/broadcast` | Durable Object | `#DA70D6` |
+| `/scans`, `/scanner` | Network | `#00BFFF` |
+| `/update-cookies` | Cookie | `#FF4444` |
+| default | Worker | `#FFFFFF` |
 
 ### 6.5 Client‑Side Alerting
 - Hardcoded thresholds: `maxWager: 50000` ($500), `maxLossPerAgent: 100000` ($1,000).
 - Each new wager passed to `checkThresholds()` — if breached, a toast appears and, if permissions granted, a browser `Notification` is shown.
 - Planned: server‑side rules via `alert_rules` table; would replace hardcoded checks with rule evaluation.
 
-### 6.6 State Management (in‑memory)
+### 6.6 Accessibility
+- **Tabs** use `<button>` elements with `role="tab"`, `aria-selected`, `aria-controls`, and keyboard-focusable styling.
+- **Focus indicators** — `:focus-visible` outline uses `var(--info)` (`#00BFFF`) with 2px offset on all interactive elements.
+- **Theme toggle** has `aria-label="Toggle light/dark theme"` and `title` tooltip.
+- **Skeleton loaders** provide visual loading state without requiring ARIA live regions (content replaces skeletons atomically).
+
+### 6.7 JS Utilities (`js/utils.js`)
+
+| Utility | Purpose | Edge Cases Handled |
+|---------|---------|-------------------|
+| `DateFormatter.relative(iso)` | Human-readable relative time | Future dates ("in 5m"), null input returns `"-"` |
+| `DateFormatter.format(iso, opts)` | Absolute date/time | `{date, time}` options; null safe |
+| `NumberFormatter.currency(n)` | `$1,234.56` | Negative values, null safe |
+| `NumberFormatter.percentage(n, decimals)` | `45.5%` | Negative values, null safe |
+| `NumberFormatter.compact(n)` | `1.2K`, `3.4M` | Null safe, handles B/M/K thresholds |
+| `Exporter.csv(rows, filename)` | Browser CSV download | Escapes commas, quotes, newlines; nested objects flattened to `[object]` (use `Exporter.json` for nested) |
+| `Exporter.json(data, filename)` | Browser JSON download | Pretty-printed with 2-space indent |
+| `LazyLoader.observe(el, cb)` | IntersectionObserver wrapper | Auto-unobserves after first trigger; `disconnect()` cleans up all observers and handlers |
+| `ModalFactory.create(id, opts)` | Modal DOM builder | Focus trapping (Tab/Shift+Tab cycles), Escape to close, restores focus on close, body scroll lock |
+
+### 6.8 Z-Index Hierarchy
+```
+1000  --z-toast        Toast notifications
+2000  --z-modal-backdrop  Modal overlay
+3000  --z-modal        Modal content card
+4000  --z-dropdown     Dropdown menus
+5000  --z-tooltip      Hover tooltips
+```
+
+### 6.9 State Management (in‑memory)
 - `tickerItems` — array of wager objects, newest first.
 - `tickerSince` — ISO string of latest wager (for polling).
 - `sseSource` / `tickerTimer` — references to SSE connection and polling interval.
@@ -376,7 +466,7 @@ All use `fetch(API + path)` and render directly into DOM.
 
 - **Worker:** Zod returns 400 with detailed issues on invalid input; D1 errors return 500 and are logged.
 - **DO:** Handles client disconnects gracefully; dead sessions cleaned on next broadcast.
-- **Dashboard:** SSE errors trigger polling fallback; API errors shown inline; `usd()` and `fmt()` handle `null` data.
+- **Dashboard:** SSE errors trigger polling fallback; API errors rendered as zone-colored `.ds-error-state` components (query → green, auth → yellow, network → blue, DO → purple); `usd()` and `fmt()` handle `null` data.
 - **Data:** D1 results validated with Zod after retrieval to catch schema drift.
 
 ---
@@ -392,6 +482,9 @@ All use `fetch(API + path)` and render directly into DOM.
 | Push notifications via webhooks/email | Planned |
 | Multi‑sport dashboards (per‑sport views) | Possible |
 | Admin panel for rule configuration | Possible |
+| Design system v2.2 (extracted CSS, constants, theme) | **Done** |
+| Skeleton loaders + error states | **Done** |
+| Request deduplication & caching | **Done** |
 
 ---
 
@@ -404,7 +497,7 @@ All use `fetch(API + path)` and render directly into DOM.
 
 ---
 
-*Document version: 2.0 – covers v2.0 wiring map, SSE over HTTP, circuit breaker, idempotency, covering indexes, R2 archive, health/replay endpoints. Updated 2026-05-18.*
+*Document version: 2.2 – covers v2.2 design system extraction (CSS components, constants.js, theme switcher, skeleton loaders, error states, request deduplication), SSE over HTTP, circuit breaker, idempotency, covering indexes, R2 archive, health/replay endpoints. Updated 2026-05-18.*
 
 ---
 
@@ -430,3 +523,23 @@ All use `fetch(API + path)` and render directly into DOM.
 ### 2026-05-18 — P4: WebSocket Migration
 - Deferred — Pages `_worker.js` proxy can't transparently forward WebSocket upgrades. SSE works for current ~100 concurrent connections.
 - Will revisit when Pages Functions natively support WebSocket upgrade pass-through or when dashboard DAU exceeds 50.
+
+### 2026-05-18 — P5: Design System v2.2 Extraction
+- **CSS extracted** from inline `<style>` block into `css/design-system.css` (tokens, reset, utilities, animations, theme overrides) + 17 component stylesheets under `css/components/`.
+- **Canonical constants** created in `js/constants.js`: `ZONE_COLORS`, `ENDPOINT_ZONE_MAP`, `REFRESH_INTERVALS` with helpers `getZoneColor()`, `getRefreshInterval()`, `getZone()`.
+- **Theme switcher** added: `initTheme()` reads `localStorage.getItem("f402-theme")`, falls back to `prefers-color-scheme`. `[data-theme="light"]` overrides all surface, text, and semantic colors.
+- **Skeleton loaders** replaced all `<div class="ds-loading">Loading...</div>` placeholders with shimmer-animated `.ds-skeleton` bars.
+- **Error boundary component** `.ds-error-state` with zone-colored left border (query → green, auth → yellow, network → blue, DO → purple). All `catch` blocks use `renderErrorState(msg, endpoint)`.
+- **Request deduplication + caching** via `fetchWithDedupe()`: in-flight promises reused by key; GET responses cached at `0.8 × refreshInterval`; mutations bypass cache.
+- **Animation tokens** added: `--transition-fast: 0.15s ease`, `--transition-normal: 0.3s ease`.
+- **Refresh intervals** now sourced from `constants.js` instead of hardcoded values in `setInterval()` calls.
+- **Z-index hierarchy** standardized with CSS custom properties: `--z-toast: 1000`, `--z-modal-backdrop: 2000`, `--z-modal: 3000`, `--z-dropdown: 4000`, `--z-tooltip: 5000`.
+- **Modal component** (`css/components/modal.css` + `ModalFactory` in `utils.js`): focus trapping, Escape to close, body scroll lock, focus restoration on close.
+- **Chart container** (`css/components/chart.css`): responsive canvas wrapper with legend foundation for future chart libraries.
+- **Dropdown + Tooltip** components added as CSS-only foundations.
+- **JS utilities** (`js/utils.js`):
+  - `DateFormatter.relative()` — handles past/future, singular/plural ("1 minute ago" / "2 minutes ago"), "Just now" for < 60s.
+  - `NumberFormatter` — currency, percentage (negative support), compact (1.2K, 3.4M).
+  - `Exporter.csv()` — RFC 4180 compliant quote escaping. `Exporter.json()` — `WeakSet`-based circular reference detection (replaces cycles with `"[Circular]"`).
+  - `LazyLoader` — `WeakMap`-backed (elements GC-able even if not explicitly unobserved). `disconnect()` cleans up observer.
+  - `ModalFactory` — focus trap re-queries DOM on every Tab (handles dynamically injected content), falls back to `modal.focus()` when no focusable children exist, restores focus on close, body scroll lock.

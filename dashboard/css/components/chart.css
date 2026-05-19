@@ -1,0 +1,51 @@
+/* dashboard/css/components/chart.ds-css */
+/* Chart container foundation. Actual chart rendering is framework-agnostic (Chart.ds-js, D3, etc.). */
+
+.ds-chart-container {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-ds);
+  border-radius: 4px;
+  padding: var(--space-md);
+}
+
+.ds-chart-container--sm { min-height: 120px; }
+.ds-chart-container--lg { min-height: 320px; }
+
+.ds-chart-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--secondary-text);
+  margin-bottom: var(--space-sm);
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ds-chart-canvas {
+  display: block;
+  width: 100%;
+}
+
+.ds-chart-legend {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--secondary-text);
+  font-family: var(--font-mono);
+}
+
+.ds-chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.ds-chart-legend__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}

@@ -1,0 +1,30 @@
+/* dashboard/css/components/tooltip.ds-css */
+/* Tooltip on hover. Uses data-tooltip attribute. */
+
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tertiary-bg);
+  color: var(--primary-text);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  z-index: var(--z-tooltip);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+  border: 1px solid var(--border-ds);
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+}

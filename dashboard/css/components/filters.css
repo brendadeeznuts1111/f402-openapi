@@ -1,0 +1,68 @@
+/* dashboard/css/components/filters.ds-css */
+
+.ds-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ds-filters select,
+.ds-filters input,
+.ds-filters button {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.ds-filters select:focus,
+.ds-filters input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.ds-filters label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Design-system variant */
+.ds-filters-bar {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  align-items: center;
+}
+
+.ds-filters-bar select,
+.ds-filters-bar input {
+  background: var(--tertiary-bg);
+  color: var(--primary-text);
+  border: 1px solid var(--border-ds);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+}
+
+.ds-filters-bar select:focus,
+.ds-filters-bar input:focus {
+  outline: none;
+  border-color: var(--info);
+}
+
+.ds-filters-bar label {
+  font-size: var(--text-xs);
+  color: var(--secondary-text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-sans);
+}

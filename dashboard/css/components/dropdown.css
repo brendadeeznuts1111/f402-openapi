@@ -1,0 +1,47 @@
+/* dashboard/css/components/dropdown.ds-css */
+/* Dropdown menu for actions, filters, etc. */
+
+.ds-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.ds-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-ds);
+  border-radius: 4px;
+  min-width: 160px;
+  z-index: var(--z-dropdown);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  display: none;
+}
+
+.ds-dropdown--open .ds-dropdown__menu {
+  display: block;
+}
+
+.ds-dropdown__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  color: var(--primary-text);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-dropdown__item:hover {
+  background: var(--hover-bg);
+}
+
+.ds-dropdown__divider {
+  height: 1px;
+  background: var(--border-ds);
+  margin: var(--space-xs) 0;
+}

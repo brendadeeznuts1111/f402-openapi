@@ -211,7 +211,7 @@ npm run validate:deploy-config
 
 This intentionally fails while `wrangler.toml` still contains placeholder KV or D1 IDs.
 
-The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS` and only includes read-shaped operations from the hardened OpenAPI contract. The production defaults are `getAccountInfoOwner`, `getAuthorizations`, `getBetTicker`, `getAgentPositionData`, and `getAgentPositionList`. The first two match observed authenticated manager browser requests and do not require `FANTASY402_CUSTOMER_ID`. The last three enable live wager and position data ingestion.
+The default endpoint list is configured in `FANTASY402_INGESTION_ENDPOINTS`. Set it to `all` to ingest the full read-only upstream catalog from `upstream-endpoints.json` (83 endpoints without `FANTASY402_CUSTOMER_ID`, 86 with it). Batched rotation uses `FANTASY402_INGESTION_BATCH_SIZE` (default 12) so each 15-minute cron processes a slice of the catalog; every snapshot lands in `api_snapshots` and R2, with typed tables filled for wager/performance endpoints.
 
 Some discovered browser-to-api operations use different body encodings. The Worker sends form-encoded bodies for the common Manager/Report endpoints and JSON for `Manager/getPending`, matching `openapi.secured.examples.json`.
 

@@ -1,5 +1,12 @@
 import { diagnoseUrlScanner, submitAndWait, UrlScannerApiError } from "./url-scanner";
 import { UPSTREAM_MANIFEST } from "./upstream-manifest";
+import {
+  INGESTION_ALL,
+  INGESTION_CURSOR_KEY,
+  ingestionBatchSize,
+  planIngestionBatch,
+  resolveIngestionEndpointKeys,
+} from "./ingestion-config";
 import { summarizeHar, type HarNetworkSummary, type HarRequestSummary } from "./har-summary";
 import { localIngestSchema, refreshAuthSchema, wagerQuerySchema, performanceQuerySchema, authorizationsQuerySchema, paginationSchema, updateCookiesSchema, chartAggregatesSchema } from "./schemas";
 export { LiveWagerBroadcaster } from "./live-wager-broadcaster";
@@ -16,6 +23,7 @@ export interface Env {
   CLOUDFLARE_API_TOKEN: string;
   FANTASY402_BASE_URL: string;
   FANTASY402_INGESTION_ENDPOINTS: string;
+  FANTASY402_INGESTION_BATCH_SIZE?: string;
   FANTASY402_USERNAME: string;
   FANTASY402_PASSWORD: string;
   FANTASY402_SESSION_COOKIE?: string;
@@ -1285,12 +1293,16 @@ export default worker;
 async function runIngestion(env: Env): Promise<RunResult> {
   const runId = crypto.randomUUID();
   const startedAt = new Date();
-  const endpointConfigs = selectEndpoints(env);
+  const { endpoints: endpointConfigs, batch } = await selectEndpointsForRun(env);
 
   await env.ANALYTICS_DB.prepare(
     "INSERT INTO ingestion_runs (id, started_at, status, endpoints_requested) VALUES (?, ?, 'running', ?)",
   )
-    .bind(runId, startedAt.toISOString(), endpointConfigs.map((endpoint) => endpoint.key).join(","))
+    .bind(
+      runId,
+      startedAt.toISOString(),
+      formatEndpointsRequested(batch, endpointConfigs),
+    )
     .run();
 
   let endpointsSucceeded = 0;
@@ -3167,11 +3179,7 @@ async function queryChartAggregates(url: URL, env: Env): Promise<Response> {
 }
 
 function listUpstreamEndpoints(env: Env): Response {
-  const configured = new Set(
-    env.FANTASY402_INGESTION_ENDPOINTS.split(",")
-      .map((part) => part.trim())
-      .filter(Boolean),
-  );
+  const configured = configuredIngestionKeys(env);
   const routes = UPSTREAM_MANIFEST.endpoints.map((entry) => {
     const isConfigured = configured.has(entry.key);
     const implemented = Object.prototype.hasOwnProperty.call(ENDPOINTS, entry.key);
@@ -3996,20 +4004,99 @@ async function liveWagersStream(url: URL, env: Env, ctx?: ExecutionContext): Pro
   });
 }
 
+function configuredIngestionKeys(env: Env): Set<string> {
+  return new Set(
+    resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
+      hasCustomerId: hasEnvValue(env.FANTASY402_CUSTOMER_ID),
+      isKnownKey: (key) => isEndpointKey(key),
+      requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+    }),
+  );
+}
+
+function formatEndpointsRequested(
+  batch: ReturnType<typeof planIngestionBatch>,
+  endpoints: EndpointConfig[],
+): string {
+  const keys = endpoints.map((endpoint) => endpoint.key).join(",");
+  if (batch.catalogSize <= batch.batchSize) return keys;
+  return `[batch ${batch.cursor}-${batch.cursor + batch.batchSize - 1}/${batch.catalogSize}] ${keys}`;
+}
+
+async function readIngestionCursor(env: Env): Promise<number> {
+  try {
+    const raw = await env.AUTH_CACHE.get(INGESTION_CURSOR_KEY);
+    const parsed = Number.parseInt(raw ?? "0", 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function writeIngestionCursor(env: Env, cursor: number): Promise<void> {
+  try {
+    await env.AUTH_CACHE.put(INGESTION_CURSOR_KEY, String(cursor));
+  } catch {
+    /* cursor is best-effort */
+  }
+}
+
+async function selectEndpointsForRun(env: Env): Promise<{
+  endpoints: EndpointConfig[];
+  batch: ReturnType<typeof planIngestionBatch>;
+}> {
+  const catalogKeys = resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
+    hasCustomerId: hasEnvValue(env.FANTASY402_CUSTOMER_ID),
+    isKnownKey: (key) => isEndpointKey(key),
+    requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+  });
+
+  if (!catalogKeys.length) {
+    throw new Error("No ingestion endpoints resolved from FANTASY402_INGESTION_ENDPOINTS");
+  }
+
+  const batchSize = ingestionBatchSize(env.FANTASY402_INGESTION_BATCH_SIZE);
+  const useBatching = env.FANTASY402_INGESTION_ENDPOINTS.trim().toLowerCase() === INGESTION_ALL;
+
+  if (!useBatching) {
+    const endpoints = catalogKeys.map((key) => resolveEndpointConfig(key, env));
+    return {
+      endpoints,
+      batch: {
+        keys: catalogKeys,
+        cursor: 0,
+        nextCursor: 0,
+        batchSize: catalogKeys.length,
+        catalogSize: catalogKeys.length,
+      },
+    };
+  }
+
+  const cursor = await readIngestionCursor(env);
+  const batch = planIngestionBatch(catalogKeys, cursor, batchSize);
+  await writeIngestionCursor(env, batch.nextCursor);
+  const endpoints = batch.keys.map((key) => resolveEndpointConfig(key, env));
+  return { endpoints, batch };
+}
+
+function resolveEndpointConfig(key: string, env: Env): EndpointConfig {
+  if (!isEndpointKey(key)) {
+    throw new Error(`Unknown endpoint configured: ${key}`);
+  }
+  const endpoint = ENDPOINTS[key];
+  if (endpoint.requiresCustomerId && !env.FANTASY402_CUSTOMER_ID) {
+    throw new Error(`${key} requires FANTASY402_CUSTOMER_ID`);
+  }
+  return endpoint;
+}
+
 function selectEndpoints(env: Env): EndpointConfig[] {
-  return env.FANTASY402_INGESTION_ENDPOINTS.split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((key) => {
-      if (!isEndpointKey(key)) {
-        throw new Error(`Unknown endpoint configured: ${key}`);
-      }
-      const endpoint = ENDPOINTS[key];
-      if (endpoint.requiresCustomerId && !env.FANTASY402_CUSTOMER_ID) {
-        throw new Error(`${key} requires FANTASY402_CUSTOMER_ID`);
-      }
-      return endpoint;
-    });
+  const catalogKeys = resolveIngestionEndpointKeys(env.FANTASY402_INGESTION_ENDPOINTS, {
+    hasCustomerId: hasEnvValue(env.FANTASY402_CUSTOMER_ID),
+    isKnownKey: (key) => isEndpointKey(key),
+    requiresCustomerId: (key) => isEndpointKey(key) && Boolean(ENDPOINTS[key].requiresCustomerId),
+  });
+  return catalogKeys.map((key) => resolveEndpointConfig(key, env));
 }
 
 function withDateRange(env: Env, now: Date, input: Record<string, string | number>): Record<string, string | number> {
@@ -4707,7 +4794,7 @@ function diagnostics(env: Env): Response {
       scanPolicy: {
         allowedHosts: [...allowedScanHosts(env)],
       },
-      configuredEndpoints: env.FANTASY402_INGESTION_ENDPOINTS.split(",").map((endpoint) => endpoint.trim()).filter(Boolean),
+      configuredEndpoints: [...configuredIngestionKeys(env)],
       archive: {
         prefix: R2_ARCHIVE_PREFIX,
         storageClass: R2_ARCHIVE_STORAGE_CLASS,

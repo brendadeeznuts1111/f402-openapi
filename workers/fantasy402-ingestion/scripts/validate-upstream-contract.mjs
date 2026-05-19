@@ -217,6 +217,11 @@ function isUnreviewedCredentialField(value) {
 function parseConfiguredEndpointKeys(config) {
   const match = config.match(/FANTASY402_INGESTION_ENDPOINTS\s*=\s*"([^"]+)"/);
   if (!match) return [];
+  if (match[1].trim().toLowerCase() === "all") {
+    return manifest.endpoints
+      .filter((endpoint) => !endpoint.requiresCustomerId)
+      .map((endpoint) => endpoint.key);
+  }
   return match[1]
     .split(",")
     .map((part) => part.trim())

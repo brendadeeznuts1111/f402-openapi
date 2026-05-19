@@ -1,0 +1,25 @@
+/* Fantasy402 Dashboard — bundled styles (replaces per-component <link> tags) */
+@import url('design-system.css');
+@import url('components/card.css');
+@import url('components/table.css');
+@import url('components/badge.css');
+@import url('components/button.css');
+@import url('components/toast.css');
+@import url('components/conn-status.css');
+@import url('components/skeleton.css');
+@import url('components/filters.css');
+@import url('components/error-state.css');
+@import url('components/tabs.css');
+@import url('components/form.css');
+@import url('components/ticker.css');
+@import url('components/modal.css');
+@import url('components/chart.css');
+@import url('components/dropdown.css');
+@import url('components/tooltip.css');
+@import url('components/empty-state.css');
+@import url('components/stat-card.css');
+@import url('components/timeline.css');
+@import url('components/json-viewer.css');
+@import url('components/dropzone.css');
+@import url('components/breadcrumb.css');
+@import url('components/drawer.css');

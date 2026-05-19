@@ -300,21 +300,25 @@ Same structure as `bet_ticker_wagers` for prop bet events.
 ## 6. Dashboard (Frontend)
 
 ### 6.1 Technology
-- **Single HTML file** (`dashboard/index.html`) — zero build step.
+- **Markup-only HTML** (`dashboard/index.html`) — zero build step; logic in ESM modules.
 - **No frameworks** — Vanilla JS, CSS Grid, Custom Properties.
 - **Deployed on Cloudflare Pages** with a **Pages Function** (`_worker.js`) as API proxy.
-- **Design System** — Extracted into `css/design-system.css` + `css/components/*.css` (17 component stylesheets). Loaded via `<link>` tags.
-- **Naming Convention** — BEM (Block__Element--Modifier), e.g. `.ds-modal__content`, `.ds-badge--error`. No `ds-` prefix — all classes are design-system native and scoped by component file.
+- **Design System** — `css/design-system.css` + `css/components/*.css`; loaded via single `css/dashboard.css` bundle.
+- **Naming Convention** — BEM with `ds-` prefix (Block__Element--Modifier), e.g. `.ds-modal__content`, `.ds-badge--error`. One component per file under `css/components/`.
 - **Shared Constants** — `js/constants.js` holds canonical `ZONE_COLORS`, `ENDPOINT_ZONE_MAP`, and `REFRESH_INTERVALS`. Single source of truth for both Worker and Dashboard.
 
 ### 6.1.1 File Structure
 
 ```
 dashboard/
-├── index.html                 # Main entry (zero build step, ESM modules)
+├── index.html                 # Markup only (~350 lines)
+├── js/app.js                  # Application entry
+├── js/views/                  # overview, analytics, logs, settings, endpoints
+├── js/dom.js, format.js, ui.js, charts.js, theme.js, ticker.js
 ├── _worker.js                 # Pages Function proxy (injects Bearer token)
 ├── wrangler.toml              # Pages deployment config
 ├── css/
+│   ├── dashboard.css          # @import bundle (single <link> in index.html)
 │   ├── design-system.css      # Tokens, reset, utilities, animations, theme, sidebar
 │   └── components/
 │       ├── card.css           # Card component
@@ -339,17 +343,17 @@ dashboard/
 │       ├── empty-state.css    # Empty state placeholder
 │       └── dropzone.css       # Drag-and-drop file upload
 └── js/
-    ├── constants.js           # ZONE_COLORS, ENDPOINT_ZONE_MAP, REFRESH_INTERVALS
-    ├── design-system.js       # ComponentFactory, getZoneColor, getRefreshInterval, getZoneName
+    ├── constants.js           # ZONE_COLORS, CHART_COLORS, ENDPOINT_ZONE_MAP, REFRESH_INTERVALS
+    ├── design-system.js       # Re-exports + ComponentFactory
     ├── api-client.js          # api/Post/Patch/Delete with dedup, cache, bust, global error handler
     ├── websocket-client.js    # WagerSocket (SSE) + PollingFallback
     ├── store.js               # DataStore (TTL cache + EventEmitter)
-    ├── status-poller.js       # StatusPoller (endpoint health polling)
+    ├── status-poller.js       # StatusPoller (endpoint health + routeLatency)
     ├── chart-wrapper.js       # Chart.js wrapper (CDN loader, theme-aware)
     ├── sortable-table.js      # Click-to-sort table with formatters
     ├── json-viewer.js         # Syntax-highlighted JSON viewer
     ├── settings-manager.js    # localStorage-backed settings with import/export
-    └── utils.js               # DateFormatter, NumberFormatter, Exporter, LazyLoader, AutoRefreshManager, ModalFactory
+    └── utils.js               # DateFormatter, NumberFormatter, AutoRefreshManager, etc.
 ```
 
 ### 6.2 Dashboard Components
@@ -365,7 +369,7 @@ dashboard/
 | **SortableAgentTable** | Overview | Click-to-sort agent metrics with currency formatter | `GET /performance` (15s) |
 | **EventTimeline** | Overview | Recent events (wagers + alerts) in vertical timeline | `bet-ticker-wagers` + `alert-log` |
 | **TrafficChart** | Analytics | Bar chart of wagers per hour | `GET /bet-ticker-wagers` (via render) |
-| **LatencyChart** | Analytics | Line chart of endpoint latency (mock data) | Static sample data |
+| **LatencyChart** | Analytics | Line chart of per-route avg latency (ms) | `GET /endpoint-status` → `routeLatency` |
 | **TypeDistributionChart** | Analytics | Doughnut chart of wager type mix | `GET /bet-ticker-wagers` (via render) |
 | **AgentVolumeChart** | Analytics | Bar chart of top 5 agents by volume | `GET /bet-ticker-wagers` (via render) |
 | **JsonViewer** | Analytics | Syntax-highlighted raw API response viewer | `GET /summary` (via render) |
@@ -572,7 +576,10 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 | Push notifications via webhooks/email | Planned |
 | Multi‑sport dashboards (per‑sport views) | Possible |
 | Admin panel for rule configuration | Possible |
-| Dashboard v3 — 4 views (Overview, Analytics, Logs, Settings) | **Done** |
+| Dashboard v3 — 5 views (Overview, Analytics, Logs, Settings, Endpoints) | **Done** |
+| View modules (`js/views/`) + `app.js` entry | **Done** (v3.2) |
+| Route latency on `/endpoint-status` + Analytics chart | **Done** (v3.2) |
+| CSS bundle `dashboard.css` | **Done** (v3.2) |
 | Chart.js integration (volume, traffic, latency, distribution) | **Done** |
 | Sortable tables, JSON viewer, settings manager | **Done** |
 | Config import/export via dropzone | **Done** |
@@ -593,7 +600,7 @@ Every component derives its accent color from its endpoint's zone via `getZoneCo
 
 ---
 
-*Document version: 3.0 – v3 dashboard with 4 views (Overview, Analytics, Logs, Settings), Chart.js integration, SortableTable, JsonViewer, SettingsManager, 7 pitfall fixes. Updated 2026-05-19.*
+*Document version: 3.2 – Modular views (`js/views/`), `routeLatency` on `/endpoint-status`, CSS bundle, utils formatters. Updated 2026-05-18.*
 
 ---
 

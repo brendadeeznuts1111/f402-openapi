@@ -342,6 +342,8 @@ The Worker's own operational API is documented in `openapi.worker.json`.
 - `POST /scans/trigger` runs a protected manual URL scan.
 - `POST /trigger-scan` is a compatibility alias for manual URL scans.
 - `GET /summary` returns aggregated dashboard data: today's live wager count/volume/agents/types, graded wager P&L, top 5 agents by performance, top 5 sports by volume.
+- `GET /endpoints` returns the Worker API manifest (`count`, `routes[]` with `path`, `method`, `zone`, `description`, `refreshMs`).
+- `GET /endpoint-status` returns ingestion health for the dashboard: `latestRun`, `recentFailures` (24h), `routeLatency` (per-route avg/max `duration_ms` from the latest run's `api_snapshots`), and `timestamp`. Requires bearer token.
 - `GET /alerts/summary?days=<n>&severity=<level>&type=<alert_type>` returns filtered totals, daily buckets, and top affected scans.
 - `POST /alerts/policy-test` creates synthetic network-policy alerts and archives their full payloads to R2.
 
@@ -478,23 +480,36 @@ A real-time monitoring dashboard is deployed at:
 
 **https://fantasy402-dashboard-5q6.pages.dev**
 
-The dashboard loads live from the Worker API through a Cloudflare Pages Function proxy (`dashboard/_worker.js`):
+Operator guide: `docs/dashboard.md`. Design reference: `dashboard/DESIGN.md`.
 
-- **Summary cards** — today's live wager count, volume, active agents, graded P&L
-- **Live wager ticker** — receives wagers in real-time via SSE (`/api/live-wagers`), with 5s polling fallback. Filterable by wager type and minimum amount.
-- **Agent performance table** — from `/api/performance`, sortable by volume/win%
-- **Graded wagers log** — from `/api/graded-wagers`, filterable by result and agent
-- **Authorization status grid** — from `/api/authorizations`
-- **Threshold alerts** — client-side toast + browser notification for wagers >$500 or daily loss >$1,000
+### Architecture (v3.2)
+
+- **Markup:** `dashboard/index.html` (no inline application script)
+- **Entry:** `dashboard/js/app.js` (ESM, zero build step)
+- **Views:** `dashboard/js/views/` — overview, analytics, logs, settings, endpoints
+- **Styles:** `dashboard/css/dashboard.css` (bundled `@import` of design-system + components)
+- **Proxy:** `dashboard/_worker.js` forwards `/api/*` to the Worker with `INGESTION_TRIGGER_TOKEN`
+
+### Views
+
+| View | Data sources |
+|------|----------------|
+| Overview | `/summary`, `/bet-ticker-wagers`, `/performance`, SSE `/live-wagers` |
+| Analytics | Wager charts; **latency** from `/endpoint-status` → `routeLatency` |
+| Logs | Wagers, alert log, `StatusPoller` / endpoint-status |
+| Settings | `localStorage` via `SettingsManager` |
+| Endpoints | `/endpoints`, `/endpoint-status`, ingest + refresh-auth actions |
 
 ### Real-time pipeline
 
-1. Ingestion stores wagers in D1, then calls `notifyLiveWager()` which POSTs to a `LiveWagerBroadcaster` Durable Object.
-2. The DO broadcasts the wager via SSE to all connected dashboard sessions.
-3. The dashboard's `onmessage` handler adds each wager to the in-memory ticker (max 100) and re-renders.
-4. If SSE fails to connect within 10s, the dashboard falls back to polling `/api/bet-ticker-wagers` every 5s.
+1. Ingestion stores wagers in D1, then calls `notifyLiveWager()` which POSTs to `LiveWagerBroadcaster`.
+2. The DO broadcasts wagers via SSE to dashboard clients (`/api/live-wagers`).
+3. `dashboard/js/ticker.js` adds wagers to the in-memory feed (max items from settings).
+4. If SSE does not connect within 10s, polling `/api/bet-ticker-wagers` every 5s is used.
 
-The proxy is a single-file ES Module Worker (`dashboard/_worker.js`) that routes `/api/*` requests to the Worker origin with `INGESTION_TRIGGER_TOKEN` injected server-side. Static assets are served directly by Cloudflare Pages.
+### Route latency
+
+After an ingestion run, `GET /endpoint-status` includes `routeLatency`: average and max `duration_ms` per `endpoint_key` from `api_snapshots` for that run. The Analytics **Latency** tab charts this data (empty until at least one run exists).
 
 ### Local development
 
@@ -507,19 +522,10 @@ npx wrangler pages dev . --binding INGESTION_TRIGGER_TOKEN=your_token_here
 
 ```bash
 cd dashboard
-npx wrangler pages deploy . --project-name fantasy402-dashboard
+npx wrangler pages deploy . --project-name=fantasy402-dashboard
+npx wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name=fantasy402-dashboard
 ```
 
-The `INGESTION_TRIGGER_TOKEN` secret must be set as a Pages secret:
-
-```bash
-npx wrangler pages secret put INGESTION_TRIGGER_TOKEN --project-name fantasy402-dashboard
-```
-
-### Source files
-
-- `dashboard/index.html` — Single-file SPA (no build step)
-- `dashboard/_worker.js` — Pages Function proxy
-- `dashboard/wrangler.toml` — Pages project configuration
+Deploy the Worker when changing `/endpoint-status` or other API contracts the dashboard consumes.
 
 Run `npm run validate:openapi` before publishing API docs for this Worker.

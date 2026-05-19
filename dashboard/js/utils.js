@@ -45,6 +45,11 @@ export const DateFormatter = {
 
 // ── NumberFormatter ──
 export const NumberFormatter = {
+  integer(n) {
+    if (n == null) return "-";
+    return Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  },
+
   currency(n, currency = "USD") {
     if (n == null) return "-";
     const abs = Math.abs(n);

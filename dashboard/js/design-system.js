@@ -3,6 +3,8 @@
 
 import {
   ZONE_COLORS,
+  CHART_COLORS,
+  WAGER_TYPE_CHART_COLORS,
   ENDPOINT_ZONE_MAP,
   REFRESH_INTERVALS,
   getZoneColor,
@@ -10,7 +12,13 @@ import {
   getZone,
 } from './constants.js';
 
-export { getZoneColor, getRefreshInterval, getZone as getZoneName };
+export {
+  getZoneColor,
+  getRefreshInterval,
+  getZone as getZoneName,
+  CHART_COLORS,
+  WAGER_TYPE_CHART_COLORS,
+};
 
 // ── Component Descriptor Factory ─────────────────────────────────
 
@@ -45,11 +53,13 @@ export class ComponentFactory {
 
   static createBadge(status) {
     const map = {
-      ok: 'badge--ok',
-      warn: 'badge--warn',
-      error: 'badge--error',
-      info: 'badge--info',
+      ok: 'ds-badge--success',
+      success: 'ds-badge--success',
+      warn: 'ds-badge--warning',
+      warning: 'ds-badge--warning',
+      error: 'ds-badge--error',
+      info: 'ds-badge--info',
     };
-    return map[status] || 'badge--neutral';
+    return map[status] || 'ds-badge--info';
   }
 }

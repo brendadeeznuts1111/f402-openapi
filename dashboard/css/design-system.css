@@ -1,31 +1,57 @@
-/* dashboard/css/design-system.ds-css */
+/* dashboard/css/design-system.css */
 /* Base reset, tokens, utilities, animations, and theme overrides.
-   Naming convention: BEM (Block__Element--Modifier), e.ds-g. .ds-modal__content, .ds-badge--error.
-   No ds- prefix — all classes are design-system native. */
+   Naming: BEM with ds- prefix — .ds-modal__content, .ds-badge--error */
 
 /* ── Reset ── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Legacy Tokens (backward-compat) ── */
+/* ── Design System Tokens (canonical) ── */
 :root {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --border: #334155;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --green: #22c55e;
-  --red: #ef4444;
-  --amber: #f59e0b;
-  --blue: #3b82f6;
-  --purple: #a855f7;
+  --primary-bg: #0A0A0A;
+  --secondary-bg: #141414;
+  --tertiary-bg: #1E1E1E;
+  --primary-text: #FFFFFF;
+  --secondary-text: #A0A0A0;
+  --tertiary-text: #606060;
+  --border-ds: #2A2A2A;
+  --hover-bg: #1A1A1A;
+  --success: #00FF88;
+  --warning: #FFD700;
+  --error: #FF4444;
+  --info: #00BFFF;
+  --accent: #FF6B35;
+  --purple: #DA70D6;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --text-xs: 10px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  /* Legacy aliases → canonical tokens (single palette) */
+  --bg: var(--primary-bg);
+  --card: var(--secondary-bg);
+  --border: var(--border-ds);
+  --text: var(--primary-text);
+  --muted: var(--secondary-text);
+  --green: var(--success);
+  --red: var(--error);
+  --amber: var(--warning);
+  --blue: var(--info);
 }
 
 /* ── Base ── */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
-  padding: 1.5rem;
+  padding: var(--space-lg);
 }
 
 /* ── Typography ── */
@@ -47,36 +73,6 @@ h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--muted); }
 /* ── Legacy Utilities (still used in JS empty states) ── */
 .ds-loading { color: var(--muted); font-style: italic; font-size: 0.85rem; padding: 1rem 0; }
 .ds-error   { color: var(--red);   font-size: 0.85rem; padding: 0.5rem 0; }
-
-/* ── Design System Tokens (v2.2) ── */
-:root {
-  --primary-bg: #0A0A0A;
-  --secondary-bg: #141414;
-  --tertiary-bg: #1E1E1E;
-  --primary-text: #FFFFFF;
-  --secondary-text: #A0A0A0;
-  --tertiary-text: #606060;
-  --border-ds: #2A2A2A;
-  --hover-bg: #1A1A1A;
-  --success: #00FF88;
-  --warning: #FFD700;
-  --error: #FF4444;
-  --info: #00BFFF;
-  --accent: #FF6B35;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
-  --font-sans: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --text-xs: 10px;
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-md: 16px;
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.3s ease;
-}
 
 /* ── Animations ── */
 @keyframes slideIn {
@@ -364,10 +360,12 @@ button.ds-tab {
   font-family: var(--font-mono);
 }
 
+/* Zone badge colors — keep in sync with js/constants.js ZONE_COLORS */
 .ds-zone-badge--ingestion { background: #2D1B0E; color: #FF6B35; }
 .ds-zone-badge--query     { background: #0E2D1B; color: #00FF88; }
 .ds-zone-badge--auth      { background: #2D2D0E; color: #FFD700; }
 .ds-zone-badge--do        { background: #1E0E2D; color: #DA70D6; }
+.ds-zone-badge--data      { background: #2D1E0E; color: #CD853F; }
 .ds-zone-badge--network   { background: #0E1E3A; color: #00BFFF; }
 .ds-zone-badge--cookie    { background: #2D0E0E; color: #FF4444; }
 .ds-zone-badge--worker    { background: #1E3A5F; color: #FFFFFF; }

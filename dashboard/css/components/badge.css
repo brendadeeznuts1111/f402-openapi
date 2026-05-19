@@ -9,16 +9,28 @@
 }
 
 .ds-badge-s,
-.ds-badge--s { background: #1e3a5f; color: var(--blue); }
+.ds-badge--s,
+.ds-badge--straight { background: #1e3a5f; color: var(--blue); }
 .ds-badge-p,
-.ds-badge--p { background: #3b1f5e; color: var(--purple); }
+.ds-badge--p,
+.ds-badge--parlay { background: #3b1f5e; color: var(--purple); }
 .ds-badge-m,
-.ds-badge--m { background: #1a3d2e; color: var(--green); }
+.ds-badge--m,
+.ds-badge--moneyline { background: #1a3d2e; color: var(--green); }
 .ds-badge-l,
-.ds-badge--l { background: #3d2e1a; color: var(--amber); }
+.ds-badge--l,
+.ds-badge--live { background: #3d2e1a; color: var(--amber); }
 .ds-badge-warning,
-.ds-badge--warning  { background: #3d2e1a; color: var(--amber); }
+.ds-badge--warning,
+.ds-badge-warn,
+.ds-badge--warn { background: #3d2e1a; color: var(--amber); }
 .ds-badge-critical,
-.ds-badge--critical { background: #3d1a1a; color: var(--red); }
+.ds-badge--critical,
+.ds-badge-error,
+.ds-badge--error { background: #3d1a1a; color: var(--red); }
 .ds-badge-info,
-.ds-badge--info     { background: #1a2d3d; color: var(--blue); }
+.ds-badge--info { background: #1a2d3d; color: var(--blue); }
+.ds-badge-ok,
+.ds-badge--ok,
+.ds-badge-success,
+.ds-badge--success { background: #1a3d2e; color: var(--green); }

@@ -20,26 +20,36 @@ cd dashboard && wrangler pages deploy . --project-name=fantasy402-dashboard
 | **Analytics** | Traffic bar chart, latency line chart, type distribution doughnut, agent volume bar chart, raw API JSON viewer |
 | **Logs** | Filterable event timeline (all/ok/error/warn), sortable agent log table, system health log (run history + failures) |
 | **Settings** | General (theme, notifications, sound), API (base URL, refresh interval), Appearance (chart type, log level), Data (dropzone import, export, clear cache) |
+| **Endpoints** | Route manifest table with zone/method filters, zone badges, quick actions (ingest, refresh auth), cookie health |
 
 ## Files
 
-### CSS Components (21 files)
-`css/design-system.css` + `css/components/` — badge, button, card, chart, conn-status, dropdown, dropzone, empty-state, error-state, filters, form, json-viewer, modal, skeleton, stat-card, table, tabs, ticker, timeline, toast, tooltip
+### CSS
+`css/dashboard.css` — bundled `@import` of `design-system.css` + 21 component stylesheets under `css/components/`
 
-### JS Modules (11 files)
-| Module | Exports | Purpose |
-|--------|---------|---------|
-| `constants.js` | `ZONE_COLORS`, `ENDPOINT_ZONE_MAP`, `REFRESH_INTERVALS`, `getZoneColor()`, `getRefreshInterval()`, `getZone()` | Canonical constants for zones, endpoints, refresh timing |
-| `design-system.js` | `ComponentFactory`, `getZoneColor`, `getRefreshInterval`, `getZoneName` | Re-exports + descriptor factories |
-| `api-client.js` | `api`, `apiPost`, `apiPatch`, `apiDelete`, `setGlobalErrorHandler` | Fetch wrapper with dedup, TTL cache, bust-on-mutation, error handler |
-| `websocket-client.js` | `WagerSocket`, `PollingFallback` | SSE with exponential backoff (max 10 retries), since-aware reconnect |
-| `store.js` | `DataStore` | TTL cache + EventEmitter + fetch-through dedup |
-| `status-poller.js` | `StatusPoller` | Polls `/endpoint-status`, derives per-zone health |
-| `chart-wrapper.js` | `ChartWrapper` | Chart.js CDN loader with theme-aware defaults |
-| `sortable-table.js` | `SortableTable` | Click-to-sort with string/number/date and formatters |
-| `json-viewer.js` | `JsonViewer` | Syntax-highlighted JSON with XSS-safe escaping |
-| `settings-manager.js` | `SettingsManager` | localStorage-backed settings with import/export |
-| `utils.js` | `DateFormatter`, `NumberFormatter`, `Exporter`, `LazyLoader`, `AutoRefreshManager`, `ModalFactory` | Formatters, lifecycle, modals |
+### JS Modules
+| Module | Purpose |
+|--------|---------|
+| `app.js` | Entry point — wiring, navigation, init |
+| `views/overview.js` | Stat cards, volume chart, agent table, event timeline |
+| `views/analytics.js` | Traffic/latency/distribution charts, JSON viewer |
+| `views/logs.js` | Event timeline, agent log table, system log |
+| `views/settings.js` | Settings tabs, dropzone import, export |
+| `views/endpoints.js` | Route manifest, ingestion health, quick actions |
+| `dom.js`, `format.js`, `ui.js`, `charts.js`, `theme.js`, `ticker.js` | Shared helpers |
+| `constants.js` | `ZONE_COLORS`, `CHART_COLORS`, `ENDPOINT_ZONE_MAP`, refresh intervals |
+| `design-system.js` | Re-exports + `ComponentFactory` |
+| `api-client.js` | Fetch wrapper with dedup, TTL cache, global error handler |
+| `websocket-client.js` | `WagerSocket`, `PollingFallback` (SSE + polling fallback) |
+| `store.js` | `DataStore` — TTL cache + pub/sub |
+| `status-poller.js` | Polls `/endpoint-status` (includes `routeLatency`) |
+| `chart-wrapper.js` | Chart.js CDN loader, theme-aware scales |
+| `sortable-table.js` | Click-to-sort tables |
+| `json-viewer.js` | Syntax-highlighted JSON |
+| `settings-manager.js` | `localStorage` settings + import/export |
+| `utils.js` | `DateFormatter`, `NumberFormatter`, `AutoRefreshManager`, etc. |
+
+Operator guide: `../docs/dashboard.md`. Design reference: `DESIGN.md`.
 
 ## Architecture
 

@@ -34,10 +34,12 @@
   border: 2px solid var(--border);
 }
 
-.ds-timeline__dot--success { border-color: var(--success); background: var(--success); }
-.ds-timeline__dot--error   { border-color: var(--error); background: var(--error); }
-.ds-timeline__dot--warning { border-color: var(--warning); background: var(--warning); }
-.ds-timeline__dot--info    { border-color: var(--info); background: var(--info); }
+.ds-timeline__dot--success,
+.ds-timeline__dot--ok { border-color: var(--success); background: var(--success); }
+.ds-timeline__dot--error { border-color: var(--error); background: var(--error); }
+.ds-timeline__dot--warning,
+.ds-timeline__dot--warn { border-color: var(--warning); background: var(--warning); }
+.ds-timeline__dot--info { border-color: var(--info); background: var(--info); }
 
 .ds-timeline__content {
   background: var(--secondary-bg);

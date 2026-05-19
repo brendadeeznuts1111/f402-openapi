@@ -9,8 +9,9 @@ This repository contains the hardened Fantasy402 OpenAPI contract, generated sta
 | `.o11y/fantasy402-redacted-deep/api-spec-secured/` | Secured OpenAPI artifacts, safe examples spec, slim spec, static docs, portal manifest, and remediation reports. |
 | `tools/` | Contract build, lint, repair, static-docs, and contract-test scripts. |
 | `workers/fantasy402-ingestion/` | Cloudflare Worker for Fantasy402 ingestion, R2 archives, D1 analytics, scan verdicts, alerts, and operator routes. |
+| `dashboard/` | Live monitoring UI (Cloudflare Pages, ESM modules, no build step). |
 | `.github/workflows/` | CI workflows for secured contract validation, Cloudflare Pages docs, and Worker validation/deployment. |
-| `docs/` | Operator docs for the API contract and Cloudflare Pages publication. |
+| `docs/` | Operator docs for the API contract, dashboard, and Cloudflare Pages publication. |
 | `llms.txt` | Compact AI-agent discovery map for the repo, specs, docs, and safety constraints. |
 
 Do not publish or commit raw browser traces, live cookies, bearer tokens, local auth captures, or failure archives. The Worker subdirectory has its own `.gitignore` for local auth files.
@@ -47,6 +48,8 @@ Cloudflare context used by this project:
 | Worker | `fantasy402-ingestion` |
 | Worker URL | `https://fantasy402-ingestion.utahj4754.workers.dev` |
 | Docs Pages project | `fantasy402-docs` |
+| Dashboard Pages project | `fantasy402-dashboard` |
+| Dashboard URL | `https://fantasy402-dashboard-5q6.pages.dev` |
 
 ## Fresh Clone Setup
 
@@ -215,5 +218,7 @@ node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/
 ## More Documentation
 
 - API contract guide: `docs/fantasy402-api.md`
+- Live dashboard: `docs/dashboard.md`
 - Cloudflare Pages guide: `docs/cloudflare-pages.md`
 - Worker-specific guide: `workers/fantasy402-ingestion/README.md`
+- Dashboard design: `dashboard/DESIGN.md`

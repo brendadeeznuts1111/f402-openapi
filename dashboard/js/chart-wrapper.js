@@ -15,12 +15,15 @@ async function ensureChartJs() {
 }
 
 function getThemeColors() {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const root = document.documentElement;
+  const style = getComputedStyle(root);
+  const pick = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
+  const isLight = root.getAttribute('data-theme') === 'light';
   return {
-    text: isLight ? '#212529' : '#e0e0e0',
+    text: pick('--primary-text', isLight ? '#212529' : '#FFFFFF'),
     grid: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)',
-    tooltipBg: isLight ? '#ffffff' : '#1a1a2e',
-    tooltipText: isLight ? '#212529' : '#e0e0e0',
+    tooltipBg: pick('--secondary-bg', isLight ? '#ffffff' : '#141414'),
+    tooltipText: pick('--primary-text', isLight ? '#212529' : '#FFFFFF'),
   };
 }
 

@@ -5594,6 +5594,54 @@ function listWorkerEndpoints(): { count: number; routes: (WorkerEndpointEntry & 
   return { count: routes.length, routes };
 }
 
+async function getRouteLatencyForRun(
+  env: Env,
+  runId: string | null | undefined,
+): Promise<Array<Record<string, unknown>>> {
+  if (!runId) return [];
+
+  const snapshots = await env.ANALYTICS_DB.prepare(
+    `SELECT endpoint_key, path,
+            CAST(AVG(duration_ms) AS INTEGER) AS avg_duration_ms,
+            MAX(duration_ms) AS max_duration_ms,
+            COUNT(*) AS samples
+     FROM api_snapshots
+     WHERE run_id = ? AND duration_ms IS NOT NULL
+     GROUP BY endpoint_key
+     ORDER BY avg_duration_ms DESC
+     LIMIT 25`,
+  )
+    .bind(runId)
+    .all();
+
+  const failureLatency = await env.ANALYTICS_DB.prepare(
+    `SELECT endpoint_key, path,
+            CAST(AVG(duration_ms) AS INTEGER) AS avg_duration_ms,
+            MAX(duration_ms) AS max_duration_ms,
+            COUNT(*) AS samples
+     FROM endpoint_failures
+     WHERE run_id = ? AND duration_ms IS NOT NULL
+     GROUP BY endpoint_key`,
+  )
+    .bind(runId)
+    .all();
+
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const row of snapshots.results ?? []) {
+    const key = String(row.endpoint_key ?? row.path ?? "");
+    if (key) byKey.set(key, row);
+  }
+  for (const row of failureLatency.results ?? []) {
+    const key = String(row.endpoint_key ?? row.path ?? "");
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, { ...row, source: "failure" });
+  }
+
+  return [...byKey.values()].sort(
+    (a, b) => Number(b.avg_duration_ms ?? 0) - Number(a.avg_duration_ms ?? 0),
+  );
+}
+
 async function getEndpointStatus(env: Env): Promise<Response> {
   const latestRun = await env.ANALYTICS_DB.prepare(
     `SELECT id, started_at, finished_at, status, endpoints_requested, endpoints_succeeded, endpoints_failed, error_message
@@ -5610,11 +5658,15 @@ async function getEndpointStatus(env: Env): Promise<Response> {
      ORDER BY failure_count DESC`,
   ).all();
 
+  const latest = latestRun.results?.[0] as { id?: string } | undefined;
+  const routeLatency = await getRouteLatencyForRun(env, latest?.id);
+
   return json(
     {
       worker: 'ok',
-      latestRun: latestRun.results?.[0] ?? null,
+      latestRun: latest ?? null,
       recentFailures: failures.results ?? [],
+      routeLatency,
       timestamp: new Date().toISOString(),
     },
     200,

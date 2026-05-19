@@ -18,6 +18,7 @@ export class StatusPoller {
       worker: 'unknown',
       latestRun: null,
       recentFailures: [],
+      routeLatency: [],
       zones: {},
       timestamp: null,
     };
@@ -49,6 +50,7 @@ export class StatusPoller {
       this._status.worker = data.worker || 'unknown';
       this._status.latestRun = data.latestRun || null;
       this._status.recentFailures = data.recentFailures || [];
+      this._status.routeLatency = data.routeLatency || [];
       this._status.timestamp = data.timestamp || new Date().toISOString();
       this._status.zones = this._deriveZones(data);
 

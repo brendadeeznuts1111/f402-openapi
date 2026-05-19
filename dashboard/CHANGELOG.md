@@ -1,5 +1,35 @@
 # Changelog
 
+## v3.2.0 — Modular views + route latency
+
+### Added
+- **View modules** under `js/views/` (overview, analytics, logs, settings, endpoints) with `js/app.js` entry
+- **Shared modules**: `dom.js`, `format.js` (uses `DateFormatter` / `NumberFormatter`), `ui.js`, `charts.js`, `theme.js`, `ticker.js`
+- **CSS bundle** `css/dashboard.css` — single `@import` chain replaces 22 `<link>` tags
+- **`routeLatency`** on `GET /endpoint-status` — avg/max `duration_ms` per route from latest ingestion run
+- Analytics **Latency tab** charts real Worker timing data
+
+### Changed
+- `index.html` inline script removed (~930 lines) → `js/app.js`
+
+## v3.1.0 — Design system polish
+
+### Added
+- **Unified token palette**: Legacy `--bg`/`--card` aliases map to v2.2 semantic tokens; cards use `--secondary-bg` / `--border-ds`
+- **`CHART_COLORS` / `WAGER_TYPE_CHART_COLORS`** in `constants.js` — single source for Chart.js datasets
+- **Inter + JetBrains Mono** via Google Fonts
+- **Endpoints** view documented (5th nav item); `.ds-zone-badge--data` zone badge
+- Badge/timeline **CSS aliases** (`--warn`/`--ok`, wager type names) so JS class names resolve correctly
+
+### Changed
+- **Settings → runtime**: Theme (`auto`/`light`/`dark`) and refresh interval now drive `applyTheme()` and `AutoRefreshManager`
+- **Latency tab**: Placeholder instead of mock latency data until Worker exposes timings
+- **`tag()`**: Wager types `S`/`P`/`M`/`L` map to correct badge classes (no double-escape)
+- **`ChartWrapper`**: Reads `--primary-text` / `--secondary-bg` from computed CSS variables
+
+### Fixed
+- Cookie health badge (`ds-badge--warn`), timeline dots (`ok`/`warn`), ticker wager badges
+
 ## v3.0.0 — Dashboard v3: 4 Views, Charts, Settings
 
 ### Added

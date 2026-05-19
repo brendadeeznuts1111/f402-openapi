@@ -738,6 +738,72 @@
         }
       }
     },
+    "/endpoints": {
+      "get": {
+        "operationId": "listWorkerEndpoints",
+        "summary": "List Worker API route manifest for the dashboard",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Route manifest with zone metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointsManifestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/endpoint-status": {
+      "get": {
+        "operationId": "getEndpointStatus",
+        "summary": "Ingestion health and per-route latency from the latest run",
+        "security": [
+          {
+            "triggerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest run, recent failures, and route latency aggregates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid trigger token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scanner/diagnostics": {
       "get": {
         "operationId": "getScannerDiagnostics",
@@ -2383,6 +2449,70 @@
           "failures": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/RunEndpointFailure" }
+          }
+        }
+      },
+      "RouteLatencyEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "endpoint_key": { "type": "string" },
+          "path": { "type": "string" },
+          "avg_duration_ms": { "type": "integer", "minimum": 0 },
+          "max_duration_ms": { "type": "integer", "minimum": 0 },
+          "samples": { "type": "integer", "minimum": 0 },
+          "source": { "type": "string" }
+        }
+      },
+      "EndpointStatusResponse": {
+        "type": "object",
+        "required": [ "worker", "latestRun", "recentFailures", "routeLatency", "timestamp" ],
+        "additionalProperties": false,
+        "properties": {
+          "worker": { "type": "string" },
+          "latestRun": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/IngestionRun" },
+              { "type": "null" }
+            ]
+          },
+          "recentFailures": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "routeLatency": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RouteLatencyEntry" }
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "EndpointsManifestRoute": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "path", "method", "description", "refreshMs", "zone" ],
+        "properties": {
+          "path": { "type": "string" },
+          "method": { "type": "string" },
+          "description": { "type": "string" },
+          "refreshMs": {
+            "oneOf": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "string" }
+            ]
+          },
+          "zone": { "type": "string" }
+        }
+      },
+      "EndpointsManifestResponse": {
+        "type": "object",
+        "required": [ "count", "routes" ],
+        "additionalProperties": false,
+        "properties": {
+          "count": { "type": "integer", "minimum": 0 },
+          "routes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/EndpointsManifestRoute" }
           }
         }
       },

@@ -4,6 +4,23 @@
 // ESM exports (loaded via <script type="module"> import).
 // Backward-compat globals set on window for the existing inline <script>.
 
+/** Semantic colors for Chart.js and inline charts (matches :root tokens). */
+export const CHART_COLORS = {
+  success: '#00FF88',
+  warning: '#FFD700',
+  info: '#00BFFF',
+  accent: '#FF6B35',
+  purple: '#DA70D6',
+};
+
+/** Wager type distribution: Straight, Parlay, Moneyline, Live */
+export const WAGER_TYPE_CHART_COLORS = [
+  CHART_COLORS.success,
+  CHART_COLORS.warning,
+  CHART_COLORS.info,
+  CHART_COLORS.purple,
+];
+
 export const ZONE_COLORS = {
   worker:    { bg: '#1E3A5F', fg: '#FFFFFF', ansi: '48;5;17;38;5;255' },
   ingestion: { bg: '#2D1B0E', fg: '#FF6B35', ansi: '48;5;52;38;5;208' },

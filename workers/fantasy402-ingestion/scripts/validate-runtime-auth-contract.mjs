@@ -4,15 +4,24 @@ import { fileURLToPath } from "node:url";
 
 const workerRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(workerRoot, "../..");
-const files = {
+const testDir = path.join(workerRoot, "test");
+const allTests = fs
+  .readdirSync(testDir)
+  .filter((name) => name.endsWith(".test.ts"))
+  .map((name) => fs.readFileSync(path.join(testDir, name), "utf8"))
+  .join("\n");
+
+const filePaths = {
   source: path.join(workerRoot, "src/index.ts"),
-  tests: path.join(workerRoot, "test/archive-routes.test.ts"),
   readme: path.join(workerRoot, "README.md"),
   workerOpenapi: path.join(workerRoot, "openapi.worker.json"),
   securedSite: path.join(repoRoot, ".o11y/fantasy402-redacted-deep/api-spec-secured/site/index.html"),
 };
 
-const contents = Object.fromEntries(Object.entries(files).map(([key, file]) => [key, fs.readFileSync(file, "utf8")]));
+const contents = Object.fromEntries(
+  Object.entries(filePaths).map(([key, filePath]) => [key, fs.readFileSync(filePath, "utf8")]),
+);
+contents.tests = allTests;
 const workerOpenapi = JSON.parse(contents.workerOpenapi);
 const findings = [];
 

@@ -1,4 +1,6 @@
 {
+  "version": "1.0.0",
+  "generated_at": "2026-05-19T00:00:00.000Z",
   "name": "Fantasy402 Dashboard",
   "short_name": "F402",
   "description": "Operational dashboard for Fantasy402 ingestion worker",
@@ -17,5 +19,286 @@
       "ingestion": ["ingest-catalog", "ingest-runs", "ingest-local", "upstream"],
       "system": ["settings", "diagnostics", "health"]
     }
+  },
+  "cloudflare": {
+    "account_id": "7a470541a704caaf91e71efccc78fd36",
+    "zone_id": "a3b7ba4bb62cb1b177b04b8675250674",
+    "pages_projects": {
+      "dashboard": {
+        "production_branch": "main",
+        "preview_branches": ["*"],
+        "secrets": ["INGESTION_TRIGGER_TOKEN"],
+        "build_config": {
+          "build_command": "npm run harness:verify",
+          "output_dir": ".",
+          "environment_variables": {
+            "common": {
+              "ENVIRONMENT": "dashboard",
+              "FANTASY402_WORKER_UPSTREAM": "https://fantasy402-ingestion.utahj4754.workers.dev"
+            },
+            "production": {
+              "FANTASY402_DASHBOARD_URL": "https://fantasy402-dashboard-5q6.pages.dev"
+            },
+            "preview": {
+              "FANTASY402_DASHBOARD_URL": "https://feat-dashboard-enhancements.fantasy402-dashboard-5q6.pages.dev"
+            }
+          },
+          "compatibility_date": "2025-01-01",
+          "compatibility_flags": [],
+          "wrangler_config": {
+            "legacy_npm_compatibility": true
+          }
+        }
+      }
+    },
+    "workers": [
+      {
+        "name": "fantasy402-ingestion",
+        "script_name": "fantasy402-ingestion",
+        "main_module": "workers/fantasy402-ingestion/src/index.ts",
+        "environment_bindings": {
+          "d1_databases": ["ANALYTICS_DB", "DB_AGENTS", "DB_TRANSACTIONS", "DB_WAGERS"],
+          "r2_buckets": ["RAW_ARCHIVE"],
+          "kv_namespaces": ["SESSION_KV", "AUTH_CACHE"],
+          "queues": ["INGESTION_QUEUE", "EMAIL_QUEUE"],
+          "durable_objects": ["LIVE_WAGER_BROADCASTER"]
+        },
+        "secrets": [
+          "CLOUDFLARE_API_TOKEN",
+          "FANTASY402_AGENT_ID",
+          "FANTASY402_PASSWORD",
+          "FANTASY402_USERNAME",
+          "FANTASY402_SESSION_COOKIE",
+          "FANTASY402_CF_CLEARANCE",
+          "FANTASY402_CF_BM",
+          "FANTASY402_BROWSER_HEADERS_JSON"
+        ],
+        "environment_variables": {
+          "development": {
+            "ENVIRONMENT": "development",
+            "FANTASY402_WORKER_TRIGGER_MODE": "skip"
+          },
+          "staging": {
+            "ENVIRONMENT": "staging",
+            "FANTASY402_WORKER_TRIGGER_MODE": "skip"
+          },
+          "production": {
+            "ENVIRONMENT": "production",
+            "WORKER_NAME": "fantasy402-ingestion",
+            "FANTASY402_BASE_URL": "https://fantasy402.com",
+            "FANTASY402_INGESTION_ENDPOINTS": "all",
+            "FANTASY402_INGESTION_BATCH_SIZE": "12",
+            "FANTASY402_WORKER_TRIGGER_MODE": "skip",
+            "FANTASY402_ALLOWED_SCAN_HOSTS": "fantasy402.com,www.fantasy402.com",
+            "FANTASY402_DASHBOARD_URL": "https://fantasy402-dashboard-5q6.pages.dev",
+            "FANTASY402_REFERER": "https://fantasy402.com/manager.html",
+            "FANTASY402_USER_AGENT": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+          }
+        }
+      }
+    ],
+    "d1_databases": [
+      {
+        "binding": "ANALYTICS_DB",
+        "database_name": "fantasy402-analytics",
+        "tables": [
+          {
+            "name": "ingestion_runs",
+            "columns": ["id", "started_at", "finished_at", "status", "endpoints_requested", "endpoints_succeeded", "endpoints_failed", "error_message"],
+            "primary_key": "id"
+          },
+          {
+            "name": "api_snapshots",
+            "columns": ["id", "run_id", "endpoint_key", "path", "captured_at", "http_status", "r2_key", "response_hash", "item_count"],
+            "primary_key": "id",
+            "indexes": ["idx_api_snapshots_endpoint_captured"]
+          }
+        ]
+      },
+      {
+        "binding": "DB_AGENTS",
+        "database_name": "fantasy402-analytics",
+        "tables": [
+          {
+            "name": "player_agents",
+            "columns": ["customer_id", "login", "name_first", "agent_id", "raw_snapshot_id", "captured_at"],
+            "primary_key": "customer_id",
+            "indexes": ["idx_player_agents_agent", "idx_player_agents_login"]
+          },
+          {
+            "name": "agent_performance",
+            "columns": ["id", "run_id", "captured_at", "agent_id", "total_wagers", "total_volume", "win_rate", "raw_snapshot_id"],
+            "primary_key": "id",
+            "indexes": ["idx_agent_performance_agent_captured"]
+          },
+          {
+            "name": "customer_accounts",
+            "columns": ["customer_id", "agent_id", "raw_snapshot_id", "captured_at", "payload_json"],
+            "primary_key": "customer_id"
+          },
+          {
+            "name": "customer_profile_facets",
+            "columns": ["customer_id", "facet", "raw_snapshot_id", "captured_at", "payload_json"],
+            "primary_key": ["customer_id", "facet"],
+            "indexes": ["idx_customer_profile_facets_captured"]
+          }
+        ]
+      },
+      {
+        "binding": "DB_TRANSACTIONS",
+        "database_name": "fantasy402-analytics",
+        "tables": [
+          {
+            "name": "weekly_figures",
+            "columns": ["id", "snapshot_id", "run_id", "agent_id", "week", "type", "figure_date", "wager_count", "volume", "net_amount", "big_wagers", "raw_json", "captured_at"],
+            "primary_key": "id",
+            "indexes": ["idx_weekly_figures_agent", "idx_weekly_figures_date"]
+          }
+        ]
+      },
+      {
+        "binding": "DB_WAGERS",
+        "database_name": "fantasy402-analytics",
+        "tables": [
+          {
+            "name": "graded_wagers",
+            "columns": ["id", "snapshot_id", "run_id", "captured_at", "wager_number", "agent_id", "customer_id", "login", "wager_type", "amount_wagered", "to_win_amount", "grade_date_time", "result", "net_amount", "insert_date_time", "ticket_writer", "volume_amount", "short_desc", "agent_login", "raw_json"],
+            "primary_key": "id",
+            "indexes": ["idx_graded_wagers_captured", "idx_graded_wagers_agent_captured", "idx_graded_wagers_wager_number"]
+          },
+          {
+            "name": "prop_wagers",
+            "columns": ["id", "snapshot_id", "run_id", "captured_at", "wager_number", "agent_id", "customer_id", "login", "wager_type", "amount_wagered", "to_win_amount", "insert_date_time", "ticket_writer", "volume_amount", "short_desc", "agent_login", "raw_json"],
+            "primary_key": "id",
+            "indexes": ["idx_prop_wagers_captured", "idx_prop_wagers_agent_captured", "idx_prop_wagers_wager_number"]
+          }
+        ]
+      }
+    ],
+    "r2_buckets": [
+      {
+        "binding": "RAW_ARCHIVE",
+        "bucket_name": "fantasy402-raw",
+        "purpose": "Raw upstream snapshots, URL scan payloads, HAR files, screenshots, and archive fallbacks",
+        "lifecycle_rules": [
+          {
+            "prefix": "fantasy402/",
+            "days_to_expire": 365
+          }
+        ]
+      }
+    ],
+    "kv_namespaces": [
+      {
+        "binding": "SESSION_KV",
+        "namespace": "SESSION_KV",
+        "purpose": "Fantasy402 session and circuit breaker state",
+        "ttl_seconds": 14400,
+        "keys": ["fantasy402:session", "circuit-breaker:*"]
+      },
+      {
+        "binding": "AUTH_CACHE",
+        "namespace": "AUTH_CACHE",
+        "purpose": "Auth overlay and refreshed browser credential cache",
+        "ttl_seconds": 14400,
+        "keys": ["fantasy402:auth:*"]
+      }
+    ],
+    "queues": [
+      {
+        "binding": "INGESTION_QUEUE",
+        "queue_name": "fantasy402-ingestion",
+        "purpose": "Asynchronous ingestion jobs",
+        "max_retries": 3,
+        "retry_delay_seconds": 60,
+        "visibility_timeout_seconds": 300,
+        "consumer": "fantasy402-ingestion"
+      },
+      {
+        "binding": "EMAIL_QUEUE",
+        "queue_name": "fantasy402-email",
+        "purpose": "Operational email notifications",
+        "max_retries": 3,
+        "retry_delay_seconds": 120,
+        "visibility_timeout_seconds": 300,
+        "consumer": "fantasy402-ingestion"
+      }
+    ],
+    "durable_objects": [
+      {
+        "binding": "LIVE_WAGER_BROADCASTER",
+        "class_name": "LiveWagerBroadcaster",
+        "script_name": "fantasy402-ingestion",
+        "purpose": "Broadcast live wager ticker events to connected dashboard clients",
+        "alarms_enabled": true,
+        "persistence": "sqlite"
+      }
+    ],
+    "routes": [
+      {
+        "domain": "fantasy402-dashboard-5q6.pages.dev",
+        "pattern": "fantasy402-dashboard-5q6.pages.dev/*",
+        "service": "fantasy402-dashboard",
+        "priority": 10
+      },
+      {
+        "domain": "fantasy402-ingestion",
+        "pattern": "fantasy402-ingestion.*.workers.dev/*",
+        "service": "fantasy402-ingestion",
+        "priority": 20
+      }
+    ],
+    "row_mappings": [
+      {
+        "name": "Agent",
+        "source_table": "player_agents",
+        "source_db": "DB_AGENTS",
+        "target_model": "Agent",
+        "mapping": {
+          "id": "customer_id",
+          "login": "login",
+          "name": "name_first",
+          "agentId": "agent_id",
+          "capturedAt": "captured_at"
+        }
+      },
+      {
+        "name": "Transaction",
+        "source_table": "weekly_figures",
+        "source_db": "DB_TRANSACTIONS",
+        "target_model": "Transaction",
+        "mapping": {
+          "id": "id",
+          "agentId": "agent_id",
+          "week": "week",
+          "volume": "volume",
+          "netAmount": "net_amount",
+          "capturedAt": "captured_at"
+        },
+        "transformation": {
+          "volume": "cents_to_dollars",
+          "netAmount": "cents_to_dollars"
+        }
+      },
+      {
+        "name": "Wager",
+        "source_table": "graded_wagers",
+        "source_db": "DB_WAGERS",
+        "target_model": "Wager",
+        "mapping": {
+          "id": "id",
+          "wagerNumber": "wager_number",
+          "agentId": "agent_id",
+          "customerId": "customer_id",
+          "wagerType": "wager_type",
+          "amountWagered": "amount_wagered",
+          "result": "result",
+          "capturedAt": "captured_at"
+        },
+        "transformation": {
+          "amountWagered": "cents_to_dollars"
+        }
+      }
+    ]
   }
 }

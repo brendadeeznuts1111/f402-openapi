@@ -23,6 +23,7 @@ npm test                     # harness + view/link tests
 | Public `/api` path | `public-routes.json`, `PUBLIC_API_PATHS`, `dashboard/_worker.js` `isPublicWorkerPath` |
 | Sidebar view | `view-routes.json`, `index.html` panel + `data-view` |
 | Typed navigation (24 tabs) | `js/lib/navigation-config.js`, `navigation-schemas.js`, `public/manifest.json`, `llms.txt` TAB_PATHS, run `test:harness:update` |
+| Cloudflare manifest | `dashboard/public/manifest.json`, validate against `ManifestSchema` in `dashboard/src/lib/manifest-types.ts` |
 | Shared query shape | `schemas.js` + `workers/.../schemas.ts`, `schema-bindings.json`, run `test:harness:update` |
 | CSS component | `components.manifest.json`, `dashboard.css` import |
 
@@ -45,6 +46,8 @@ Source of truth: `dashboard/js/lib/navigation-config.js` (`SIDEBAR_CONFIG`, `TAB
 | system | settings, diagnostics, health |
 
 Helpers: `getTabPath`, `getTabGroup`, `isValidTabId` — invalid input returns `{ ok: false, error }` (Zod-shaped). Harness: `npm run harness:sync-check` validates manifest, llms.txt paths, OpenAPI `operationId`s, and worker routes.
+
+When modifying the manifest, always validate against `ManifestSchema` in `dashboard/src/lib/manifest-types.ts`.
 
 ## Docs
 

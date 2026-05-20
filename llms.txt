@@ -9,6 +9,7 @@
 - Dashboard docs: ./docs/dashboard.md
 - Agent guide: ./AGENTS.md
 - Harness: `dashboard/harness` (`npm run harness:verify`)
+- Cloudflare infrastructure: D1 databases (agents, transactions, wagers), R2 (assets/backups), KV (sessions, feature flags), Queues (ingestion/email)
 
 ## Upstream catalog (86 endpoints)
 - Manifest: `workers/fantasy402-ingestion/upstream-endpoints.json` — all 86 read-only routes.

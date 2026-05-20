@@ -6,7 +6,9 @@
   "scripts": {
     "build:contract": "node tools/build-fantasy402-secured-contract.cjs",
     "lint:openapi": "spectral lint .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json --ruleset spectral.yaml",
-    "verify:contract": "npm run build:contract && npm run lint:openapi && node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json",
+    "validate:production-manifest": "node scripts/manifest-validate.mjs",
+    "test:manifest": "node --test test/manifest-validate.test.mjs",
+    "verify:contract": "npm run validate:production-manifest && npm run test:manifest && npm run build:contract && npm run lint:openapi && node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json",
     "verify:dashboard-harness": "cd dashboard && npm run harness:verify"
   },
   "devDependencies": {

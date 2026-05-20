@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - ".o11y/fantasy402-redacted-deep/api-spec/openapi.json"
+      - "contracts/production-manifest.json"
+      - "scripts/manifest-validate.mjs"
+      - "test/manifest-validate.test.mjs"
       - "tools/**"
       - "package.json"
       - "package-lock.json"
@@ -27,10 +30,10 @@ jobs:
           node-version: "22"
 
       - name: Build and lint secured OpenAPI contract
-        run: node tools/build-fantasy402-secured-contract.cjs
+        run: npm ci && npm run validate:production-manifest && npm run test:manifest && node tools/build-fantasy402-secured-contract.cjs
 
       - name: Lint secured OpenAPI contract with Spectral
-        run: npm ci && npm run lint:openapi
+        run: npm run lint:openapi
 
       - name: Contract-test examples spec
         run: node tools/test-fantasy402-examples-contract.mjs .o11y/fantasy402-redacted-deep/api-spec-secured/openapi.secured.examples.json

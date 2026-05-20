@@ -8,6 +8,8 @@ on:
       - "workers/fantasy402-ingestion/openapi.worker.json"
       - "workers/fantasy402-ingestion/src/index.ts"
       - "tools/lib/f402-schemas.mjs"
+      - "contracts/production-manifest.json"
+      - "scripts/manifest-validate.mjs"
       - "llms.txt"
       - "AGENTS.md"
       - ".github/workflows/fantasy402-dashboard-harness.yml"

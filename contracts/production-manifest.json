@@ -1,0 +1,31 @@
+{
+  "$schema": "https://fantasy402.dev/contracts/production-manifest.schema.json",
+  "schemaVersion": 1,
+  "name": "fantasy402-production",
+  "release": {
+    "versionSource": "package.json",
+    "packages": [
+      { "id": "root", "path": "package.json" },
+      { "id": "dashboard", "path": "dashboard/package.json" },
+      { "id": "worker", "path": "workers/fantasy402-ingestion/package.json" }
+    ]
+  },
+  "testSuites": [
+    {
+      "id": "dashboard-harness",
+      "cwd": "dashboard",
+      "command": "npm run test:harness:ci",
+      "include": [
+        "test/harness/**/*.test.js",
+        "test/harness/**/*.test.ts",
+        "test/harness-contract.test.js"
+      ]
+    },
+    {
+      "id": "worker",
+      "cwd": "workers/fantasy402-ingestion",
+      "command": "npm test",
+      "include": ["test/**/*.test.ts"]
+    }
+  ]
+}

@@ -19,7 +19,7 @@ export function createTicker(ctx) {
     const el = $('connStatus');
     el.className = 'ds-conn-status ds-conn-status--' + status;
     const labels = {
-      connected: 'Live (SSE)',
+      connected: ctx.wagerSocket.mode === 'websocket' ? 'Live (WS)' : 'Live (SSE)',
       connecting: 'Connecting…',
       reconnecting: 'Reconnecting…',
       polling: 'Polling',
@@ -46,7 +46,7 @@ export function createTicker(ctx) {
       if (!apiConfigured) {
         feed.innerHTML = renderEmptyState({
           icon: '🔑',
-          message: 'Live wagers available via SSE.',
+          message: 'Live wagers available via WebSocket worker.',
           hint: 'Configure Pages secret for historical ticker data.',
         });
         return;
@@ -60,7 +60,7 @@ export function createTicker(ctx) {
       <div class="ds-ticker-item">
         <span class="ds-login">${escapeHtml(w.login || '?')}</span>
         <span>${tag(w.wager_type)}</span>
-        <span class="ds-amount">${usd(w.amount_wagered)}</span>
+        <span class="ds-amount">${usd(w.amount_wagered / 100)}</span>
         <span class="ds-time">${ago(w.captured_at)}</span>
       </div>
     `).join('');
@@ -86,10 +86,19 @@ export function createTicker(ctx) {
     ctx.pollFallback.start();
   }
 
+  function usesExternalBetTickerWs() {
+    return ctx.wagerSocket.mode === 'websocket';
+  }
+
   function startSSE() {
     ctx.pollFallback.stop();
     ctx.wagerSocket.cancelFallback();
     updateConn('connecting');
+
+    if (usesExternalBetTickerWs()) {
+      ctx.wagerSocket.reconnect();
+      return;
+    }
 
     const seed = () => {
       if (!apiConfigured) return Promise.resolve();
@@ -112,7 +121,7 @@ export function createTicker(ctx) {
     seed().finally(() => {
       ctx.wagerSocket.reconnect();
       ctx.wagerSocket.scheduleFallback(10000, () => {
-        if (ctx.wagerSocket.source?.readyState === EventSource.OPEN) return;
+        if (ctx.wagerSocket.isConnected()) return;
         startPollingFallback();
       });
     });

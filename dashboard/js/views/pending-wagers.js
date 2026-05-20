@@ -9,6 +9,7 @@ import { AutoRefreshManager } from '../utils.js';
 import { buildPendingWagersQuery } from '../lib/query-builders.js';
 import { formatCustomerCell, formatWagerCell } from '../lib/link-components.js';
 import { formatDataSourceLabel } from '../lib/data-source-label.js';
+import { workerWagerToPendingRow } from '../lib/bet-ticker-map.js';
 
 const STORAGE_KEY = 'f402-pending-filters';
 
@@ -26,6 +27,8 @@ const DEFAULT_FILTERS = {
 let pendingTable = null;
 let filters = { ...DEFAULT_FILTERS };
 let wired = false;
+/** @type {Map<number, Record<string, unknown>>} */
+const livePendingByTicket = new Map();
 
 function centsUsd(v) {
   if (v == null || v === '') return '-';
@@ -93,6 +96,12 @@ function statusBadge(status) {
   return `<span class="ds-badge ds-badge--${cls}">${label}</span>`;
 }
 
+export function applyPendingFilters(partial = {}) {
+  filters = { ...filters, ...partial };
+  saveFilters();
+  paintFiltersToForm();
+}
+
 export function initPendingView(ctx) {
   wireFiltersOnce(ctx);
 }
@@ -151,6 +160,12 @@ function ensureTable() {
       type: 'string',
       html: true,
       formatter: (v, row) => formatCustomerCell(v, row),
+    },
+    {
+      key: 'ticket_writer',
+      label: 'Writer',
+      type: 'string',
+      formatter: (v) => escapeHtml(String(v ?? '').trim() || '-'),
     },
     { key: 'wager_type', label: 'Type', type: 'string', formatter: (v) => tag(v) },
     { key: 'amount_wagered', label: 'Wagered', type: 'number', formatter: (v) => centsUsd(v) },
@@ -213,9 +228,9 @@ async function loadPendingWagers(ctx) {
     if (d.status === 'failed') {
       throw new Error(d.message || 'Pending wagers request failed');
     }
-    const rows = d.wagers || [];
+    const rows = mergePendingRows(d.wagers || []);
     renderSummary(d, rows);
-    if (!rows.length) {
+    if (!rows.length && livePendingByTicket.size === 0) {
       $('pendingWagersTable').innerHTML = renderEmptyState({
         icon: '⏳',
         message: 'No pending wagers',
@@ -226,14 +241,10 @@ async function loadPendingWagers(ctx) {
       }
       return;
     }
-    pendingTable.setData(rows);
-    if (metaEl) {
-      const parts = [formatDataSourceLabel(d), `${rows.length} rows`];
-      if (d.stale) parts.push('stale');
-      if (d.filters?.date) parts.push(`date ${d.filters.date}`);
-      if (d.filters?.agent_id) parts.push(`agent ${d.filters.agent_id}`);
-      metaEl.textContent = parts.join(' · ');
-    }
+    paintPendingTable(rows, [formatDataSourceLabel(d)]);
+    if (d.stale && metaEl) metaEl.textContent += ' · stale';
+    if (d.filters?.date && metaEl) metaEl.textContent += ` · date ${d.filters.date}`;
+    if (d.filters?.agent_id && metaEl) metaEl.textContent += ` · agent ${d.filters.agent_id}`;
   } catch (e) {
     $('pendingWagersTable').innerHTML = renderErrorState(
       `${e.message}. Check worker auth on Endpoints.`,
@@ -250,4 +261,65 @@ export function registerPendingAutoRefresh(ctx) {
 
 export function unregisterPendingAutoRefresh() {
   AutoRefreshManager.unregister('pending');
+}
+
+function pendingMatchesLiveFilters(row) {
+  if (filters.login) {
+    const q = filters.login.toLowerCase();
+    if (!String(row.login ?? '').toLowerCase().includes(q)) return false;
+  }
+  if (filters.wager_type && row.wager_type !== filters.wager_type) return false;
+  if (filters.sport) {
+    const q = filters.sport.toLowerCase();
+    const sport = String(row.sport_type ?? '').toLowerCase();
+    const desc = String(row.description ?? '').toLowerCase();
+    if (!sport.includes(q) && !desc.includes(q)) return false;
+  }
+  return true;
+}
+
+function mergePendingRows(apiRows) {
+  const byTicket = new Map();
+  for (const row of apiRows) {
+    const n = Number(row.ticket_number);
+    if (Number.isFinite(n)) byTicket.set(n, row);
+  }
+  for (const [ticket, row] of livePendingByTicket) {
+    if (!byTicket.has(ticket)) byTicket.set(ticket, row);
+  }
+  return [...byTicket.values()].sort(
+    (a, b) => Number(b.ticket_number) - Number(a.ticket_number)
+  );
+}
+
+function paintPendingTable(rows, metaParts = []) {
+  ensureTable();
+  renderSummary({ wagers: rows }, rows);
+  pendingTable.setData(rows);
+  const metaEl = $('pendingMeta');
+  if (metaEl) {
+    const liveN = rows.filter((r) => r._live).length;
+    const parts = [...metaParts, `${rows.length} rows`];
+    if (liveN) parts.push(`${liveN} live`);
+    metaEl.textContent = parts.join(' · ');
+  }
+}
+
+/**
+ * Prepend a worker WebSocket wager onto the pending table (when view is active).
+ * @param {import('../app.js').DashboardCtx} ctx
+ * @param {Record<string, unknown>} wager
+ */
+export function prependLivePendingWager(ctx, wager) {
+  if (ctx.currentView !== 'pending') return;
+  const row = workerWagerToPendingRow(wager);
+  if (!row || !pendingMatchesLiveFilters(row)) return;
+
+  const ticket = Number(row.ticket_number);
+  livePendingByTicket.set(ticket, row);
+
+  const current = pendingTable?.rows ?? [];
+  const merged = mergePendingRows(current);
+  paintPendingTable(merged, ['Live stream']);
+  $('lastUpdate').textContent = new Date().toLocaleTimeString();
 }

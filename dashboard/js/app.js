@@ -3,6 +3,7 @@
 import {
   api,
   apiPost,
+  configureApiFetch,
   setGlobalErrorHandler,
   checkApiHealth,
   probeApiProxy,
@@ -15,6 +16,7 @@ import {
   redirectToProductionDashboard,
 } from './deploy.js';
 import { WagerSocket, PollingFallback } from './websocket-client.js';
+import { DEFAULT_BET_TICKER_WS_URL } from './constants.js';
 import { getRefreshInterval } from './design-system.js';
 import { AutoRefreshManager } from './utils.js';
 import { DataStore } from './store.js';
@@ -56,6 +58,13 @@ import {
   clearCache,
   exportConfig,
   initDropzone,
+  saveConfigFromEditor,
+  resetConfigEditor,
+  resetConfigEditorToDefaults,
+  seedFromLiveApi,
+  resetAllLocalData,
+  refreshSettingsFromApi,
+  seedSettingsFromApi,
 } from './views/settings.js';
 import {
   loadEndpoints,
@@ -76,27 +85,50 @@ import {
 import { loadDataView, setDataTab } from './views/data.js';
 import { loadAlertsView, onAlertsTabChange, createAlertRule, triggerTestAlert } from './views/alerts.js';
 import { loadActivityView, initActivityView } from './views/customer-activity.js';
-import { loadCustomersView } from './views/customers.js';
+import { loadCustomersView, focusCustomersSection } from './views/customers.js';
 import {
   initPendingView,
   loadPendingWagersView,
   registerPendingAutoRefresh,
   unregisterPendingAutoRefresh,
   applyPendingFilters,
+  prependLivePendingWager,
 } from './views/pending-wagers.js';
 import { loadTransactionsView } from './views/transactions.js';
+import {
+  loadDiagnosticsView,
+  copyDiagnosticsJson,
+  downloadDiagnosticsJson,
+  wireDiagnosticsView,
+  registerDiagnosticsAutoRefresh,
+  setDiagnosticsPanel,
+} from './views/diagnostics.js';
 import { installNavigationBridge } from './lib/navigation.js';
 import { maybeAutoIngest } from './ingestion-automation.js';
+import { PATH_TO_TAB, TAB_PATHS } from './lib/navigation-config.js';
+import { settingsTabFromLocation, SETTINGS_NAV_BY_TAB } from './lib/settings-routes.js';
+import { resolveTabRoute } from './lib/tab-routes.js';
+import { renderSidebarNav, setSidebarActiveTab } from './lib/sidebar-render.js';
 
 const store = new DataStore();
 const settings = new SettingsManager();
 
 let currentView = 'overview';
+let currentTabId = 'overview';
 
-const wagerSocket = new WagerSocket('/api');
+const wagerSocket = new WagerSocket('/api', {
+  wsEndpoint: settings.get('wsEndpoint') || DEFAULT_BET_TICKER_WS_URL,
+});
 const pollFallback = new PollingFallback('/api', 5000);
 
 const statusPoller = new StatusPoller(api, store);
+
+function syncApiFetchFromSettings() {
+  configureApiFetch({
+    timeoutMs: settings.get('timeoutMs'),
+    retries: settings.get('retries'),
+  });
+}
 
 const ticker = createTicker({
   settings,
@@ -105,7 +137,10 @@ const ticker = createTicker({
   pollFallback,
 });
 
-wagerSocket.onWager = (wager) => ticker.add(wager);
+wagerSocket.onWager = (wager) => {
+  ticker.add(wager);
+  prependLivePendingWager(ctx, wager);
+};
 wagerSocket.onStatusChange = (status) => {
   if (status === 'connected') {
     wagerSocket.cancelFallback();
@@ -135,6 +170,10 @@ function getOverviewRefreshMs() {
 }
 
 function registerOverviewRefresh() {
+  if (settings.get('autoRefresh') === false) {
+    AutoRefreshManager.unregister('overview');
+    return;
+  }
   AutoRefreshManager.register('overview', () => loadOverview(ctx), getOverviewRefreshMs());
 }
 
@@ -164,22 +203,25 @@ const ctx = {
   statusPoller,
   ticker,
   get currentView() { return currentView; },
+  get currentTabId() { return currentTabId; },
   showAlert: (msg, severity) => showAlert(msg, severity, settings),
   applyTheme: () => applyTheme(settings),
   onChartsThemeChange,
   registerOverviewRefresh,
+  switchTab,
+  syncApiFetchFromSettings,
 };
 
 installNavigationBridge({
   showError: (msg) => ctx.showAlert(msg, 'error'),
   onCustomer: (customerId, login) => {
-    switchView('customers');
+    switchTab('customer-profile');
     loadCustomersView(ctx).then(() => {
       ctx.loadCustomerProfile?.(customerId, login);
     });
   },
   onAgent: (agentId) => {
-    switchView('customers');
+    switchTab('agent-performance');
     const input = $('customerSearchInput');
     if (input) {
       input.value = agentId;
@@ -187,7 +229,7 @@ installNavigationBridge({
     }
   },
   onWager: ({ login, customerId }) => {
-    switchView('pending');
+    switchTab('pending');
     applyPendingFilters({
       login: login ?? '',
       customer_id: customerId ?? '0',
@@ -195,6 +237,51 @@ installNavigationBridge({
     loadPendingWagersView(ctx);
   },
 });
+
+function tabIdFromLocation() {
+  const hash = location.hash.replace(/^#/, '');
+  if (hash && PATH_TO_TAB[hash]) return PATH_TO_TAB[hash];
+  if (PATH_TO_TAB[location.pathname]) return PATH_TO_TAB[location.pathname];
+  return 'overview';
+}
+
+function syncUrlForTab(tabId) {
+  const path = TAB_PATHS[tabId];
+  if (!path || location.hash === `#${path}`) return;
+  history.replaceState({ tabId }, '', `#${path}`);
+}
+
+function applyTabRoute(route) {
+  if (!route) return;
+  if (route.dataTab) {
+    setDataTab(route.dataTab);
+    if (currentView === 'data') loadDataView(ctx);
+  }
+  if (route.endpointTab) onEndpointTabChange(route.endpointTab);
+  if (route.customersFocus) focusCustomersSection(route.customersFocus);
+  if (route.diagnosticsPanel) {
+    setDiagnosticsPanel(route.diagnosticsPanel);
+  }
+  if (route.settingsTab) {
+    switchSettingsTab(route.settingsTab);
+  }
+  if (route.endpointsFocus === 'health') {
+    $('endpointHealth')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else if (route.endpointsFocus === 'auth') {
+    $('authStatus')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else if (route.endpointsFocus === 'actions') {
+    $('syncBrowserIngestBtn')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function switchTab(tabId) {
+  const route = resolveTabRoute(tabId);
+  if (!route) return;
+  currentTabId = tabId;
+  syncUrlForTab(tabId);
+  setSidebarActiveTab(tabId);
+  switchView(route.viewId, route);
+}
 
 function showProxyConfigBanner(kind) {
   if (kind === 'missing_token') {
@@ -243,21 +330,15 @@ function renderSidebarStatus(status) {
   }).join('');
 }
 
-function switchView(name) {
+function switchView(name, route = null) {
   currentView = name;
   unregisterPendingAutoRefresh();
   destroyAllCharts();
-  document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
-    const isActive = item.dataset.view === name;
-    item.classList.toggle('ds-sidebar__item--active', isActive);
-    if (isActive) item.setAttribute('aria-current', 'page');
-    else item.removeAttribute('aria-current');
-  });
   document.querySelectorAll('.ds-view').forEach((v) => {
     v.classList.toggle('ds-view--active', v.id === `view-${name}`);
   });
 
-  updateBreadcrumbs(name);
+  updateBreadcrumbs(name, undefined, currentTabId);
 
   if (name === 'overview') {
     ticker.startSSE();
@@ -271,6 +352,7 @@ function switchView(name) {
   } else if (name === 'settings') {
     ticker.stopSSE();
     loadSettings(ctx);
+    switchSettingsTab(settingsTabFromLocation(currentTabId));
   } else if (name === 'endpoints') {
     ticker.stopSSE();
     loadEndpoints(ctx);
@@ -293,7 +375,14 @@ function switchView(name) {
   } else if (name === 'transactions') {
     ticker.stopSSE();
     loadTransactionsView(ctx);
+  } else if (name === 'diagnostics') {
+    ticker.stopSSE();
+    const panel =
+      route?.diagnosticsPanel ?? (currentTabId === 'health' ? 'auth' : 'coverage');
+    loadDiagnosticsView(ctx, { panel });
   }
+
+  applyTabRoute(route);
 }
 
 function toggleTheme() {
@@ -331,19 +420,28 @@ document.addEventListener('click', (e) => {
 });
 
 $('sidebarToggle').addEventListener('click', () => {
-  document.querySelector('.ds-sidebar').classList.toggle('ds-sidebar--collapsed');
-  const collapsed = document.querySelector('.ds-sidebar').classList.contains('ds-sidebar--collapsed');
-  $('sidebarToggle').innerHTML = collapsed ? '&raquo;' : '&laquo;';
-  $('sidebarToggle').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  const sidebar = document.querySelector('.ds-sidebar');
+  const toggle = $('sidebarToggle');
+  sidebar.classList.toggle('ds-sidebar--collapsed');
+  const collapsed = sidebar.classList.contains('ds-sidebar--collapsed');
+  toggle.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+  toggle.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
   scheduleResizeCharts();
 });
 
 window.addEventListener('resize', scheduleResizeCharts);
 initChartPlotResizeObserver(scheduleResizeCharts);
 
-document.querySelectorAll('.ds-sidebar__item').forEach((item) => {
-  item.addEventListener('click', () => switchView(item.dataset.view));
-});
+const sidebarMount = $('sidebarNav');
+if (sidebarMount) {
+  renderSidebarNav(sidebarMount, {
+    onSelect: switchTab,
+    activeTabId: tabIdFromLocation(),
+  });
+}
+window.addEventListener('hashchange', () => switchTab(tabIdFromLocation()));
 
 document.querySelectorAll('[data-chart-tab]').forEach((t) => {
   t.addEventListener('click', () => {
@@ -364,17 +462,31 @@ document.querySelectorAll('[data-log-tab]').forEach((t) => {
 });
 
 document.querySelectorAll('[data-settings-tab]').forEach((t) => {
-  t.addEventListener('click', () => switchSettingsTab(t.dataset.settingsTab));
+  t.addEventListener('click', () => {
+    const tab = t.dataset.settingsTab;
+    const navId = SETTINGS_NAV_BY_TAB[tab];
+    if (navId) switchTab(navId);
+  });
 });
 
 $('tickerType').addEventListener('change', () => ticker.render());
 $('tickerMin').addEventListener('input', debounce(() => ticker.render(), 300));
 $('logStatus').addEventListener('change', () => loadLogs(ctx));
-$('saveGeneralBtn').addEventListener('click', () => saveGeneral(ctx));
-$('saveApiBtn').addEventListener('click', () => saveApi(ctx));
-$('saveAppearanceBtn').addEventListener('click', () => saveAppearance(ctx));
-$('clearCacheBtn').addEventListener('click', () => clearCache(ctx));
-$('exportConfigBtn').addEventListener('click', () => exportConfig(ctx));
+$('saveGeneralBtn')?.addEventListener('click', () => saveGeneral(ctx));
+$('saveApiBtn')?.addEventListener('click', () => saveApi(ctx));
+$('saveAppearanceBtn')?.addEventListener('click', () => saveAppearance(ctx));
+$('refreshSettingsBtn')?.addEventListener('click', () => refreshSettingsFromApi(ctx));
+$('seedSettingsGeneralBtn')?.addEventListener('click', () => seedSettingsFromApi(ctx, 'General'));
+$('seedSettingsApiBtn')?.addEventListener('click', () => seedSettingsFromApi(ctx, 'Api'));
+$('seedSettingsAppearanceBtn')?.addEventListener('click', () => seedSettingsFromApi(ctx, 'Appearance'));
+$('seedSettingsDataBtn')?.addEventListener('click', () => seedSettingsFromApi(ctx, 'Data'));
+$('clearCacheBtn')?.addEventListener('click', () => clearCache(ctx));
+$('exportConfigBtn')?.addEventListener('click', () => exportConfig(ctx));
+$('saveConfigEditorBtn')?.addEventListener('click', () => saveConfigFromEditor(ctx));
+$('resetConfigEditorBtn')?.addEventListener('click', () => resetConfigEditor(ctx));
+$('resetConfigDefaultsBtn')?.addEventListener('click', () => resetConfigEditorToDefaults());
+$('seedFromApiBtn')?.addEventListener('click', () => seedFromLiveApi(ctx));
+$('resetAllDataBtn')?.addEventListener('click', () => resetAllLocalData(ctx));
 $('endpointZoneFilter').addEventListener('change', () => loadEndpoints(ctx));
 $('endpointMethodFilter').addEventListener('change', () => loadEndpoints(ctx));
 document.querySelectorAll('[data-endpoint-tab]').forEach((t) => {
@@ -391,6 +503,14 @@ document.querySelectorAll('[data-data-tab]').forEach((t) => {
 document.querySelectorAll('[data-alerts-tab]').forEach((t) => {
   t.addEventListener('click', () => onAlertsTabChange(t.dataset.alertsTab, ctx));
 });
+
+wireDiagnosticsView(ctx);
+const stopDiagnosticsAutoRefresh = registerDiagnosticsAutoRefresh(ctx);
+window.addEventListener('pagehide', () => stopDiagnosticsAutoRefresh?.());
+
+$('diagnosticsRefreshBtn')?.addEventListener('click', () => loadDiagnosticsView(ctx));
+$('diagnosticsCopyBtn')?.addEventListener('click', () => copyDiagnosticsJson(ctx));
+$('diagnosticsExportBtn')?.addEventListener('click', () => downloadDiagnosticsJson());
 
 $('applyAlertFiltersBtn')?.addEventListener('click', () => loadAlertsView(ctx));
 
@@ -422,6 +542,17 @@ settings.onChange((key) => {
   if (key === 'autoIngestOnEndpoints' || key === 'ingestIntervalMs' || key === '*') {
     resetIngestionScheduler();
   }
+  if (key === 'autoRefresh' || key === 'refreshInterval' || key === '*') {
+    registerOverviewRefresh();
+  }
+  if (key === 'timeoutMs' || key === 'retries' || key === 'compactMode' || key === '*') {
+    syncApiFetchFromSettings();
+    if (key === 'compactMode' || key === '*') ctx.applyTheme();
+  }
+  if (key === 'wsEndpoint' || key === '*') {
+    wagerSocket.setWsEndpoint(settings.get('wsEndpoint') || DEFAULT_BET_TICKER_WS_URL);
+    if (currentView === 'overview') ticker.startSSE();
+  }
 });
 
 initDropzone(ctx, $('importDropzone'));
@@ -429,10 +560,7 @@ initDropzone(ctx, $('importDropzone'));
 async function init() {
   requestNotificationPermission();
   $('lastUpdate').textContent = new Date().toLocaleTimeString();
-  document.querySelectorAll('.ds-view').forEach((v) => {
-    v.classList.toggle('ds-view--active', v.id === 'view-overview');
-  });
-  updateBreadcrumbs('overview');
+  switchTab(tabIdFromLocation());
   syncDrawerFromSettings(ctx);
 
   if (isEphemeralPagesHost() && !location.search.includes('stay=1')) {
@@ -450,6 +578,15 @@ async function init() {
     }
   }
 
+  if (proxyState === 'ok') {
+    await settings.syncFromApi(ctx.api);
+    syncApiFetchFromSettings();
+    syncDrawerFromSettings(ctx);
+  } else {
+    syncApiFetchFromSettings();
+  }
+  wagerSocket.setWsEndpoint(settings.get('wsEndpoint') || DEFAULT_BET_TICKER_WS_URL);
+
   const health = await checkApiHealth();
   if (!health.ok && proxyState === 'ok') {
     ctx.showAlert('Worker health check failed — proxy or Worker may be down.', 'error');
@@ -462,7 +599,7 @@ async function init() {
   if (proxyState === 'ok') {
     statusPoller.silent = false;
     statusPoller.start();
-    await loadOverview(ctx);
+    if (currentView === 'overview') await loadOverview(ctx);
     resetIngestionScheduler();
     maybeAutoIngest(ctx);
   } else {

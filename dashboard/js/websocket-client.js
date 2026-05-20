@@ -1,7 +1,13 @@
 // dashboard/js/websocket-client.js
-// SSE live-wager stream + polling fallback when SSE is unavailable.
+// SSE live-wager stream (same-origin) + external WebSocket + polling fallback.
+
+import { DEFAULT_BET_TICKER_WS_URL } from './constants.js';
 
 const BASE = '/api';
+
+function isExternalWsUrl(endpoint) {
+  return /^wss?:\/\//i.test(endpoint);
+}
 
 function parseWagerPayload(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -11,12 +17,15 @@ function parseWagerPayload(raw) {
   return wager;
 }
 
-// ── SSE Client ─────────────────────────────────────────────────
+// ── Live stream client (SSE or WebSocket) ───────────────────────
 
 export class WagerSocket {
   constructor(baseUrl = BASE, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.wsEndpoint = options.wsEndpoint ?? DEFAULT_BET_TICKER_WS_URL;
+    this.transport = isExternalWsUrl(this.wsEndpoint) ? 'websocket' : 'sse';
     this.source = null;
+    this.ws = null;
     this.reconnectDelay = 1000;
     this.maxReconnectDelay = 30000;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 10;
@@ -32,22 +41,58 @@ export class WagerSocket {
   set onWager(fn) { this._onWager = fn; }
   set onStatusChange(fn) { this._onStatusChange = fn; }
 
+  get mode() {
+    return this.transport;
+  }
+
+  setWsEndpoint(endpoint) {
+    const next = endpoint || DEFAULT_BET_TICKER_WS_URL;
+    const nextTransport = isExternalWsUrl(next) ? 'websocket' : 'sse';
+    this.wsEndpoint = next;
+    this.transport = nextTransport;
+  }
+
   updateSince(iso) {
     if (iso && iso > this.since) this.since = iso;
   }
 
+  isConnected() {
+    if (this.transport === 'websocket') {
+      return this.ws?.readyState === WebSocket.OPEN;
+    }
+    return this.source?.readyState === EventSource.OPEN;
+  }
+
   _buildUrl() {
-    return `${this.baseUrl}/live-wagers?since=${encodeURIComponent(this.since)}`;
+    if (this.transport === 'websocket') return this.wsEndpoint;
+    const path = this.wsEndpoint.startsWith('/') ? this.wsEndpoint : `/${this.wsEndpoint}`;
+    return `${this.baseUrl}${path}?since=${encodeURIComponent(this.since)}`;
   }
 
   _emit(status) {
     this._onStatusChange?.(status);
   }
 
+  _handleWager(wager) {
+    if (!wager) return;
+    if (wager.captured_at) this.updateSince(wager.captured_at);
+    this._onWager?.(wager);
+  }
+
   connect() {
     if (this._closed) return;
     this._emit('connecting');
+    if (this.transport === 'websocket') {
+      this._connectWebSocket();
+      return;
+    }
+    this._connectSSE();
+  }
+
+  _connectSSE() {
     this.source?.close();
+    this.ws?.close();
+    this.ws = null;
     this.source = new EventSource(this._buildUrl());
 
     this.source.onopen = () => {
@@ -59,10 +104,7 @@ export class WagerSocket {
     this.source.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        const wager = parseWagerPayload(data);
-        if (!wager) return;
-        if (wager.captured_at) this.updateSince(wager.captured_at);
-        this._onWager?.(wager);
+        this._handleWager(parseWagerPayload(data));
       } catch (e) {
         console.warn('[SSE] Parse error:', e);
       }
@@ -76,6 +118,41 @@ export class WagerSocket {
       }
       this._emit('error');
       this.source?.close();
+      this._scheduleReconnect();
+    };
+  }
+
+  _connectWebSocket() {
+    this.source?.close();
+    this.source = null;
+    this.ws?.close();
+    this.ws = new WebSocket(this._buildUrl());
+
+    this.ws.onopen = () => {
+      this.reconnectDelay = 1000;
+      this._reconnectCount = 0;
+      this._emit('connected');
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        this._handleWager(parseWagerPayload(data));
+      } catch (e) {
+        console.warn('[WS] Parse error:', e);
+      }
+    };
+
+    this.ws.onerror = () => {
+      this._emit('error');
+    };
+
+    this.ws.onclose = () => {
+      if (this._closed) {
+        this._emit('disconnected');
+        return;
+      }
+      this._emit('reconnecting');
       this._scheduleReconnect();
     };
   }
@@ -97,6 +174,8 @@ export class WagerSocket {
     this._closed = true;
     this.source?.close();
     this.source = null;
+    this.ws?.close();
+    this.ws = null;
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
@@ -113,15 +192,18 @@ export class WagerSocket {
     this.reconnectDelay = 1000;
     this._reconnectCount = 0;
     this.source?.close();
+    this.source = null;
+    this.ws?.close();
+    this.ws = null;
     this.connect();
   }
 
-  /** Start polling fallback if SSE has not connected within ms. */
+  /** Start polling fallback if the live stream has not connected within ms. */
   scheduleFallback(ms, onStart) {
     if (this._fallbackTimer) clearTimeout(this._fallbackTimer);
     this._fallbackTimer = setTimeout(() => {
       if (this._closed) return;
-      if (this.source?.readyState === EventSource.OPEN) return;
+      if (this.isConnected()) return;
       onStart?.();
     }, ms);
   }

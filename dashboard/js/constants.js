@@ -5,6 +5,10 @@
 // Backward-compat globals set on window for the existing inline <script>.
 
 /** Semantic colors for Chart.js and inline charts (matches :root tokens). */
+/** Live bet ticker WebSocket worker (replaces SSE /live-wagers when set). */
+export const DEFAULT_BET_TICKER_WS_URL =
+  'wss://bet-ticker-worker.utahj4754.workers.dev';
+
 /** Worker routes reachable without bearer token via Pages proxy (see dashboard/_worker.js). */
 export const PUBLIC_API_PATHS = ['/health', '/auth/health', '/live-wagers'];
 
@@ -97,6 +101,7 @@ export const ENDPOINT_ZONE_MAP = {
   '/weekly-figures':     'query',
   '/pending-wagers':     'query',
   '/transactions-live':  'query',
+  '/settings':           'worker',
 };
 
 export const REFRESH_INTERVALS = {
@@ -130,6 +135,7 @@ export const REFRESH_INTERVALS = {
   '/alert-rules':        30000,
   '/customer-activity':         30000,
   '/customer-activity-search':  30000,
+  '/settings':             'manual',
 };
 
 export function getZoneColor(endpoint) {
@@ -156,10 +162,11 @@ export function getZone(endpoint) {
 // Backward-compat globals for the existing inline <script> in index.html
 // Remove once index.html migrates to <script type="module">
 if (typeof window !== 'undefined') {
-  window.ZONE_COLORS = ZONE_COLORS;
-  window.ENDPOINT_ZONE_MAP = ENDPOINT_ZONE_MAP;
-  window.REFRESH_INTERVALS = REFRESH_INTERVALS;
-  window.getZoneColor = getZoneColor;
-  window.getRefreshInterval = getRefreshInterval;
-  window.getZone = getZone;
+  const w = /** @type {Window & typeof globalThis & Record<string, unknown>} */ (window);
+  w.ZONE_COLORS = ZONE_COLORS;
+  w.ENDPOINT_ZONE_MAP = ENDPOINT_ZONE_MAP;
+  w.REFRESH_INTERVALS = REFRESH_INTERVALS;
+  w.getZoneColor = getZoneColor;
+  w.getRefreshInterval = getRefreshInterval;
+  w.getZone = getZone;
 }

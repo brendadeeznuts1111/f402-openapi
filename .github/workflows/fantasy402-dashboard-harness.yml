@@ -38,8 +38,8 @@ jobs:
       - name: Install dashboard dependencies
         run: bun install
 
-      - name: Harness verify (sync + CI tests + typecheck)
-        run: npm run harness:sync-check && npm run test:harness:ci && bunx tsc --noEmit -p harness/tsconfig.harness.json
+      - name: Harness verify (manifest + sync + CI tests + typecheck)
+        run: npm run validate:manifest && npm run harness:sync-check && npm run test:harness:ci && bunx tsc --noEmit -p harness/tsconfig.harness.json
 
       - name: Harness health report
         if: always()

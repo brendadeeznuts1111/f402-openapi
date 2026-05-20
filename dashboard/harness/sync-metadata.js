@@ -11,6 +11,12 @@ import {
   readRepoFile,
   verifyPagesWorkerPublicPaths,
 } from './verify.js';
+import { runNavigationSyncChecks } from './navigation-verify.js';
+import {
+  SIDEBAR_CONFIG,
+  GROUP_TABS,
+  TAB_PATHS,
+} from '../js/lib/navigation-config.js';
 
 const harnessDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(harnessDir, '../..');
@@ -159,6 +165,7 @@ export function verifyHarnessManifestInventory() {
     'schema-registry.json',
     'zod-cases.json',
     'openapi-samples.json',
+    'navigation-registry.json',
   ];
   for (const file of expectedCore) {
     if (!onDisk.includes(file)) {
@@ -181,6 +188,190 @@ export function verifyWorkerRoutesInDashboardManifest() {
         findings.push(`view ${view.id} uses ${apiPath} not in dashboard-api-routes.json`);
       }
     }
+  }
+
+  return findings;
+}
+
+export function verifyCloudflareManifestBindings() {
+  const findings = [];
+  const manifest = JSON.parse(readFileSync(join(dashboardRoot, 'public/manifest.json'), 'utf8'));
+  const workerBindings = manifest.cloudflare?.workers?.[0]?.environment_bindings?.d1_databases ?? [];
+  const requiredBindings = ['DB_AGENTS', 'DB_TRANSACTIONS', 'DB_WAGERS'];
+
+  for (const binding of requiredBindings) {
+    if (!workerBindings.includes(binding)) {
+      findings.push(`Missing D1 binding ${binding} in manifest.cloudflare.workers`);
+    }
+  }
+
+  return findings;
+}
+
+export function verifyCloudflarePagesIngestionConfig() {
+  const findings = [];
+  const manifest = JSON.parse(readFileSync(join(dashboardRoot, 'public/manifest.json'), 'utf8'));
+  const dashboardProject = manifest.cloudflare?.pages_projects?.dashboard;
+  const pagesSecrets = dashboardProject?.secrets ?? [];
+  const commonVars = dashboardProject?.build_config?.environment_variables?.common ?? {};
+  const manifestUpstream = commonVars.FANTASY402_WORKER_UPSTREAM;
+
+  const pagesWorkerSource = readFileSync(join(dashboardRoot, '_worker.js'), 'utf8');
+  const syncDevVarsSource = readFileSync(join(dashboardRoot, 'scripts/sync-dev-vars.mjs'), 'utf8');
+  const setSecretsSource = readFileSync(join(dashboardRoot, 'scripts/set-pages-secrets.sh'), 'utf8');
+
+  if (!manifestUpstream) {
+    findings.push('manifest.cloudflare.pages_projects.dashboard missing FANTASY402_WORKER_UPSTREAM');
+  } else {
+    const quoted = JSON.stringify(manifestUpstream);
+    if (!pagesWorkerSource.includes(quoted)) {
+      findings.push(`dashboard/_worker.js DEFAULT_WORKER_ORIGIN does not match manifest upstream ${manifestUpstream}`);
+    }
+    if (!syncDevVarsSource.includes(quoted)) {
+      findings.push(`scripts/sync-dev-vars.mjs default upstream does not match manifest upstream ${manifestUpstream}`);
+    }
+  }
+
+  if (!setSecretsSource.includes('dashboard/public/manifest.json')) {
+    findings.push('scripts/set-pages-secrets.sh must read Pages secrets from public/manifest.json');
+  }
+  if (!setSecretsSource.includes('manifest.cloudflare?.pages_projects?.dashboard?.secrets')) {
+    findings.push('scripts/set-pages-secrets.sh must use manifest.cloudflare.pages_projects.dashboard.secrets');
+  }
+  if (!setSecretsSource.includes('wrangler pages secret put "$secret"')) {
+    findings.push('scripts/set-pages-secrets.sh must set each manifest Pages secret through wrangler');
+  }
+  if (!setSecretsSource.includes('--dry-run')) {
+    findings.push('scripts/set-pages-secrets.sh must support --dry-run for manifest secret inspection');
+  }
+  for (const secret of pagesSecrets) {
+    if (secret === 'INGESTION_TRIGGER_TOKEN' && !setSecretsSource.includes('INGESTION_TRIGGER_TOKEN')) {
+      findings.push('scripts/set-pages-secrets.sh must support INGESTION_TRIGGER_TOKEN resolution');
+    }
+  }
+
+  return findings;
+}
+
+function readTomlStringValue(source, key) {
+  return source.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, 'm'))?.[1] ?? '';
+}
+
+function readTomlArrayValue(source, key) {
+  const raw = source.match(new RegExp(`^${key}\\s*=\\s*\\[([^\\]]*)\\]`, 'm'))?.[1] ?? '';
+  return [...raw.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+}
+
+function readTomlInlineBindingArray(source, key) {
+  const block = source.match(new RegExp(`^${key}\\s*=\\s*\\[([\\s\\S]*?)\\n\\]`, 'm'))?.[1] ?? '';
+  return [...block.matchAll(/binding\s*=\s*"([^"]+)"/g)].map((match) => match[1]);
+}
+
+function readTomlRepeatedSectionBindings(source, section) {
+  const bindings = [];
+  const sectionRe = new RegExp(`\\[\\[${section.replace('.', '\\.')}\\]\\]([\\s\\S]*?)(?=\\n\\[\\[|\\n\\[[^\\[]|$)`, 'g');
+  let match;
+  while ((match = sectionRe.exec(source))) {
+    const binding = match[1].match(/\b(?:binding|name)\s*=\s*"([^"]+)"/)?.[1];
+    if (binding) bindings.push(binding);
+  }
+  return bindings;
+}
+
+function readTomlVars(source) {
+  const block = source.match(/\[vars\]([\s\S]*?)(?=\n\[|$)/)?.[1] ?? '';
+  return Object.fromEntries(
+    [...block.matchAll(/^([A-Z0-9_]+)\s*=\s*"([^"]*)"/gm)].map((match) => [match[1], match[2]]),
+  );
+}
+
+export function verifyCloudflareManifestMatchesWrangler() {
+  const findings = [];
+  const manifest = JSON.parse(readFileSync(join(dashboardRoot, 'public/manifest.json'), 'utf8'));
+  const cloudflare = manifest.cloudflare ?? {};
+  const dashboardProject = cloudflare.pages_projects?.dashboard ?? {};
+  const worker = cloudflare.workers?.[0] ?? {};
+  const workerBindings = worker.environment_bindings ?? {};
+  const workerVars = worker.environment_variables?.production ?? {};
+
+  const dashboardWrangler = readFileSync(join(dashboardRoot, 'wrangler.toml'), 'utf8');
+  const workerWrangler = readFileSync(join(repoRoot, 'workers/fantasy402-ingestion/wrangler.toml'), 'utf8');
+
+  const dashboardName = readTomlStringValue(dashboardWrangler, 'name');
+  if (dashboardName && dashboardName !== 'fantasy402-dashboard') {
+    findings.push(`dashboard/wrangler.toml name ${dashboardName} does not match expected Pages project fantasy402-dashboard`);
+  }
+  const dashboardOutput = readTomlStringValue(dashboardWrangler, 'pages_build_output_dir');
+  if (dashboardOutput !== dashboardProject.build_config?.output_dir) {
+    findings.push(`dashboard Pages output_dir ${dashboardProject.build_config?.output_dir} does not match wrangler pages_build_output_dir ${dashboardOutput}`);
+  }
+  const dashboardCompatibilityDate = readTomlStringValue(dashboardWrangler, 'compatibility_date');
+  if (dashboardCompatibilityDate !== dashboardProject.build_config?.compatibility_date) {
+    findings.push(`dashboard Pages compatibility_date ${dashboardProject.build_config?.compatibility_date} does not match dashboard/wrangler.toml ${dashboardCompatibilityDate}`);
+  }
+
+  const workerName = readTomlStringValue(workerWrangler, 'name');
+  if (workerName !== worker.script_name) {
+    findings.push(`manifest worker script_name ${worker.script_name} does not match worker wrangler name ${workerName}`);
+  }
+  const accountId = readTomlStringValue(workerWrangler, 'account_id');
+  if (accountId !== cloudflare.account_id) {
+    findings.push(`manifest cloudflare.account_id ${cloudflare.account_id} does not match worker wrangler account_id ${accountId}`);
+  }
+  const mainModule = `workers/fantasy402-ingestion/${readTomlStringValue(workerWrangler, 'main')}`;
+  if (mainModule !== worker.main_module) {
+    findings.push(`manifest worker main_module ${worker.main_module} does not match worker wrangler main ${mainModule}`);
+  }
+
+  if (workerVars.ENVIRONMENT !== 'production') {
+    findings.push('manifest worker production environment must include ENVIRONMENT=production');
+  }
+
+  const wranglerKv = readTomlInlineBindingArray(workerWrangler, 'kv_namespaces');
+  const wranglerD1 = readTomlRepeatedSectionBindings(workerWrangler, 'd1_databases');
+  const wranglerR2 = readTomlRepeatedSectionBindings(workerWrangler, 'r2_buckets');
+  const wranglerDo = readTomlRepeatedSectionBindings(workerWrangler, 'durable_objects.bindings');
+  const wranglerSecrets = readTomlRepeatedSectionBindings(workerWrangler, 'secrets_store_secrets');
+  const wranglerVars = readTomlVars(workerWrangler);
+  const wranglerFlags = readTomlArrayValue(workerWrangler, 'compatibility_flags');
+
+  if (wranglerVars.CLOUDFLARE_ZONE_ID !== cloudflare.zone_id) {
+    findings.push(`manifest cloudflare.zone_id ${cloudflare.zone_id} does not match worker wrangler CLOUDFLARE_ZONE_ID ${wranglerVars.CLOUDFLARE_ZONE_ID}`);
+  }
+
+  for (const binding of wranglerKv) {
+    if (!workerBindings.kv_namespaces?.includes(binding)) {
+      findings.push(`manifest worker kv_namespaces missing wrangler binding ${binding}`);
+    }
+  }
+  for (const binding of wranglerD1) {
+    if (!workerBindings.d1_databases?.includes(binding)) {
+      findings.push(`manifest worker d1_databases missing wrangler binding ${binding}`);
+    }
+  }
+  for (const binding of wranglerR2) {
+    if (!workerBindings.r2_buckets?.includes(binding)) {
+      findings.push(`manifest worker r2_buckets missing wrangler binding ${binding}`);
+    }
+  }
+  for (const binding of wranglerDo) {
+    if (!workerBindings.durable_objects?.includes(binding)) {
+      findings.push(`manifest worker durable_objects missing wrangler binding ${binding}`);
+    }
+  }
+  for (const secret of wranglerSecrets) {
+    if (!worker.secrets?.includes(secret)) {
+      findings.push(`manifest worker secrets missing wrangler Secrets Store binding ${secret}`);
+    }
+  }
+  for (const [key, value] of Object.entries(wranglerVars)) {
+    if (key === 'CLOUDFLARE_ACCOUNT_ID' || key === 'CLOUDFLARE_ZONE_ID') continue;
+    if (workerVars[key] !== value) {
+      findings.push(`manifest worker production var ${key} does not match worker wrangler.toml`);
+    }
+  }
+  if (!wranglerFlags.includes('nodejs_compat')) {
+    findings.push('worker wrangler.toml must keep nodejs_compat compatibility flag');
   }
 
   return findings;
@@ -240,11 +431,25 @@ export function runMetadataSyncChecks() {
   );
   findings.push(...verifyHarnessManifestInventory());
   findings.push(...verifyWorkerRoutesInDashboardManifest());
+  findings.push(...verifyCloudflareManifestBindings());
+  findings.push(...verifyCloudflarePagesIngestionConfig());
+  findings.push(...verifyCloudflareManifestMatchesWrangler());
 
   const agentsPath = join(repoRoot, 'AGENTS.md');
-  if (existsSync(agentsPath)) {
-    findings.push(...verifyAgentsMd(readFileSync(agentsPath, 'utf8'), loadMetadata('repo-metadata.json')));
+  const agentsContent = existsSync(agentsPath) ? readFileSync(agentsPath, 'utf8') : '';
+  if (agentsContent) {
+    findings.push(...verifyAgentsMd(agentsContent, loadMetadata('repo-metadata.json')));
   }
+
+  findings.push(
+    ...runNavigationSyncChecks({
+      sidebarConfig: SIDEBAR_CONFIG,
+      groupTabs: GROUP_TABS,
+      tabPaths: TAB_PATHS,
+      llmsContent: llms,
+      agentsContent,
+    }),
+  );
 
   return findings;
 }

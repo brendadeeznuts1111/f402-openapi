@@ -12,6 +12,21 @@ cd workers/fantasy402-ingestion && npm run deploy
 cd dashboard && ./scripts/set-pages-secrets.sh && npm run deploy
 ```
 
+The dashboard Pages proxy contract is declared in `public/manifest.json` under
+`cloudflare.pages_projects.dashboard`: `INGESTION_TRIGGER_TOKEN` must be set as a
+Pages secret, and `FANTASY402_WORKER_UPSTREAM` must point at the ingestion Worker.
+`npm run harness:verify` checks that the manifest, `_worker.js`, and secret setup
+script stay aligned.
+
+Preview the manifest-declared Pages secrets without writing to Cloudflare:
+
+```bash
+cd dashboard
+npm run check:manifest
+# or only the secret plan:
+./scripts/set-pages-secrets.sh --dry-run
+```
+
 ### Local dev (tokens)
 
 ```bash

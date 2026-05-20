@@ -68,9 +68,17 @@ export function listHarnessModules() {
   return files.sort();
 }
 
+export function listNavigationModules() {
+  const dashboardRoot = join(harnessDir, '..');
+  return [
+    join(dashboardRoot, 'js/lib/navigation-schemas.js'),
+    join(dashboardRoot, 'js/lib/navigation-config.js'),
+  ];
+}
+
 export function verifyHarnessNoCycles() {
-  const files = listHarnessModules();
+  const files = [...listHarnessModules(), ...listNavigationModules()];
   const graph = buildImportGraph(files);
   const cycles = findCycles(graph);
-  return cycles.map((c) => `circular harness import: ${c.join(' → ')}`);
+  return cycles.map((c) => `circular import: ${c.join(' → ')}`);
 }

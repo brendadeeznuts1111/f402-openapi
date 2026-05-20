@@ -52,6 +52,15 @@
       "mustInclude": ["samples"]
     },
     {
+      "path": "dashboard/harness/metadata/navigation-registry.json",
+      "mustInclude": ["invalidConfigs", "helperCases"]
+    },
+    {
+      "path": "dashboard/harness/snapshots/navigation-config.snap.json",
+      "json": true,
+      "jsonFields": ["tabPaths", "groupTabs"]
+    },
+    {
       "path": "dashboard/harness/snapshots/performance-baseline.json",
       "json": true,
       "jsonFields": ["schemas", "threshold"]

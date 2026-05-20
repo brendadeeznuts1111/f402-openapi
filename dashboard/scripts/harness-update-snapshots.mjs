@@ -14,7 +14,13 @@ import { writeSnapshot, snapshotsDir } from '../harness/snapshot-store.js';
 import {
   worstBenchmarkSchemaParse,
   writePerformanceBaseline,
+  benchmarkNavigationConfig,
 } from '../harness/performance-benchmark.js';
+import {
+  serializeNavigationSnapshot,
+  SIDEBAR_CONFIG,
+  sidebarConfigSchema,
+} from '../js/lib/navigation-config.js';
 import { readOpenApiWorkerSpec } from '../harness/verify.js';
 import {
   pendingWagersQuerySchema,
@@ -46,6 +52,7 @@ const openApi = readOpenApiWorkerSpec();
 writeSnapshot('openapi-schemas', fingerprintOpenApiSchemas(openApi));
 writeSnapshot('dashboard-zod-schemas', fingerprintSchemaMap(dashboardSchemas));
 writeSnapshot('worker-zod-schemas', fingerprintSchemaMap(workerBindingSchemas));
+writeSnapshot('navigation-config', serializeNavigationSnapshot());
 
 const readme = join(snapshotsDir, 'README.md');
 writeFileSync(
@@ -83,6 +90,11 @@ const perf = {
     date: '2026-05-17',
     limit: '50',
   }),
+  'navigation.validateSidebarConfig': benchmarkNavigationConfig(
+    sidebarConfigSchema,
+    SIDEBAR_CONFIG,
+    500,
+  ),
 };
 const perfOut = {};
 for (const [k, v] of Object.entries(perf)) {
